@@ -1,0 +1,30 @@
+OPUS ELEC - OPUS CHANTIERS v1.0
+
+NE PAS mettre de documents clients directement dans le dépôt GitHub public.
+
+Fonctions v1.0 :
+- plusieurs chantiers ;
+- import/export .opuschantier ;
+- informations client / adresse / devis / organisme de contrôle ;
+- travaux issus de la feuille de chantier ;
+- observations de bureau de contrôle ;
+- photo avant / après par observation ;
+- compte rendu PDF de traitement des observations ;
+- stockage local des documents PDF / bons de commande dans IndexedDB ;
+- fournisseur et agence de retrait ;
+- fiche technicien PDF ;
+- lancement des modules OPUS ;
+- contexte actif OPUS stocké dans localStorage pour la future communication automatique avec BAES/CFO/Intervention/Consignation.
+
+CHANTIER SOPHIXA 001169 :
+Le fichier SOPHIXA_001169.opuschantier est fourni SÉPARÉMENT.
+Ne pas le déposer sur GitHub.
+Après installation de l'application, utiliser « Importer dossier » et sélectionner ce fichier.
+Puis ajouter localement :
+- FeuilleChantier_001169...pdf (catégorie Feuille de chantier)
+- RAPPORT BUREAU VERITAS SOPHIXA.pdf (catégorie Rapport bureau de contrôle)
+- puis les bons de commande Rexel/Yesss/etc. au fur et à mesure.
+
+CLOUD :
+Cette v1.0 stocke les dossiers et documents localement sur l'appareil.
+La prochaine évolution prévue est la synchronisation OneDrive / SharePoint afin que tous les techniciens et le bureau voient le même dossier.

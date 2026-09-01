@@ -1,0 +1,24 @@
+{
+  "name": "OPUS ELEC - Chantiers",
+  "short_name": "OPUS Chantiers",
+  "start_url": "./?app=opus-chantiers-v1",
+  "id": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#edf2f6",
+  "theme_color": "#0b4a8b",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
