@@ -1,22 +1,7 @@
-# OPUS CHANTIERS 3.1.0
+# OPUS CHANTIERS 3.1.1 — correctif connexion
 
-Cette version ajoute la première base métier de pilotage OPUS ELEC autour de Microsoft 365.
+Ce patch évite que le nouveau module Planning / Interventions bloque le bouton Microsoft au démarrage.
+Le module métier est désormais chargé après l'authentification Microsoft ; si son fichier manque ou tarde à se charger, la connexion reste possible et l'interface Chantiers classique reste accessible.
 
-## Nouveaux espaces
-- Chantiers : classement existant, badges de quantité, tri des chantiers « En cours » par prochaine intervention.
-- Interventions : numérotation chronologique INT-AAAA-0001, client/site, planning, équipe, compte rendu terrain, passage terminé.
-- Visites / Devis : numérotation VIS-AAAA-0001, planification et transformation en chantier « À préparer ».
-- Calendrier : vue semaine, affectation des équipes, personnel interne, apprentis, école/absences, prestataires externes.
-- Bureau (administrateur uniquement dans l’interface) : à facturer, base clients, personnel et export mensuel des heures en CSV compatible Excel.
-
-## Règles heures intégrées
-- Salariés OPUS 39 h : lundi-jeudi 8 h / jour, vendredi 7 h.
-- Apprentis 35 h : lundi-jeudi 8 h / jour, vendredi 3 h.
-- Les périodes école des apprentis sont intégrées à l’export.
-- Les heures réalisées sont utilisées quand elles sont renseignées, sinon le planning est exporté comme « Planifié ».
-
-## Important sécurité
-Le bouton « Bureau » est masqué pour les techniciens et visible aux administrateurs configurés dans config.json. Cette séparation d’interface n’est pas encore une séparation Microsoft 365 au niveau des ACL de fichiers : ne stockez pas encore de montants sensibles ou de données comptables confidentielles dans les fichiers partagés. Une zone Microsoft 365 privée « Bureau » devra être créée avant d’y stocker des données financières sensibles.
-
-## Déploiement
-Conserver le workflow GitHub Actions. Charger le contenu de cette version dans le dépôt OPUS_CHANTIERS puis attendre que « Publier OPUS CHANTIERS » soit vert.
+À téléverser entièrement dans le dépôt OPUS_CHANTIERS en conservant les dossiers lib/ et tests/.
+Après le déploiement GitHub Actions vert, fermer tous les onglets OPUS CHANTIERS puis rouvrir l'application.

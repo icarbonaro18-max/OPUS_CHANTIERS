@@ -1,5 +1,4 @@
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js';
-import {OpsUI} from './lib/ops-ui.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
@@ -38,9 +37,17 @@ async function connectCloud(account){
 }
 async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
- opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
- await opsUI.init();
- await updatePending();await refresh();await restoreRoute();await opsUI.restoreSection();clearInterval(pollId);
+ try{
+  const {OpsUI}=await import('./lib/ops-ui.js?v=3.1.1');
+  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
+  await opsUI.init();
+ }catch(e){
+  console.error('Module planning/interventions indisponible',e);
+  opsUI=null;
+  const nav=$('mainNav');if(nav)nav.hidden=true;
+  toast('Connexion Microsoft active. Le module planning/interventions n’a pas pu se charger : rechargez l’application après la mise à jour.');
+ }
+ await updatePending();await refresh();await restoreRoute();if(opsUI)await opsUI.restoreSection();clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine || document.hidden)return;try{await flush();if(live || $('modal').open || !$('viewer').hidden)return;if(!selected)await refresh();else if(tab==='documents')await documents(false);else if(tab==='attestations')await attestations();}catch(e){status('Hors ligne / à vérifier');}},Math.max(30,config.pollSeconds||45)*1000);
  await flush();
 }
