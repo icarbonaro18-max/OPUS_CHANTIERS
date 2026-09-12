@@ -1,4 +1,10 @@
-# OPUS CHANTIERS 3.4.1
+# OPUS CHANTIERS 3.4.2 — IA
+
+Commencer par **docs/06_ACTIVER_IA_VERCEL.md** pour déployer et activer l’IA.
+Le code est prêt ; les variables secrètes et les comptes autorisés restent à
+configurer dans Vercel. Le service IA ne fonctionne pas sur GitHub Pages.
+
+## Historique de la version 3.4.1
 
 Cette version corrige la dictée vocale sur mobile, rend le bouton **Français propre** utile même sans serveur IA, et ajoute l'archivage automatique des rapports d'intervention en PDF dans Microsoft 365.
 
@@ -67,3 +73,11 @@ La 3.4.1 ajoute la dépendance `jspdf`, utilisée pour créer les rapports PDF s
 ## Contrôles réalisés
 - Syntaxe JS : OK.
 - Batterie Node : **28 tests / 28 réussis**.
+# Mise à jour IA 3.4.2
+
+Lire en priorité **docs/06_ACTIVER_IA_VERCEL.md**.
+Le service IA est implémenté mais nécessite un déploiement Vercel, une clé
+OpenAI côté serveur et la liste des comptes Microsoft autorisés.
+Le rapport complet français se génère dans la fiche Intervention.
+Les instructions historiques ci-dessous restent utiles pour Microsoft 365,
+mais GitHub Pages seul ne peut pas exécuter le nouveau service IA.
