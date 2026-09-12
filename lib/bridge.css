@@ -1,0 +1,7 @@
+/* The host owns navigation, Microsoft identity, saving and PDF previews. */
+html.opus-hosted .project-banner,html.opus-hosted #projectsBtn,html.opus-hosted #sourceExportBtn,html.opus-hosted #sourceImportBtn,html.opus-hosted #sourceBtn,html.opus-hosted #importBtn,html.opus-hosted #resetBtn,html.opus-hosted #newBtn,html.opus-hosted #renameProjectBtn,html.opus-hosted #renameProject,html.opus-hosted #saveProjectNowBtn,html.opus-hosted #saveNowBtn,html.opus-hosted #renameBtn,html.opus-hosted #pmNewBtn,html.opus-hosted #pdfBtn,html.opus-hosted #printBtn,html.opus-hosted #previewPdfBtn,html.opus-hosted #previewBtn,html.opus-hosted #shareBtn,html.opus-hosted #exportBtn,html.opus-hosted #saveStatus,html.opus-hosted .save-status{display:none!important}
+html.opus-hosted .appbar{position:relative!important;top:auto!important}
+html.opus-hosted .container{margin-bottom:35px!important}
+html.opus-hosted input,html.opus-hosted select,html.opus-hosted textarea{font-size:16px!important}
+html.opus-hosted button{min-height:42px}
+html.opus-hosted body{padding-top:0!important}

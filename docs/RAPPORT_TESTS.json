@@ -1,0 +1,103 @@
+{
+  "version": "3.0.0",
+  "execution": "Simulations locales, pas de connexion au tenant Microsoft",
+  "inline_scripts_checked": 27,
+  "module_smoke_ok": [
+    "baes",
+    "cfo",
+    "intervention",
+    "consignation",
+    "reserves",
+    "suivi",
+    "visite",
+    "cfa",
+    "ssi",
+    "ea1",
+    "ea2",
+    "ea3",
+    "ea4"
+  ],
+  "data_flows": {
+    "tests": [
+      "BAES : saisie conservée après fermeture/réouverture",
+      "PDF BAES : enregistrement dans dossier commun simulé",
+      "Deuxième attestation : aucun commentaire repris de la première",
+      "Échec réseau simulé : brouillon conservé, non déclaré envoyé",
+      "Retour réseau simulé : envoi repris et attente vidée",
+      "Tablette 800 px : pas de débordement horizontal"
+    ],
+    "errors": []
+  },
+  "pdf_short_form_tests": [
+    {
+      "module": "test_baes",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_cfa",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_cfo",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_consignation",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_ea1",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_ea2",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_ea3",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_ea4",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_intervention",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_reserves",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_ssi",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_suivi",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    },
+    {
+      "module": "test_visite",
+      "pages": 2,
+      "text_blocks_outside_page": 0
+    }
+  ],
+  "node_unit_tests": 6,
+  "live_authentication": "NOT_RUN",
+  "npm_dependency_build": "NOT_RUN — registre npm inaccessible",
+  "real_tablet_sync": "NOT_RUN",
+  "long_forms_regulatory_review": "NOT_RUN"
+}

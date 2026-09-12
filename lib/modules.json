@@ -1,0 +1,132 @@
+{
+  "baes": {
+    "key": "baes",
+    "title": "Contrôle BAES",
+    "subtitle": "Blocs de secours, autonomie, télécommandes et photos",
+    "prefix": "BAES",
+    "group": "Sécurité",
+    "color": "#0d47a1",
+    "badge": "BAES",
+    "path": "./modules/baes/index.html"
+  },
+  "cfo": {
+    "key": "cfo",
+    "title": "Autocontrôle CFO",
+    "subtitle": "Installation électrique, protections, terre et essais",
+    "prefix": "CFO",
+    "group": "Autocontrôles",
+    "color": "#2e7d32",
+    "badge": "CFO",
+    "path": "./modules/cfo/index.html"
+  },
+  "cfa": {
+    "key": "cfa",
+    "title": "Attestation CFA",
+    "subtitle": "Interphonie, RJ45, visiophone et équipements courants faibles",
+    "prefix": "CFA",
+    "group": "Autocontrôles",
+    "color": "#00838f",
+    "badge": "CFA",
+    "path": "./modules/cfa/index.html"
+  },
+  "ssi": {
+    "key": "ssi",
+    "title": "Autocontrôle SSI",
+    "subtitle": "Équipements et fonctions du système de sécurité incendie",
+    "prefix": "SSI",
+    "group": "SSI",
+    "color": "#c62828",
+    "badge": "SSI",
+    "path": "./modules/ssi/index.html"
+  },
+  "ea1": {
+    "key": "ea1",
+    "title": "Équipement d’alarme type 1",
+    "subtitle": "Autocontrôle EA type 1",
+    "prefix": "EA1",
+    "group": "SSI",
+    "color": "#ad1457",
+    "badge": "T1",
+    "path": "./modules/ea1/index.html"
+  },
+  "ea2": {
+    "key": "ea2",
+    "title": "Équipement d’alarme type 2",
+    "subtitle": "Autocontrôle EA type 2",
+    "prefix": "EA2",
+    "group": "SSI",
+    "color": "#8e24aa",
+    "badge": "T2",
+    "path": "./modules/ea2/index.html"
+  },
+  "ea3": {
+    "key": "ea3",
+    "title": "Équipement d’alarme type 3",
+    "subtitle": "Autocontrôle EA type 3",
+    "prefix": "EA3",
+    "group": "SSI",
+    "color": "#6a1b9a",
+    "badge": "T3",
+    "path": "./modules/ea3/index.html"
+  },
+  "ea4": {
+    "key": "ea4",
+    "title": "Équipement d’alarme type 4",
+    "subtitle": "Autocontrôle EA type 4",
+    "prefix": "EA4",
+    "group": "SSI",
+    "color": "#ef6c00",
+    "badge": "T4",
+    "path": "./modules/ea4/index.html"
+  },
+  "intervention": {
+    "key": "intervention",
+    "title": "Bon d’intervention",
+    "subtitle": "Travaux réalisés, matériel, photos et signatures",
+    "prefix": "INT",
+    "group": "Intervention",
+    "color": "#5e35b1",
+    "badge": "INT",
+    "path": "./modules/intervention/index.html"
+  },
+  "consignation": {
+    "key": "consignation",
+    "title": "Consignation électrique",
+    "subtitle": "Consignation, VAT, traçabilité et signatures",
+    "prefix": "CONS",
+    "group": "Intervention",
+    "color": "#37474f",
+    "badge": "🔒",
+    "path": "./modules/consignation/index.html"
+  },
+  "reserves": {
+    "key": "reserves",
+    "title": "Levée de réserves",
+    "subtitle": "Réserves architecte, contrôle et reportage avant/après",
+    "prefix": "RES",
+    "group": "Contrôle",
+    "color": "#b15a00",
+    "badge": "RES",
+    "path": "./modules/reserves/index.html"
+  },
+  "suivi": {
+    "key": "suivi",
+    "title": "Suivi chantier",
+    "subtitle": "Travaux restants, photos et matériel Rexel",
+    "prefix": "SUIVI",
+    "group": "Chantier",
+    "color": "#0097a7",
+    "badge": "SUIVI",
+    "path": "./modules/suivi/index.html"
+  },
+  "visite": {
+    "key": "visite",
+    "title": "Visite avant devis",
+    "subtitle": "Visite express, relevés, demandes et photos générales",
+    "prefix": "VIS",
+    "group": "Chantier",
+    "color": "#a50f1b",
+    "badge": "VIS",
+    "path": "./modules/visite/index.html"
+  }
+}
