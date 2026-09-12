@@ -1,0 +1,9 @@
+PATCH OPUS CHANTIERS 3.0.1
+
+Corrige : Failed to execute 'fetch' on 'Window': Illegal invocation.
+Conserve le correctif de retour de connexion Microsoft.
+Met le cache PWA en 3.0.1 et utilise le reseau en priorite pour le code de l'application, avec cache en secours.
+
+A envoyer a la racine du depot GitHub OPUS_CHANTIERS en conservant l'arborescence.
+Le dossier lib contient cloud.js.
+Apres le deploiement GitHub Actions vert : fermer TOUS les onglets OPUS CHANTIERS sur le PC et la tablette, puis rouvrir l'application.

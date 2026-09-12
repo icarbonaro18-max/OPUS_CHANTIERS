@@ -1,6 +1,6 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.0.0';
+const CACHE=PREFIX+'3.0.1';
 const SCOPE=new URL(self.registration.scope);
 let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
@@ -26,5 +26,5 @@ self.addEventListener('fetch',e=>{
  const canonical=new URL(u.pathname,SCOPE.origin).href;
  if(e.request.mode==='navigate'){
   e.respondWith(fetch(e.request).then(async r=>{if(r.ok && !r.redirected){const c=await caches.open(CACHE);await c.put(canonical,r.clone());}return r;}).catch(async()=>{const c=await caches.open(CACHE);return (await c.match(canonical))||(relative===''?await c.match(new URL('index.html',SCOPE)):null)||new Response('Application non disponible hors ligne. Reconnectez-vous au réseau.',{status:503});}));
- }else e.respondWith((async()=>{const c=await caches.open(CACHE);const cached=await c.match(canonical);if(cached)return cached;const r=await fetch(e.request);if(r.ok&&!r.redirected)await c.put(canonical,r.clone());return r;})());
+ }else e.respondWith((async()=>{const c=await caches.open(CACHE);try{const r=await fetch(e.request,{cache:'no-store'});if(r.ok&&!r.redirected)await c.put(canonical,r.clone());return r;}catch{const cached=await c.match(canonical);return cached||new Response('Ressource OPUS indisponible hors ligne.',{status:503});}})());
 });
