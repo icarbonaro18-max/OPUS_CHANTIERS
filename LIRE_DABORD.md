@@ -1,34 +1,56 @@
-# OPUS CHANTIERS 3.1.3
+# OPUS CHANTIERS 3.2.0
 
-Cette version ajoute la première base métier de pilotage OPUS ELEC autour de Microsoft 365.
+Cette version stabilise les fonctions métier Planning / Interventions / Visites-Devis et intègre les calendriers école des trois apprentis.
 
-## Nouveaux espaces
-- Chantiers : classement existant, badges de quantité, tri des chantiers « En cours » par prochaine intervention.
-- Interventions : numérotation chronologique INT-AAAA-0001, client/site, planning, équipe, compte rendu terrain, passage terminé.
-- Visites / Devis : numérotation VIS-AAAA-0001, planification et transformation en chantier « À préparer ».
-- Calendrier : vue semaine, affectation des équipes, personnel interne, apprentis, école/absences, prestataires externes.
-- Bureau (administrateur uniquement dans l’interface) : à facturer, base clients, personnel et export mensuel des heures en CSV compatible Excel.
+## Planning
+- Vue **Semaine** sous forme de vrai calendrier du lundi au vendredi.
+- Vue **Mois** sous forme de calendrier mensuel.
+- Les éléments planifiés sont cliquables pour être modifiés ou supprimés.
+- Lors d’un enregistrement : le bouton est bloqué pendant l’opération, affiche **✓ Enregistré**, une confirmation apparaît, puis la fenêtre se ferme automatiquement. Cela évite les doublons créés par plusieurs clics.
+- Les chantiers « En cours » sont classés selon leur prochaine intervention planifiée.
+- La disponibilité tient compte des salariés, véhicules, absences, prestataires externes et périodes école.
 
-## Règles heures intégrées
-- Salariés OPUS 39 h : lundi-jeudi 8 h / jour, vendredi 7 h.
-- Apprentis 35 h : lundi-jeudi 8 h / jour, vendredi 3 h.
-- Les périodes école des apprentis sont intégrées à l’export.
-- Les heures réalisées sont utilisées quand elles sont renseignées, sinon le planning est exporté comme « Planifié ».
+## Calendriers apprentis intégrés
+- MISAT Dam Ilan : calendrier Campus des Métiers, jours centre / entreprise.
+- PICARD Alban : calendrier AFPA EEB jusqu’au 26/03/2027.
+- TRAORE Bourama : calendrier Eco-Campus BTS1 ELEC C/D, jours CFA / entreprise.
+- Les jours école rendent automatiquement l’apprenti indisponible à la planification et sont repris dans l’export paie.
 
-## Important sécurité
-Le bouton « Bureau » est masqué pour les techniciens et visible aux administrateurs configurés dans config.json. Cette séparation d’interface n’est pas encore une séparation Microsoft 365 au niveau des ACL de fichiers : ne stockez pas encore de montants sensibles ou de données comptables confidentielles dans les fichiers partagés. Une zone Microsoft 365 privée « Bureau » devra être créée avant d’y stocker des données financières sensibles.
+## Interventions
+- Numéro chronologique INT-AAAA-0001.
+- Client habituel **ou nouveau client**.
+- Pour un nouveau client : Madame, Monsieur, Société, Syndic, Institutionnel ou Autre ; nom/raison sociale, prénom, adresse, téléphone, e-mail.
+- Fiche terrain simplifiée et visuelle : photos en priorité, travaux réalisés, besoin de devis complémentaire Oui/Non, observation facultative, horaires réels et matériel facultatif.
+- Enregistrement avec confirmation et fermeture automatique.
+- Modification et suppression possibles pour les utilisateurs autorisés.
+- Les interventions sont triées chronologiquement.
 
-## Déploiement
-Conserver le workflow GitHub Actions. Charger le contenu de cette version dans le dépôt OPUS_CHANTIERS puis attendre que « Publier OPUS CHANTIERS » soit vert.
+## Visites / Devis
+- Client habituel ou nouveau client avec les mêmes coordonnées.
+- Types : Visite avant devis, Dépannage / diagnostic, Étude technique, Relevé / métrés, Visite sur site.
+- Date/heure de début et de fin.
+- Enregistrement confirmé puis fermeture automatique.
+- Modification / suppression et transformation en chantier pour l’administrateur.
 
-## Équipe OPUS préconfigurée (3.1.3)
+## Équipe OPUS préconfigurée
 - Techniciens avec véhicule : ANZINI Ruben, CARBONARO Roberto, FARRUKU Christian.
 - Technicien sans véhicule : CEESAY Yaya.
-- Apprentis (35 h, sans véhicule) : MISAT Dam Ilan, PICARD Alban, TRAORE Bourama.
-- Les périodes École / absences déjà enregistrées sont conservées lors de la mise à jour.
+- Apprentis 35 h sans véhicule : MISAT Dam Ilan, PICARD Alban, TRAORE Bourama.
+- Roberto reste un technicien affectable aux chantiers et dispose aussi des droits « responsable terrain ».
+- Les prestataires externes peuvent être ajoutés ponctuellement avec leurs dates de disponibilité.
 
+## Heures / paie
+- Salariés OPUS 39 h : lundi-jeudi 8 h / jour, vendredi 7 h.
+- Apprentis 35 h : lundi-jeudi 8 h / jour, vendredi 3 h.
+- Les jours école sont intégrés à l’export mensuel.
+- Si des heures réelles sont saisies, elles sont exportées ; sinon l’événement reste identifié comme « Planifié ».
 
-## Correctifs 3.1.3
-- Les onglets Chantiers / Interventions / Visites-Devis / Calendrier restent visibles après connexion, même si la synchronisation du personnel doit être retentée.
-- Sur tablette et téléphone, la grande barre latérale bleue est supprimée et remplacée par des filtres horizontaux compacts.
-- Le calendrier mobile passe en liste verticale par jour pour rester lisible.
+## Déploiement
+Charger le contenu du patch dans le dépôt GitHub `OPUS_CHANTIERS`, conserver l’arborescence des dossiers, valider sur `main`, puis attendre que **Actes → Publier OPUS CHANTIERS** soit vert.
+
+Après déploiement, fermer puis rouvrir l’application sur les tablettes. Si une ancienne interface reste en cache, effacer les données du site `icarbonaro18-max.github.io` dans Chrome puis rouvrir l’application.
+
+## Contrôles réalisés
+- Vérification syntaxique de `app.js`, `lib/ops.js` et `lib/ops-ui.js` : OK.
+- Batterie Node : **17 tests / 17 réussis**.
+- Le build complet avec téléchargement des dépendances n’a pas été exécuté localement dans cet environnement ; le workflow GitHub Actions reste responsable de `npm install`, du build et du déploiement réel.

@@ -1,0 +1,27 @@
+{
+  "version": "3.2.0",
+  "date": "2026-09-12",
+  "syntax": {
+    "app.js": "ok",
+    "lib/ops.js": "ok",
+    "lib/ops-ui.js": "ok"
+  },
+  "node_tests": {
+    "passed": 17,
+    "failed": 0
+  },
+  "covered": [
+    "cloud revisions and concurrency",
+    "Graph pagination and upload",
+    "Graph delete and move",
+    "intervention numbering",
+    "39h/35h schedules",
+    "school unavailability",
+    "team vehicle defaults",
+    "apprentice calendars preloaded",
+    "business navigation",
+    "tablet sidebar responsive rule",
+    "navigation before people sync"
+  ],
+  "build": "Not executed locally because dependencies were unavailable; GitHub Actions performs npm install/build/deploy."
+}
