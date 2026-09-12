@@ -1,7 +1,8 @@
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js';
+import {OpsUI} from './lib/ops-ui.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
-let config,modules,msal,user,g,journal,store,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
+let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const pendingReplies=new Map();let modalCleanup=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
@@ -37,7 +38,9 @@ async function connectCloud(account){
 }
 async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
- await updatePending();await refresh();await restoreRoute();clearInterval(pollId);
+ opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
+ await opsUI.init();
+ await updatePending();await refresh();await restoreRoute();await opsUI.restoreSection();clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine || document.hidden)return;try{await flush();if(live || $('modal').open || !$('viewer').hidden)return;if(!selected)await refresh();else if(tab==='documents')await documents(false);else if(tab==='attestations')await attestations();}catch(e){status('Hors ligne / à vérifier');}},Math.max(30,config.pollSeconds||45)*1000);
  await flush();
 }
@@ -48,20 +51,20 @@ async function refresh(){status('Actualisation…');
 }
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
- $('sideCategories').innerHTML=CATEGORIES.map(([c,l])=>`<button class="nav ${category===c?'active':''}" data-category="${c}">${l}<b>${catalog.projects.filter(p=>p.category===c).length}</b></button>`).join('');
+ $('sideCategories').innerHTML=CATEGORIES.map(([c,l])=>`<button class="nav ${category===c?'active':''}" data-category="${c}"><span>${l}</span><b class="countBadge">${catalog.projects.filter(p=>p.category===c).length}</b></button>`).join('');
  document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;selected=null;showDashboard();});
- const q=norm($('search').value),ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));
+ const q=norm($('search').value);let ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));if(opsUI&&category==='02')ps=opsUI.sortProjects(ps);
  $('projectCount').textContent=ps.length+' chantier(s)';
- $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span><span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
+ $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span>${opsUI?opsUI.projectEventChip(p.id):''}<span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
  document.querySelectorAll('[data-open-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.openProject).catch(err));
  const loose=catalog.loose.filter(p=>category==='all'||p.category===category);
  $('looseFiles').innerHTML=loose.length?`<div class="panel" style="margin-top:24px"><h2>Documents à classer dans un chantier</h2><p class="muted">Ces fichiers ont été déposés directement dans une rubrique, sans dossier chantier.</p>${loose.map(f=>`<div class="row"><div>${esc(f.name)}<p>${esc(catLabel(f.category))}</p></div><button class="secondary" data-loose="${esc(f.id)}">Consulter</button></div>`).join('')}</div>`:'';
  document.querySelectorAll('[data-loose]').forEach(b=>b.onclick=()=>openDocument(loose.find(f=>f.id===b.dataset.loose)).catch(err));
 }
-function showDashboard(){$('dashboard').hidden=false;$('projectPage').hidden=true;$('allProjects').classList.toggle('active',category==='all');setRoute();renderProjects();}
+function showDashboard(){if(opsUI){opsUI.section='projects';opsUI.setActiveNav();localStorage.setItem('opus-main-section','projects');}$('projectAside').hidden=false;$('dashboard').hidden=false;$('projectPage').hidden=true;for(const id of ['interventionsPage','visitsPage','calendarPage','officePage'])$(id).hidden=true;$('allProjects').classList.toggle('active',category==='all');setRoute();renderProjects();}
 $('allProjects').onclick=()=>{category='all';selected=null;showDashboard();};$('backProjects').onclick=()=>{selected=null;showDashboard();};$('search').oninput=renderProjects;bind('refresh',async()=>{await flush();await refresh();if(selected)await setTab(tab);});
 async function openProject(id){
- const p=catalog.projects.find(x=>x.id===id);if(!p)return;status('Ouverture du chantier…');
+ const p=catalog.projects.find(x=>x.id===id);if(!p)return;if(opsUI){opsUI.section='projects';opsUI.setActiveNav();localStorage.setItem('opus-main-section','projects');$('projectAside').hidden=false;}status('Ouverture du chantier…');
  selected=p;docStack=[{id:p.id,name:'Documents du chantier'}];
  let remoteLoaded=true,r;try{r=await journal.load(p.id,'fiche',null);await store.set('meta:'+p.id,r);}catch(e){remoteLoaded=false;r=await store.get('meta:'+p.id);if(!r)throw e;status('Fiche locale — hors ligne');}
  meta=r.data||metaDefaults(p);metaParents=r.heads.map(h=>h.revision);metaConflict=r.heads.length>1;
@@ -88,6 +91,22 @@ bind('newProject',()=>{
  modal('Créer un chantier',`<form id="newForm"><div class="formGrid">${formFields({name:'',responsable:user.displayName})}<div class="wide"><label>Rubrique</label><select id="newCat">${catalog.categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div></div><div class="actionRow"><button type="submit">Créer le chantier partagé</button></div></form>`);
  $('newForm').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{const m=readFields({tasks:[],observations:[],contactVerified:true});if(!m.name)throw Error('Saisissez le nom du chantier.');const folderName=safeName((m.devis?m.devis+' - ':'')+m.name);if(await g.named($('newCat').value,folderName))throw Error('Ce chantier existe déjà dans cette rubrique. Ouvrez son dossier, sans en créer une copie.');const folder=await g.folder($('newCat').value,folderName);await queueSave(folder.id,'fiche',null,m,[]);await flush();await refresh();$('modal').close();await openProject(folder.id);}catch(e){err(e);}finally{b.disabled=false;}};
 });
+async function createProjectFromVisit(v){
+ if(!catalog.categories.length)throw Error('Les rubriques chantier sont absentes.');
+ const devis=prompt('Numéro du devis / affaire :','');if(!devis)throw Error('Numéro de devis requis pour créer le chantier.');
+ const label=prompt('Nom de l’affaire :',v.clientName||'');if(!label)throw Error('Nom de l’affaire requis.');
+ const cat=catalog.categories.find(c=>c.name.trim().startsWith('01'));if(!cat)throw Error('Rubrique « 01 - A PREPARER » introuvable.');
+ const folderName=safeName(`${devis} - ${label}`);if(await g.named(cat.id,folderName))throw Error('Ce chantier existe déjà.');
+ const folder=await g.folder(cat.id,folderName);
+ const client=opsUI?.clientById(v.clientId),site=opsUI?.siteById(client,v.siteId);
+ const m={...metaDefaults({name:folderName}),name:folderName,client:v.clientName||client?.name||'',devis,adresse:v.siteAddress||site?.address||'',contact:site?.contact||'',telephone:site?.phone||'',email:site?.email||'',responsable:user.displayName,chantier:v.request||v.type||'Travaux',notes:`Créé depuis ${v.number||'une visite'} · ${v.request||''}`,tasks:[],observations:[],contactVerified:true};
+ await queueSave(folder.id,'fiche',null,m,[]);await flush();await refresh();return folder;
+}
+async function moveProjectToInProgress(projectId){
+ const p=catalog.projects.find(x=>x.id===projectId);if(!p||p.category==='02')return;
+ const cat=catalog.categories.find(c=>c.name.trim().startsWith('02'));if(!cat)throw Error('Rubrique « 02 - EN COURS » introuvable.');
+ await g.moveProject(await g.item(projectId),cat);await refresh();
+}
 // Immutable revision outbox: local acknowledgements are explicit; remote acknowledgement only after Graph success.
 function draftKey(p,k,r){return `draft:${p}:${k}:${r||'fiche'}`;}
 async function queueSave(projectId,kind,recordId,payload,parents){

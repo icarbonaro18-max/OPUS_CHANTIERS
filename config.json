@@ -1,5 +1,5 @@
 {
-  "version": "3.0.2",
+  "version": "3.1.0",
   "tenant": "595e6766-879a-4be0-8f96-51a5760336f1",
   "clientId": "27a6b8e9-831e-42e4-96c1-9da09684e0ba",
   "siteHost": "opuselec.sharepoint.com",
@@ -13,5 +13,8 @@
   "adminUsers": [
     "IgnazioCARBONARO@OPUSELEC.onmicrosoft.com",
     "ignazio@opuselec.fr"
+  ],
+  "managerUsers": [
+    "roberto@opuselec.fr"
   ]
 }
