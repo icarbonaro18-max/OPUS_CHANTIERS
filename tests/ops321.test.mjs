@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {OpsRepository} from '../lib/ops.js?v=3.2.1';
+import {OpsRepository} from '../lib/ops.js?v=3.4.0';
 import {readFile} from 'node:fs/promises';
 
 test('planning save falls back when cached Graph has no writeJson', async()=>{
@@ -33,4 +33,18 @@ test('admin client import remains private in Microsoft 365', async()=>{
   const js=await readFile(new URL('../lib/ops-ui.js',import.meta.url),'utf8');
   assert.match(js,/Importer la base clients/);
   assert.match(js,/jamais dans le dépôt GitHub public/);
+});
+
+test('interventions support point-by-point reports with photos', async()=>{
+  const js=await readFile(new URL('../lib/ops-ui.js',import.meta.url),'utf8');
+  assert.match(js,/Points de l’intervention/);
+  assert.match(js,/editInterventionItem/);
+  assert.match(js,/plusieurs photos/);
+});
+
+test('visits support task-by-task survey capture', async()=>{
+  const js=await readFile(new URL('../lib/ops-ui.js',import.meta.url),'utf8');
+  assert.match(js,/Tâches \/ pièces relevées/);
+  assert.match(js,/editVisitTask/);
+  assert.match(js,/faux plafond/);
 });

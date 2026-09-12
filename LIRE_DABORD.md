@@ -1,64 +1,58 @@
-# OPUS CHANTIERS 3.2.1
+# OPUS CHANTIERS 3.4.0
 
-Cette version stabilise les fonctions métier Planning / Interventions / Visites-Devis et intègre les calendriers école des trois apprentis.
+Cette version ajoute l'assistance terrain **photo + voix + aide linguistique** aux fiches Interventions et Visites / Devis.
 
-## Planning
-- Vue **Semaine** sous forme de vrai calendrier du lundi au vendredi.
-- Vue **Mois** sous forme de calendrier mensuel.
-- Les éléments planifiés sont cliquables pour être modifiés ou supprimés.
-- Lors d’un enregistrement : le bouton est bloqué pendant l’opération, affiche **✓ Enregistré**, une confirmation apparaît, puis la fenêtre se ferme automatiquement. Cela évite les doublons créés par plusieurs clics.
-- Les chantiers « En cours » sont classés selon leur prochaine intervention planifiée.
-- La disponibilité tient compte des salariés, véhicules, absences, prestataires externes et périodes école.
+## Dictée vocale
+- Bouton **🎙 Dicter** dans les principaux champs terrain.
+- Choix rapide de la langue : **Italiano** ou **Français**.
+- La dictée se place directement dans le champ actif.
+- Si la reconnaissance vocale du navigateur n'est pas disponible, l'application conseille d'utiliser le micro du clavier Android.
+- Aucun fichier audio n'est conservé par OPUS CHANTIERS.
 
-## Calendriers apprentis intégrés
-- MISAT Dam Ilan : calendrier Campus des Métiers, jours centre / entreprise.
-- PICARD Alban : calendrier AFPA EEB jusqu’au 26/03/2027.
-- TRAORE Bourama : calendrier Eco-Campus BTS1 ELEC C/D, jours CFA / entreprise.
-- Les jours école rendent automatiquement l’apprenti indisponible à la planification et sont repris dans l’export paie.
+## Aide à la rédaction
+- Bouton **✨ Français propre** sur les observations, constats, actions et résumés.
+- Bouton **🇮🇹 Italiano** pour afficher une traduction d'aide en italien.
+- Les textes français restent la référence pour le dossier et le futur PDF client.
+- La version brute saisie/dictée est conservée dans le champ avant validation de la proposition.
+
+## Sécurité IA
+La clé IA n'est **jamais** placée dans GitHub, dans la tablette ou dans `config.json`.
+
+L'application est prête à appeler un **service sécurisé OPUS** via l'option `aiEndpoint`. Tant que ce service n'est pas configuré :
+- la dictée fonctionne si le navigateur la supporte ;
+- la correction orthographique française fonctionne ;
+- les boutons IA affichent simplement que le service sécurisé doit encore être activé.
+
+Voir `docs/05_ASSISTANT_IA.md` pour le contrat du futur service sécurisé.
 
 ## Interventions
-- Numéro chronologique INT-AAAA-0001.
-- Client habituel **ou nouveau client**.
-- Pour un nouveau client : Madame, Monsieur, Société, Syndic, Institutionnel ou Autre ; nom/raison sociale, prénom, adresse, téléphone, e-mail.
-- Fiche terrain simplifiée et visuelle : photos en priorité, travaux réalisés, besoin de devis complémentaire Oui/Non, observation facultative, horaires réels et matériel facultatif.
-- Enregistrement avec confirmation et fermeture automatique.
-- Modification et suppression possibles pour les utilisateurs autorisés.
-- Les interventions sont triées chronologiquement.
+- Plusieurs points par intervention.
+- Plusieurs photos par point.
+- Constat, action, référence / matériel, devis complémentaire.
+- Photos générales, horaires réels, pause, résumé et observations.
+- Dictée et aide linguistique dans les notes terrain.
 
 ## Visites / Devis
-- Client habituel ou nouveau client avec les mêmes coordonnées.
-- Types : Visite avant devis, Dépannage / diagnostic, Étude technique, Relevé / métrés, Visite sur site.
-- Date/heure de début et de fin.
-- Enregistrement confirmé puis fermeture automatique.
-- Modification / suppression et transformation en chantier pour l’administrateur.
+- Plusieurs tâches / pièces.
+- Longueur, largeur, hauteur, faux plafond et hauteur de plénum.
+- Plusieurs photos par tâche et photos générales.
+- Dictée et aide linguistique dans la demande client, le résumé et les observations.
+- Transformation en chantier toujours disponible pour l'administrateur.
 
-## Équipe OPUS préconfigurée
-- Techniciens avec véhicule : ANZINI Ruben, CARBONARO Roberto, FARRUKU Christian.
-- Technicien sans véhicule : CEESAY Yaya.
-- Apprentis 35 h sans véhicule : MISAT Dam Ilan, PICARD Alban, TRAORE Bourama.
-- Roberto reste un technicien affectable aux chantiers et dispose aussi des droits « responsable terrain ».
-- Les prestataires externes peuvent être ajoutés ponctuellement avec leurs dates de disponibilité.
-
-## Heures / paie
-- Salariés OPUS 39 h : lundi-jeudi 8 h / jour, vendredi 7 h.
-- Apprentis 35 h : lundi-jeudi 8 h / jour, vendredi 3 h.
-- Les jours école sont intégrés à l’export mensuel.
-- Si des heures réelles sont saisies, elles sont exportées ; sinon l’événement reste identifié comme « Planifié ».
+## Correctifs conservés
+- Planning Semaine / Mois.
+- Équipe optionnelle et affectable plus tard par Roberto.
+- Clients privés dans Microsoft 365.
+- Planning des apprentis et indisponibilités école.
+- Affichage responsive PC / tablette.
 
 ## Déploiement
-Charger le contenu du patch dans le dépôt GitHub `OPUS_CHANTIERS`, conserver l’arborescence des dossiers, valider sur `main`, puis attendre que **Actes → Publier OPUS CHANTIERS** soit vert.
-
-Après déploiement, fermer puis rouvrir l’application sur les tablettes. Si une ancienne interface reste en cache, effacer les données du site `icarbonaro18-max.github.io` dans Chrome puis rouvrir l’application.
+1. Charger le contenu du patch dans `OPUS_CHANTIERS`.
+2. Conserver l'arborescence des dossiers.
+3. Valider sur `main`.
+4. Attendre que GitHub Actions soit vert.
+5. Fermer et rouvrir l'application sur les tablettes.
 
 ## Contrôles réalisés
-- Vérification syntaxique de `app.js`, `lib/ops.js` et `lib/ops-ui.js` : OK.
-- Batterie Node : **17 tests / 17 réussis**.
-- Le build complet avec téléchargement des dépendances n’a pas été exécuté localement dans cet environnement ; le workflow GitHub Actions reste responsable de `npm install`, du build et du déploiement réel.
-
-
-## Correctifs 3.2.1
-- Enregistrement du planning compatible avec les anciens caches (`writeJson` fallback).
-- Affectation de l'équipe optionnelle : bouton « Choisir l'équipe », Roberto peut l'affecter plus tard.
-- Pleine largeur sur PC lorsque la barre chantier est masquée.
-- Import administrateur de la base clients dans Microsoft 365 (ne jamais publier le fichier clients sur GitHub).
-- Recherche dans les clients habituels par nom ou adresse.
+- Syntaxe : `app.js`, `lib/ops.js`, `lib/ops-ui.js`, `lib/assistant.js` : **OK**.
+- Batterie Node : **26 tests / 26 réussis**.
