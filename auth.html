@@ -1,1 +1,42 @@
-<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Connexion Microsoft · OPUS</title><p id="status">Connexion Microsoft en cours…</p><script type="module">import {broadcastResponseToMainFrame} from './vendor/msal-bridge.js';broadcastResponseToMainFrame().catch(()=>document.getElementById('status').textContent='La connexion n’a pas abouti. Revenez à OPUS CHANTIERS et réessayez.');</script></html>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Connexion Microsoft · OPUS CHANTIERS</title>
+</head>
+<body>
+  <p id="status">Connexion Microsoft en cours…</p>
+  <script type="module">
+    const status = document.getElementById('status');
+    try {
+      const configResponse = await fetch('./config.json', { cache: 'no-store' });
+      if (!configResponse.ok) throw new Error('Configuration OPUS introuvable.');
+      const config = await configResponse.json();
+      const M = await import('./vendor/msal.js');
+
+      const msal = new M.PublicClientApplication({
+        auth: {
+          clientId: config.clientId,
+          authority: `https://login.microsoftonline.com/${config.tenant}`,
+          redirectUri: new URL('./auth.html', location.href).href,
+          postLogoutRedirectUri: new URL('./', location.href).href
+        },
+        cache: { cacheLocation: 'sessionStorage' }
+      });
+
+      await msal.initialize();
+      const response = await msal.handleRedirectPromise();
+      if (response?.account) msal.setActiveAccount(response.account);
+
+      // Une fois la réponse Microsoft traitée et mise en cache par MSAL,
+      // retour à l'application principale. Celle-ci retrouve alors le compte.
+      location.replace(new URL('./', location.href).href);
+    } catch (error) {
+      console.error(error);
+      status.textContent = `La connexion n’a pas abouti : ${error?.message || error}. Revenez à OPUS CHANTIERS et réessayez.`;
+    }
+  </script>
+</body>
+</html>
