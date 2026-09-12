@@ -56,3 +56,21 @@
   .weekGrid.workWeek{grid-template-columns:repeat(5,minmax(0,1fr))!important}.weekGrid.workWeek .dayCol>header small{display:none}.monthCell{min-height:72px;padding:3px}.monthEvent{font-size:7px}.monthEvent b{display:none}.monthCell small{font-size:8px}.reportPhotos{grid-template-columns:1fr 1fr}.reportPhoto img{height:110px}
   dialog{width:calc(100% - 14px);max-height:96dvh}#modalBody{padding:12px}.dialogHead{padding:11px 13px}
 }
+
+
+/* ===== 3.2.1 · bureau large, équipe différée, correctif stockage ===== */
+#projectAside[hidden] + main{grid-column:1/-1}
+#interventionsPage,#visitsPage,#calendarPage,#officePage{width:100%;min-width:0}
+#calendarPage .weekGrid.workWeek{width:100%}
+.teamAssignBox{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:18px 0 8px;padding:13px 14px;background:#f7fafc;border:1px solid var(--line);border-radius:11px}
+.teamAssignBox p{margin:3px 0 0}
+#eventTeam{padding:10px 0 2px}
+.compactActions{margin-top:0;justify-content:flex-end}
+@media(min-width:981px){
+  #projectAside[hidden] + main{padding-left:32px;padding-right:32px}
+  #calendarPage .pageHeading,#interventionsPage .pageHeading,#visitsPage .pageHeading,#officePage .pageHeading{width:100%}
+  #calendarPage .weekGrid.workWeek{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .teamAssignBox{align-items:flex-start;flex-direction:column}.teamAssignBox button{width:100%}
+}

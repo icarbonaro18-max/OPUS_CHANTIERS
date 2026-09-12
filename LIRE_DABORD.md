@@ -1,4 +1,4 @@
-# OPUS CHANTIERS 3.2.0
+# OPUS CHANTIERS 3.2.1
 
 Cette version stabilise les fonctions métier Planning / Interventions / Visites-Devis et intègre les calendriers école des trois apprentis.
 
@@ -54,3 +54,11 @@ Après déploiement, fermer puis rouvrir l’application sur les tablettes. Si u
 - Vérification syntaxique de `app.js`, `lib/ops.js` et `lib/ops-ui.js` : OK.
 - Batterie Node : **17 tests / 17 réussis**.
 - Le build complet avec téléchargement des dépendances n’a pas été exécuté localement dans cet environnement ; le workflow GitHub Actions reste responsable de `npm install`, du build et du déploiement réel.
+
+
+## Correctifs 3.2.1
+- Enregistrement du planning compatible avec les anciens caches (`writeJson` fallback).
+- Affectation de l'équipe optionnelle : bouton « Choisir l'équipe », Roberto peut l'affecter plus tard.
+- Pleine largeur sur PC lorsque la barre chantier est masquée.
+- Import administrateur de la base clients dans Microsoft 365 (ne jamais publier le fichier clients sur GitHub).
+- Recherche dans les clients habituels par nom ou adresse.
