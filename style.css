@@ -5,3 +5,37 @@
 .mainNav{max-width:1600px;margin:auto;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:10px 20px;position:sticky;top:84px;z-index:29;overflow:auto}.mainNav button{background:#edf3f7;color:var(--navy);border:1px solid #d7e2ea;white-space:nowrap}.mainNav button.active{background:var(--navy);color:#fff}.roleBadge{margin-left:auto;white-space:nowrap;background:#eef6fb;color:var(--navy);font-size:11px;font-weight:800;padding:7px 10px;border-radius:999px}.countBadge{display:inline-grid!important;place-items:center;min-width:25px;height:25px;padding:0 7px!important;background:#fff!important;color:var(--navy)!important;border:1px solid #d3e0e9;border-radius:7px;font-size:12px!important;opacity:1!important}.statusTiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 20px}.statusTiles>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px}.statusTiles strong{font-size:25px;color:var(--navy);display:block}.statusTiles span{font-size:12px;color:var(--muted)}.calendarChip{background:#edf7ff;color:#0c5d90}.calendarTools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.weekGrid{display:grid;grid-template-columns:repeat(7,minmax(180px,1fr));gap:9px;overflow:auto;padding-bottom:10px}.dayCol{background:#fff;border:1px solid var(--line);border-radius:13px;min-height:360px;overflow:hidden}.dayCol>header{padding:12px;background:#eef4f8;border-bottom:1px solid var(--line);display:block;position:static;min-height:auto}.dayCol>header strong{display:block;text-transform:capitalize;color:var(--navy)}.dayCol>header small{font-size:10px;color:var(--muted)}.dayEvents{padding:9px;display:grid;gap:8px}.eventCard{width:100%;text-align:left;padding:10px;border-radius:9px;min-height:0;background:#eaf2f8;color:var(--navy);border:1px solid #cbdde9}.eventCard.intervention{background:#f2ecfb;color:#5b3480;border-color:#dfd0ee}.eventCard.visit{background:#fff4df;color:#7c5710;border-color:#edd6a2}.eventCard strong,.eventCard span,.eventCard small{display:block}.eventCard span{font-size:10px;opacity:.8}.eventCard small{font-size:10px;margin-top:4px}.freeSlot{border:1px dashed #bcd0dd;border-radius:8px;color:#6b8294;padding:11px;text-align:center;font-size:12px}.teamPicker{margin:18px 0}.teamPickerHead{display:flex;justify-content:space-between;gap:12px;margin-bottom:9px}.teamPickerHead span{font-size:12px;color:var(--muted)}.teamList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.personPick{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;padding:10px;margin:0;background:#fff}.personPick input{width:20px;min-height:20px}.personPick span{display:block}.personPick strong,.personPick small{display:block}.personPick small{font-size:11px;color:var(--muted)}.personPick.disabled{opacity:.5;background:#f3f5f7}.adminGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.detailGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.detailGrid>div{border:1px solid var(--line);border-radius:10px;padding:12px}.detailGrid strong{display:block;font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}.detailGrid span{white-space:pre-wrap}.siteEdit{display:grid;grid-template-columns:1fr 2fr 1fr 1fr 1fr;gap:6px;margin-bottom:7px}.siteEdit input{min-height:38px;font-size:13px;padding:7px}.periodRow{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}.periodRow input{min-height:38px;font-size:13px}.mainNav+ #shell aside{top:139px;height:calc(100vh - 139px);min-height:calc(100vh - 139px)}
 @media(max-width:1000px){.weekGrid{grid-template-columns:repeat(7,minmax(165px,1fr))}.adminGrid{grid-template-columns:1fr}.siteEdit{grid-template-columns:1fr 1fr}.mainNav{top:79px}}
 @media(max-width:760px){.mainNav{position:sticky;top:0;padding:7px 8px;gap:6px}.mainNav button{padding:8px 11px;min-height:39px;font-size:12px}.roleBadge{display:none}.metrics{display:none}.mainNav+#shell aside{top:47px}.statusTiles{grid-template-columns:repeat(3,1fr);gap:7px}.statusTiles>div{padding:10px}.statusTiles strong{font-size:21px}.weekGrid{grid-template-columns:repeat(7,minmax(155px,1fr))}.teamList{grid-template-columns:1fr}.detailGrid{grid-template-columns:1fr}.siteEdit{grid-template-columns:1fr}.calendarTools strong{width:100%;order:-1}.pageHeading .actionRow{margin-top:0}}
+
+
+/* ===== 3.1.3 · tablette/telephone : navigation lisible, aucun grand panneau bleu ===== */
+.mobileProjectFilters{display:none}
+@media(max-width:980px){
+  header{position:relative;min-height:auto;padding:10px 12px;flex-wrap:wrap}
+  .brand img{width:132px}.brand span{font-size:14px}.brand small{display:none}
+  .topright{width:100%;justify-content:flex-start;overflow:auto;padding-bottom:2px}.topright #connection{margin-right:auto;white-space:nowrap}
+  .mainNav{position:sticky;top:0;z-index:45;max-width:none;width:100%;padding:8px 10px;gap:7px;border-top:1px solid var(--line);box-shadow:0 3px 10px #0000000d}
+  .mainNav button{flex:0 0 auto;min-height:40px;padding:8px 12px}.roleBadge{display:none}
+  #shell{display:block;max-width:none;width:100%;margin:0}
+  #projectAside{display:none!important}
+  main{padding:16px 12px;width:100%;max-width:none}
+  .mobileProjectFilters{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:thin}
+  .mobileProjectFilters button{flex:0 0 auto;background:#edf3f7;color:var(--navy);border-color:#d4e0e8;min-height:38px;padding:7px 10px;font-size:12px;white-space:nowrap}
+  .mobileProjectFilters button.active{background:var(--navy);color:#fff}.mobileProjectFilters .countBadge{margin-left:4px}
+  .metrics{display:none}
+  .pageHeading{margin-bottom:14px}.pageHeading h1{font-size:25px}.pageHeading>button{flex:0 0 auto}
+  .searchline{margin:8px 0 14px;display:block}.searchline input{max-width:none}.searchline span{display:block;margin-top:6px}
+  .projectCard{padding:15px;gap:10px}.projectCard h3{font-size:16px;overflow-wrap:anywhere}.projectCard button{min-width:82px;padding:9px 11px}
+  .statusTiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .adminGrid{grid-template-columns:1fr}
+  .weekGrid{display:block;overflow:visible}.dayCol{min-height:auto;margin-bottom:10px}.dayEvents{min-height:60px}
+  .calendarTools{position:sticky;top:58px;background:var(--bg);z-index:10;padding:6px 0}
+}
+@media(max-width:560px){
+  .brand{gap:8px}.brand img{width:118px}.brand span{padding-left:9px}
+  .topright{gap:6px}.topright button{padding:8px 10px;font-size:12px;min-height:38px}
+  .pageHeading{display:block}.pageHeading>button{margin-top:10px;width:100%}
+  .projectCard{display:block}.projectCard>button{width:100%;margin-top:10px}
+  .statusTiles{grid-template-columns:1fr 1fr 1fr}.statusTiles>div{padding:9px}.statusTiles strong{font-size:20px}
+  .mainNav{padding:7px 8px}.mainNav button{font-size:12px}
+  .projectHero{border-radius:12px}.tabs{gap:2px}.tabs button{font-size:12px;padding:9px 8px}
+}

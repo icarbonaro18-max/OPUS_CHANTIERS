@@ -38,7 +38,7 @@ async function connectCloud(account){
 async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
-  const {OpsUI}=await import('./lib/ops-ui.js?v=3.1.2');
+  const {OpsUI}=await import('./lib/ops-ui.js?v=3.1.3');
   opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
   await opsUI.init();
  }catch(e){
@@ -59,6 +59,7 @@ async function refresh(){status('Actualisation…');
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
  $('sideCategories').innerHTML=CATEGORIES.map(([c,l])=>`<button class="nav ${category===c?'active':''}" data-category="${c}"><span>${l}</span><b class="countBadge">${catalog.projects.filter(p=>p.category===c).length}</b></button>`).join('');
+ const mf=$('mobileProjectFilters');if(mf){mf.innerHTML=`<button class="${category==='all'?'active':''}" data-mobile-category="all">Tous <b class="countBadge">${catalog.projects.length}</b></button>`+CATEGORIES.map(([c,l])=>`<button class="${category===c?'active':''}" data-mobile-category="${c}">${l} <b class="countBadge">${catalog.projects.filter(p=>p.category===c).length}</b></button>`).join('');mf.querySelectorAll('[data-mobile-category]').forEach(b=>b.onclick=()=>{category=b.dataset.mobileCategory;selected=null;showDashboard();});}
  document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;selected=null;showDashboard();});
  const q=norm($('search').value);let ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));if(opsUI&&category==='02')ps=opsUI.sortProjects(ps);
  $('projectCount').textContent=ps.length+' chantier(s)';
