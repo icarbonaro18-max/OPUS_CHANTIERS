@@ -1,5 +1,5 @@
 {
-  "version": "3.1.1",
+  "version": "3.1.2",
   "tenant": "595e6766-879a-4be0-8f96-51a5760336f1",
   "clientId": "27a6b8e9-831e-42e4-96c1-9da09684e0ba",
   "siteHost": "opuselec.sharepoint.com",
@@ -16,5 +16,77 @@
   ],
   "managerUsers": [
     "roberto@opuselec.fr"
+  ],
+  "defaultPeople": [
+    {
+      "employeeCode": "000012",
+      "name": "ANZINI Ruben",
+      "email": "",
+      "type": "internal",
+      "role": "technicien",
+      "weeklyTarget": 39,
+      "vehicle": true,
+      "active": true
+    },
+    {
+      "employeeCode": "000001",
+      "name": "CARBONARO Roberto",
+      "email": "roberto@opuselec.fr",
+      "type": "internal",
+      "role": "technicien",
+      "weeklyTarget": 39,
+      "vehicle": true,
+      "active": true
+    },
+    {
+      "employeeCode": "000003",
+      "name": "CEESAY Yaya",
+      "email": "",
+      "type": "internal",
+      "role": "technicien",
+      "weeklyTarget": 39,
+      "vehicle": false,
+      "active": true
+    },
+    {
+      "employeeCode": "000013",
+      "name": "FARRUKU Christian",
+      "email": "",
+      "type": "internal",
+      "role": "technicien",
+      "weeklyTarget": 39,
+      "vehicle": true,
+      "active": true
+    },
+    {
+      "employeeCode": "000011",
+      "name": "MISAT Dam Ilan",
+      "email": "",
+      "type": "internal",
+      "role": "apprenti",
+      "weeklyTarget": 35,
+      "vehicle": false,
+      "active": true
+    },
+    {
+      "employeeCode": "000010",
+      "name": "PICARD Alban",
+      "email": "",
+      "type": "internal",
+      "role": "apprenti",
+      "weeklyTarget": 35,
+      "vehicle": false,
+      "active": true
+    },
+    {
+      "employeeCode": "000002",
+      "name": "TRAORE Bourama",
+      "email": "",
+      "type": "internal",
+      "role": "apprenti",
+      "weeklyTarget": 35,
+      "vehicle": false,
+      "active": true
+    }
   ]
 }

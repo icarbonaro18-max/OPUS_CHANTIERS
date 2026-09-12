@@ -1,7 +1,10 @@
-# OPUS CHANTIERS 3.1.1 — correctif connexion
+# Patch OPUS CHANTIERS 3.1.2
 
-Ce patch évite que le nouveau module Planning / Interventions bloque le bouton Microsoft au démarrage.
-Le module métier est désormais chargé après l'authentification Microsoft ; si son fichier manque ou tarde à se charger, la connexion reste possible et l'interface Chantiers classique reste accessible.
+Mise à jour de l'équipe OPUS :
+- Techniciens avec véhicule : ANZINI Ruben, CARBONARO Roberto, FARRUKU Christian.
+- Technicien sans véhicule : CEESAY Yaya.
+- Apprentis sans véhicule : MISAT Dam Ilan, PICARD Alban, TRAORE Bourama.
+- Bases horaires : techniciens 39 h, apprentis 35 h.
+- Les périodes École et absences existantes sont conservées.
 
-À téléverser entièrement dans le dépôt OPUS_CHANTIERS en conservant les dossiers lib/ et tests/.
-Après le déploiement GitHub Actions vert, fermer tous les onglets OPUS CHANTIERS puis rouvrir l'application.
+Déposer tout le contenu de ce patch dans le dépôt GitHub OPUS_CHANTIERS, branche main, en conservant les dossiers lib/ et tests/.

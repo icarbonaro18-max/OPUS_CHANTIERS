@@ -38,7 +38,7 @@ async function connectCloud(account){
 async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
-  const {OpsUI}=await import('./lib/ops-ui.js?v=3.1.1');
+  const {OpsUI}=await import('./lib/ops-ui.js?v=3.1.2');
   opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
   await opsUI.init();
  }catch(e){
