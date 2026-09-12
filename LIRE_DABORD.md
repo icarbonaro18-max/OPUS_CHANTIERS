@@ -1,58 +1,69 @@
-# OPUS CHANTIERS 3.4.0
+# OPUS CHANTIERS 3.4.1
 
-Cette version ajoute l'assistance terrain **photo + voix + aide linguistique** aux fiches Interventions et Visites / Devis.
+Cette version corrige la dictée vocale sur mobile, rend le bouton **Français propre** utile même sans serveur IA, et ajoute l'archivage automatique des rapports d'intervention en PDF dans Microsoft 365.
 
-## Dictée vocale
-- Bouton **🎙 Dicter** dans les principaux champs terrain.
-- Choix rapide de la langue : **Italiano** ou **Français**.
-- La dictée se place directement dans le champ actif.
-- Si la reconnaissance vocale du navigateur n'est pas disponible, l'application conseille d'utiliser le micro du clavier Android.
-- Aucun fichier audio n'est conservé par OPUS CHANTIERS.
+## Dictée vocale corrigée
+- La dictée n'utilise plus le mode continu qui répétait parfois plusieurs fois le même mot sur Chrome/Samsung/iPhone.
+- Une dictée s'arrête après le silence, puis le technicien peut relancer le micro si nécessaire.
+- Les répétitions immédiates de mots ou petits groupes sont nettoyées avant d'être ajoutées au champ.
+- Langue toujours sélectionnable : **Italiano** ou **Français**.
 
-## Aide à la rédaction
-- Bouton **✨ Français propre** sur les observations, constats, actions et résumés.
-- Bouton **🇮🇹 Italiano** pour afficher une traduction d'aide en italien.
-- Les textes français restent la référence pour le dossier et le futur PDF client.
-- La version brute saisie/dictée est conservée dans le champ avant validation de la proposition.
+## Français propre
+Si le service IA sécurisé OPUS est connecté, le bouton appelle ce service comme prévu.
 
-## Sécurité IA
-La clé IA n'est **jamais** placée dans GitHub, dans la tablette ou dans `config.json`.
+Si le service n'est pas encore connecté, le bouton ne reste plus sans effet :
+- suppression locale des répétitions évidentes ;
+- nettoyage de la ponctuation ;
+- quelques traductions électriques courantes italien -> français servent de mode de secours ;
+- un message indique clairement qu'il s'agit d'une mise au propre locale et non de la rédaction IA complète.
 
-L'application est prête à appeler un **service sécurisé OPUS** via l'option `aiEndpoint`. Tant que ce service n'est pas configuré :
-- la dictée fonctionne si le navigateur la supporte ;
-- la correction orthographique française fonctionne ;
-- les boutons IA affichent simplement que le service sécurisé doit encore être activé.
+La règle reste la même : aucune fonction ne doit inventer une mesure, une référence, un diagnostic ou une prestation non constatée par le technicien.
 
-Voir `docs/05_ASSISTANT_IA.md` pour le contrat du futur service sécurisé.
+## Rapport PDF d'intervention
+Une intervention terminée peut maintenant produire un **PDF autonome** directement dans l'application.
 
-## Interventions
-- Plusieurs points par intervention.
-- Plusieurs photos par point.
-- Constat, action, référence / matériel, devis complémentaire.
-- Photos générales, horaires réels, pause, résumé et observations.
-- Dictée et aide linguistique dans les notes terrain.
+Le PDF reprend notamment :
+- numéro d'intervention ;
+- client et adresse ;
+- équipe ;
+- date et horaires réalisés ;
+- points d'intervention ;
+- constats ;
+- actions / préconisations ;
+- références / matériel ;
+- photos par point ;
+- photos générales ;
+- résumé ;
+- observations ;
+- indication de devis complémentaire.
 
-## Visites / Devis
-- Plusieurs tâches / pièces.
-- Longueur, largeur, hauteur, faux plafond et hauteur de plénum.
-- Plusieurs photos par tâche et photos générales.
-- Dictée et aide linguistique dans la demande client, le résumé et les observations.
-- Transformation en chantier toujours disponible pour l'administrateur.
+Deux boutons sont disponibles dans la fiche intervention :
+- **Télécharger le PDF** ;
+- **Enregistrer PDF dans OPUS**.
 
-## Correctifs conservés
-- Planning Semaine / Mois.
-- Équipe optionnelle et affectable plus tard par Roberto.
-- Clients privés dans Microsoft 365.
-- Planning des apprentis et indisponibilités école.
-- Affichage responsive PC / tablette.
+Lorsqu'un rapport est terminé, l'application essaie aussi d'archiver automatiquement le PDF.
+
+## Où retrouver les interventions dans Microsoft 365
+Les rapports sont classés automatiquement dans la bibliothèque partagée OPUS CHANTIERS :
+
+`INTERVENTIONS / année / INT-AAAA-XXXX_CLIENT /`
+
+Le dossier contient :
+- `INT-AAAA-XXXX_RAPPORT_INTERVENTION.pdf`
+- `intervention.json`
+
+Le technicien reste dans OPUS CHANTIERS ; il n'a pas besoin d'aller dans OneDrive ou SharePoint pour travailler.
 
 ## Déploiement
-1. Charger le contenu du patch dans `OPUS_CHANTIERS`.
-2. Conserver l'arborescence des dossiers.
-3. Valider sur `main`.
-4. Attendre que GitHub Actions soit vert.
-5. Fermer et rouvrir l'application sur les tablettes.
+1. Charger tout le contenu du patch dans le dépôt `OPUS_CHANTIERS` en conservant l'arborescence.
+2. Valider sur `main`.
+3. Attendre que GitHub Actions soit vert.
+4. Fermer puis rouvrir l'application sur PC et tablette.
+5. Si une ancienne version reste affichée, effacer les données du site GitHub Pages dans le navigateur.
+
+## Important pour GitHub Actions
+La 3.4.1 ajoute la dépendance `jspdf`, utilisée pour créer les rapports PDF sans impression navigateur. GitHub Actions l'installe lors du build et génère `vendor/jspdf.js`.
 
 ## Contrôles réalisés
-- Syntaxe : `app.js`, `lib/ops.js`, `lib/ops-ui.js`, `lib/assistant.js` : **OK**.
-- Batterie Node : **26 tests / 26 réussis**.
+- Syntaxe JS : OK.
+- Batterie Node : **28 tests / 28 réussis**.

@@ -22,3 +22,18 @@ test('intervention and visit forms bind assistant tools', async()=>{
   assert.match(js,/this\.assistant\.toolsHtml\('vtNeed'/);
   assert.match(js,/this\.assistant\.bind/);
 });
+
+test('dictation avoids continuous duplicated segments and has local cleanup fallback', async()=>{
+  const js=await readFile(new URL('../lib/assistant.js',import.meta.url),'utf8');
+  assert.match(js,/rec\.continuous=false/);
+  assert.match(js,/cleanTranscript/);
+  assert.match(js,/localFrenchCleanup/);
+});
+
+test('intervention report can generate and archive a PDF', async()=>{
+  const js=await readFile(new URL('../lib/ops-ui.js',import.meta.url),'utf8');
+  assert.match(js,/interventionPdf/);
+  assert.match(js,/saveInterventionPackage/);
+  assert.match(js,/INTERVENTIONS/);
+  assert.match(js,/Télécharger le PDF/);
+});

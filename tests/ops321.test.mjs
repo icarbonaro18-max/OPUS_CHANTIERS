@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {OpsRepository} from '../lib/ops.js?v=3.4.0';
+import {OpsRepository} from '../lib/ops.js?v=3.4.1';
 import {readFile} from 'node:fs/promises';
 
 test('planning save falls back when cached Graph has no writeJson', async()=>{

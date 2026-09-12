@@ -2,6 +2,7 @@ import {build} from 'esbuild';
 import {mkdir,copyFile,cp,writeFile,access,readdir,rm} from 'node:fs/promises';
 await mkdir('vendor',{recursive:true});
 await build({stdin:{contents:"export * from '@azure/msal-browser';",resolveDir:process.cwd()},bundle:true,format:'esm',target:['chrome109','safari16'],outfile:'vendor/msal.js',minify:true,legalComments:'eof'});
+await build({stdin:{contents:"export {jsPDF} from 'jspdf';",resolveDir:process.cwd()},bundle:true,format:'esm',target:['chrome109','safari16'],outfile:'vendor/jspdf.js',minify:true,legalComments:'eof'});
 await build({stdin:{contents:"export {broadcastResponseToMainFrame} from '@azure/msal-browser/redirect-bridge';",resolveDir:process.cwd()},bundle:true,format:'esm',target:['chrome109','safari16'],outfile:'vendor/msal-bridge.js',minify:true,legalComments:'eof'});
 await copyFile('node_modules/pdfjs-dist/legacy/build/pdf.min.mjs','vendor/pdf.mjs');
 await copyFile('node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs','vendor/pdf.worker.mjs');
