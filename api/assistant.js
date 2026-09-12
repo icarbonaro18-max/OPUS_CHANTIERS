@@ -25,7 +25,14 @@ export function createHandler({env=process.env, fetcher=globalThis.fetch}={}) {
         body:JSON.stringify({model:env.OPENAI_MODEL||'gpt-5',store:false,instructions,
           input:JSON.stringify({action:body.action,text:body.text,context:body.context||{}}),max_output_tokens:6000}),signal:AbortSignal.timeout(50000)
       });
-      if(!response.ok)return fail(response.status===429?429:502,response.status===429?'Quota IA atteint ou trop de demandes. Réessayez plus tard.':'Le fournisseur IA est indisponible. Vérifiez sa configuration.');
+      if(!response.ok){
+        let detail;try{detail=await response.json();}catch{}
+        // Never expose provider messages: they can contain credentials or input.
+        const knownCodes=new Set(['invalid_api_key','model_not_found','insufficient_quota','rate_limit_exceeded','permission_denied','unsupported_parameter','invalid_value','invalid_request_error']);
+        const code=knownCodes.has(detail?.error?.code)?detail.error.code:'non_precise';
+        const messages={401:'Clé OpenAI refusée : vérifier OPENAI_API_KEY.',403:'Accès OpenAI refusé : vérifier les permissions du projet et du modèle.',404:'Ressource ou modèle OpenAI introuvable : vérifier OPENAI_MODEL et son accès.',400:'Requête refusée par OpenAI : vérifier les paramètres envoyés.',429:'Quota ou limite de demandes OpenAI atteint.'};
+        return fail(response.status===429?429:502,(messages[response.status]||'Erreur du service OpenAI.')+' [HTTP '+response.status+' ; code '+code+']');
+      }
       const data=await response.json();
       if(data.status!=='completed')return fail(502,'Rapport incomplet : raccourcissez les notes et réessayez.');
       const text=(data.output||[]).flatMap(o=>o.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n').trim();
