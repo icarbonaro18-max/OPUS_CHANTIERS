@@ -17,13 +17,30 @@ test('pagination follows Microsoft nextLink, no arbitrary outbound token',async(
  await assert.rejects(()=>g.request('https://evil.example/take-token'),/non autorisée/);
 });
 test('upload ranges are multiples of 320 KiB, URL is preauthorized without bearer',async()=>{
- const calls=[];const size=10*327680+23;
- const g=new Graph(async()=>'test-token',async(u,o)=>{calls.push([u,o]);if(u.startsWith('https://graph.microsoft.com/'))return new Response(JSON.stringify({uploadUrl:'https://upload.example/session'}));if(calls.length===2)return new Response(JSON.stringify({nextExpectedRanges:['3276800-']}),{status:202});return new Response(JSON.stringify({id:'confirmed',name:'source.json'}),{status:201});});g.drive={id:'test'};
+ const calls=[];const size=13*327680+23;
+ const g=new Graph(async()=>'test-token',async(u,o)=>{calls.push([u,o]);
+  if(u.includes(':/source.json')&&(!o.method||o.method==='GET'))return new Response(JSON.stringify({error:{message:'not found'}}),{status:404});
+  if(u.includes('/createUploadSession'))return new Response(JSON.stringify({uploadUrl:'https://upload.example/session'}));
+  const putCalls=calls.filter(([url,opts])=>url==='https://upload.example/session'&&opts.method==='PUT');
+  if(putCalls.length===1)return new Response(JSON.stringify({nextExpectedRanges:['3276800-']}),{status:202});
+  return new Response(JSON.stringify({id:'confirmed',name:'source.json'}),{status:201});
+ });g.drive={id:'test'};
  const r=await g.upload('folder','source.json',new Blob([new Uint8Array(size)]));
- assert.equal(r.id,'confirmed');assert.equal(calls[1][1].headers['Content-Range'],`bytes 0-3276799/${size}`);
- assert.equal(calls[2][1].headers['Content-Range'],`bytes 3276800-${size-1}/${size}`);
- assert.equal(calls[1][1].headers.Authorization,undefined);
- assert.equal(JSON.parse(calls[0][1].body).item['@microsoft.graph.conflictBehavior'],'rename');
+ assert.equal(r.id,'confirmed');
+ const sessionCall=calls.find(([u])=>u.includes('/createUploadSession'));assert.equal(JSON.parse(sessionCall[1].body).item['@microsoft.graph.conflictBehavior'],'rename');
+ const puts=calls.filter(([u,o])=>u==='https://upload.example/session'&&o.method==='PUT');
+ assert.equal(puts[0][1].headers['Content-Range'],`bytes 0-3276799/${size}`);
+ assert.equal(puts[1][1].headers['Content-Range'],`bytes 3276800-${size-1}/${size}`);
+ assert.equal(puts[0][1].headers.Authorization,undefined);
+});
+test('small JSON/PDF uses direct Graph content upload',async()=>{
+ const calls=[];const g=new Graph(async()=>'t',async(u,o)=>{calls.push([u,o]);if((!o.method||o.method==='GET')&&u.includes(':/record.json'))return new Response(JSON.stringify({error:{message:'missing'}}),{status:404});return new Response(JSON.stringify({id:'ok',name:'record.json'}),{status:201,headers:{'Content-Type':'application/json'}});});g.drive={id:'d'};
+ const r=await g.upload('folder','record.json',new Blob(['{}'],{type:'application/json'}),()=>{},true);assert.equal(r.id,'ok');
+ const put=calls.find(([,o])=>o.method==='PUT');assert.ok(put[0].endsWith(':/record.json:/content'));assert.equal(put[1].headers['Content-Type'],'application/json');
+});
+
+test('deleting an item uses Microsoft Graph DELETE',async()=>{
+ let seen;const g=new Graph(async()=>'t',async(u,o)=>{seen=[u,o];return new Response(null,{status:204});});g.drive={id:'d'};await g.deleteItem('item42');assert.equal(seen[1].method,'DELETE');assert.ok(seen[0].includes('/items/item42'));
 });
 test('moving a project uses the current ETag',async()=>{
  let opts;const g=new Graph(async()=>'t',async(u,o)=>{opts=o;return new Response('{}');});g.drive={id:'d'};

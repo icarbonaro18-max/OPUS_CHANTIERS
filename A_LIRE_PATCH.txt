@@ -1,9 +1,13 @@
-PATCH OPUS CHANTIERS 3.0.1
+OPUS CHANTIERS 3.0.2 — correctif ciblé
 
-Corrige : Failed to execute 'fetch' on 'Window': Illegal invocation.
-Conserve le correctif de retour de connexion Microsoft.
-Met le cache PWA en 3.0.1 et utilise le reseau en priorite pour le code de l'application, avec cache en secours.
+Ce patch corrige :
+1. changement / déconnexion de compte même avec des envois locaux en attente ;
+2. suppression d'une attestation depuis la liste ;
+3. enregistrement des attestations et PDF Microsoft 365 via envoi direct pour les petits fichiers ;
+4. conservation du chantier et de l'onglet après rechargement de la page ;
+5. masquage de Paramètres et Nouveau chantier pour les comptes non administrateurs.
 
-A envoyer a la racine du depot GitHub OPUS_CHANTIERS en conservant l'arborescence.
-Le dossier lib contient cloud.js.
-Apres le deploiement GitHub Actions vert : fermer TOUS les onglets OPUS CHANTIERS sur le PC et la tablette, puis rouvrir l'application.
+À envoyer à la racine du dépôt GitHub OPUS_CHANTIERS en conservant les dossiers lib/ et tests/.
+GitHub Actions doit ensuite repasser au vert avant de tester.
+
+Après déploiement, fermer tous les onglets OPUS CHANTIERS puis rouvrir l'application afin d'activer le nouveau service worker 3.0.2.
