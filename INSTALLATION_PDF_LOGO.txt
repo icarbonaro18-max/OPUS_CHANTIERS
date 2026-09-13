@@ -1,0 +1,15 @@
+CORRECTIF PDF OPUS ELEC
+
+1. Décompresser le ZIP.
+2. Ouvrir le dépôt GitHub OPUS_CHANTIERS, à la racine.
+3. Ajouter un fichier > Téléverser des fichiers.
+4. Déposer les dossiers lib et assets, et le fichier sw.js, en conservant leur arborescence.
+5. Valider avec Commit changes.
+6. Attendre le déploiement Vercel Ready.
+7. Fermer les onglets OPUS CHANTIERS, puis rouvrir https://opus-chantiers.vercel.app et actualiser.
+8. Télécharger à nouveau le PDF depuis une intervention enregistrée.
+
+Modification : logo existant, titres bleus, rubriques, en-tête et pagination sur toutes les pages. Export avec et sans rapport IA ; photos conservées.
+Les coordonnées complètes de la société ne figurent pas dans la configuration source : aucune n'a été inventée.
+La date et les techniciens proviennent des champs de l'intervention.
+Les fichiers API et les variables Vercel ne sont pas modifiés par ce correctif.
