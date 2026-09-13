@@ -1,0 +1,2 @@
+Décompresser ce ZIP. Dans GitHub OPUS_CHANTIERS, à la racine, Ajouter un fichier > Téléverser des fichiers. Déposer les dossiers lib et assets ainsi que sw.js. Valider Commit changes. Attendre Vercel Ready, fermer puis rouvrir https://opus-chantiers.vercel.app.
+Les visites disposent des boutons Télécharger le PDF et Enregistrer PDF dans OPUS. Le dossier VISITES_AVANT_DEVIS est créé dans la bibliothèque Microsoft partagée connectée.
