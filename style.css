@@ -90,3 +90,18 @@
 .departureDialog{width:min(560px,92vw);border:0;border-radius:16px;padding:24px;color:#17384f}.departureDialog::backdrop{background:rgba(0,25,45,.55)}.departureDialog label{display:block;margin-top:16px}.departureDialog input{width:100%;padding:12px}.tabs [data-tab="orders"] small{display:block;font-size:.75em;margin-top:3px}
 
 .projectCard.projectUrgent{border:2px solid #b42318;background:#fff1f0}.projectCard.projectUrgent h3{color:#981b12}
+
+/* Monthly payroll only: wide, readable rows and persistent save feedback. */
+#modal:has(#psBody){max-width:1580px;width:calc(100vw - 40px)}
+#psBody{font-size:13px}#psBody .psTableWrap{overflow-x:auto}
+#psBody .psTable{width:100%;min-width:980px;border-collapse:collapse;table-layout:fixed}
+#psBody th,#psBody td{padding:9px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+#psBody th{background:#eaf2f8}#psBody th:first-child{width:28%}#psBody th:nth-child(2){width:8%}#psBody th:nth-child(3){width:17%}#psBody th:nth-child(4){width:14%}#psBody th:nth-child(5){width:27%}#psBody th:last-child{width:6%}
+#psBody td small{overflow-wrap:anywhere;max-width:none!important;color:var(--muted)}
+#psBody input,#psBody select,#psBody textarea,#psBody button{font-size:13px;min-height:36px;padding:7px}
+#psBody textarea{width:100%;min-height:60px}#psBody [data-standard]{display:block;margin-top:5px;width:100%;white-space:normal}
+#psBody .psFooter{position:sticky;bottom:0;background:#fff;border-top:2px solid var(--line);padding:12px 0;z-index:2}
+#psBody .psFooter p{margin:0 0 6px}#psBody .psFooter .actionRow{margin:6px 0 0}
+#psFeedback{white-space:pre-wrap;padding:9px;border-radius:7px}#psFeedback:empty{display:none}
+.psError{background:#fff0f1;color:#9d2531}.psSuccess{background:#e9f4ef;color:#146442}
+@media(max-width:700px){#modal:has(#psBody){width:calc(100vw - 12px)}#psBody .psFooter{position:static}}

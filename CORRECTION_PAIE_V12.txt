@@ -1,0 +1,21 @@
+OPUS V12 — Fiche mensuelle plus lisible et enregistrement
+
+La fenêtre des fiches mensuelles est élargie jusqu’à 1580 pixels avec des caractères de 13 pixels et des champs de motif plus larges. Le panneau des boutons et messages reste visible en bas sur ordinateur.
+
+HEURES À SAISIR
+Saisir uniquement les heures de travail, hors pause déjeuner. Aucune pause supplémentaire n’est déduite de cette valeur.
+Lundi-jeudi : 08h–17h, moins 1h de pause = 8h.
+Vendredi salarié : 08h–16h, moins 1h de pause = 7h. Total hebdomadaire : 39h.
+Vendredi apprenti : 08h–11h, aucune pause = 3h. Total hebdomadaire : 35h.
+Le PDF porte explicitement la mention « pause déjà exclue, ne pas déduire une seconde fois ».
+
+ENREGISTRER
+Enregistrer la fiche conserve désormais un brouillon même si tous les motifs et contrôles ne sont pas terminés. Une durée invalide bloque toujours l’enregistrement avec la date concernée.
+Le bouton Journée prévue remplit les heures et un motif générique si le champ est vide. Ajuster ce motif si nécessaire.
+
+EXPORTER
+Relire les jours puis cocher les journées ou cliquer sur Valider toutes les journées relues et confirmer. L’export enregistre d’abord la fiche, puis contrôle les motifs et validations avant le PDF. Si le PDF est bloqué, le message précise que la fiche est enregistrée et indique ce qui reste à compléter. Les erreurs Microsoft apparaissent près des boutons sans annoncer un faux succès.
+Les horaires terrain ne sont pas modifiés. La pause n’est jamais déduite une seconde fois des heures retenues.
+
+Importer le ZIP des fichiers à importer, attendre la fin du déploiement et actualiser l’application avec Ctrl+F5. Le ZIP est cumulatif.
+Validation : 86 tests locaux, compilation et rendu du PDF contrôlés. Enregistrement Microsoft à retester sur votre compte après déploiement.
