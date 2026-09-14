@@ -1,0 +1,35 @@
+OPUS V18 — Corrections des fiches et lisibilité tablette
+
+INTERVENTIONS ET VISITES
+L'administrateur dispose du bouton « Modifier la fiche » en haut de la fiche,
+y compris après validation. L'objet et les informations peuvent être corrigés
+sans supprimer la fiche. Le numéro, le statut terminé, les heures réalisées
+et les pièces jointes restent conservés.
+Roberto conserve la planification des équipes via le calendrier.
+Les techniciens conservent leurs actions de compte rendu terrain.
+Après correction, régénérez le PDF pour disposer d'un document à jour.
+
+BONS DE MATÉRIEL D'INTERVENTION
+Ouvrir une intervention → Bons de commande.
+L'administrateur peut ajouter un document, corriger son objet, le fournisseur,
+le lieu de retrait et les consignes, ou remplacer le fichier joint.
+En modification, laisser le fichier vide conserve le document existant.
+Les informations précédentes sont conservées dans l'historique interne.
+Les techniciens peuvent télécharger le document et consulter le lieu de retrait.
+Le contenu du PDF fournisseur n'est pas réécrit : remplacer le fichier si nécessaire.
+Les documents sont enregistrés dans la bibliothèque Microsoft 365 commune.
+
+TABLETTE
+Sur écran tactile de 600 à 1366 pixels de large :
+grille hebdomadaire deux fois moins haute, un trait et un créneau cliquable
+par heure. Les horaires exacts restent réglables dans le formulaire.
+Les références du grand cadre bleu sont plus petites et reviennent à la ligne.
+Les horaires, pauses et calculs d'heures ne changent pas.
+L'affichage ordinateur reste inchangé.
+
+INSTALLATION
+Importer le ZIP de fichiers cumulés dans le dépôt, en conservant les dossiers.
+Attendre la réussite des tests et du déploiement, puis fermer et rouvrir l'application.
+Cette livraison ne déploie pas automatiquement l'application.
+Les restrictions de rôle de l'application ne remplacent pas les autorisations
+Microsoft 365 sur les fichiers partagés.
