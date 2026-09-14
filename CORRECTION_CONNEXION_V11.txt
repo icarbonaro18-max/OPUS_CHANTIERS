@@ -1,0 +1,8 @@
+OPUS Commandes — correction V11
+
+Correction du message interaction_in_progress : traitement du retour Microsoft avant toute nouvelle demande de connexion. Le bouton attend la fin de l’initialisation. Le retour passe par auth.html puis revient dans Commandes.
+Aucune modification de clé API, de modèle ou d’inscription Microsoft à effectuer pour cette correction.
+
+Importer les fichiers à importer, attendre la fin du déploiement Vercel, fermer la fenêtre OPUS Commandes puis rouvrir https://opus-chantiers.vercel.app/commandes/ et actualiser avec Ctrl+F5.
+Le ZIP est cumulatif : il contient aussi les mises à jour précédentes.
+Tests locaux du retour différé et de la session existante ; connexion réelle Microsoft à retester après déploiement.

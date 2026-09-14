@@ -21,7 +21,8 @@
           clientId: config.clientId,
           authority: `https://login.microsoftonline.com/${config.tenant}`,
           redirectUri: new URL('./auth.html', location.href).href,
-          postLogoutRedirectUri: new URL('./', location.href).href
+          postLogoutRedirectUri: new URL('./', location.href).href,
+          ...(sessionStorage.getItem('opus-auth-return') === '/commandes/' ? { navigateToLoginRequestUrl: false } : {})
         },
         cache: { cacheLocation: 'sessionStorage' }
       });
