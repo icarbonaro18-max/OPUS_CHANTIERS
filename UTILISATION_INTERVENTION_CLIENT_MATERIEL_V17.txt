@@ -1,0 +1,42 @@
+OPUS V17 — CLIENT, LIEU D’INTERVENTION ET BONS DE COMMANDE
+
+MISE À JOUR
+Importer les fichiers du ZIP à la racine du dépôt, avec leurs sous-dossiers.
+Attendre la réussite du déploiement Vercel puis fermer et rouvrir l’application.
+Cette fonction utilise la connexion Microsoft habituelle. Aucun nouveau réglage requis.
+
+NOUVELLE INTERVENTION
+1. Choisir le client donneur d’ordre : agence, syndic, société ou particulier.
+2. Renseigner son adresse dans Adresse du client / agence.
+3. Dans Lieu d’intervention, saisir l’adresse réelle, le nom du contact sur place,
+   son téléphone, son e-mail et les consignes d’accès.
+   Vous pouvez aussi sélectionner un site déjà connu, puis adapter les coordonnées.
+   Le bouton Même adresse que le client permet de recopier l’adresse si nécessaire.
+4. Choisir les horaires et l’équipe, puis enregistrer.
+La fiche d’intervention s’ouvre ensuite pour ajouter les documents.
+
+Les coordonnées de ce passage sont conservées dans l’intervention. Elles ne remplacent
+pas l’adresse ni le contact des autres interventions du même client. Pour un nouveau
+client, son adresse et celle de son premier site sont enregistrées séparément.
+Les anciennes interventions sont conservées ; compléter leurs coordonnées au besoin.
+Le rapport PDF distingue l’adresse client du lieu d’intervention, ainsi que le nom
+et le téléphone du contact sur place lorsqu’ils sont renseignés.
+
+ONGLET BONS DE COMMANDE
+Dans la fiche ouverte, cliquer Bons de commande.
+Le bureau ou Roberto peuvent ajouter un PDF, une image (JPEG/PNG/WebP) ou un fichier
+Excel, de 20 Mo maximum. Préciser : Fournisseur ou Matériel dépôt, fournisseur,
+lieu de retrait / livraison et consignes de récupération.
+Cliquer Ajouter et enregistrer dans OPUS.
+Le nombre de pièces jointes apparaît sur l’onglet. Plusieurs bons sont possibles.
+Le technicien voit les consignes et peut télécharger les documents.
+Le changement d’onglet conserve le texte du rapport en cours de saisie dans la fenêtre.
+
+Les fichiers sont enregistrés dans la bibliothèque Microsoft 365 commune, sous
+INTERVENTIONS / numéro_identifiant de l’intervention / BONS_COMMANDE.
+Ce rangement reste stable si le client ou la date de l’intervention change.
+Le rapport PDF garde son classement habituel.
+Il s’agit ici de joindre un bon existant ; le générateur séparé de bons de commande
+n’a pas été raccordé à la sélection d’une intervention dans cette version.
+Les documents joints sont transmis tels quels : vérifier leur contenu avant de les
+mettre à disposition de l’équipe.
