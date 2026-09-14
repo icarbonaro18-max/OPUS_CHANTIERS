@@ -1,0 +1,14 @@
+OPUS CHANTIERS — Mise à jour V9 : horaires par salarié
+
+Salariés à 39 heures : lundi à jeudi 08h–17h, pause 1h (8h de travail) ; vendredi 08h–16h, pause 1h (7h). Total : 39h.
+Apprentis à 35 heures : lundi à jeudi 08h–17h, pause 1h (8h) ; vendredi 08h–11h, sans pause (3h). Total : 35h.
+
+Le calcul utilise le profil du personnel : rôle apprenti ou objectif hebdomadaire de 35h. Les autres salariés internes suivent les horaires de 39h. Les intervenants externes conservent les horaires saisis.
+Les créneaux existants sont recalculés à l’affichage ; inutile de les recréer. Chaque salarié a sa propre ligne dans le détail des heures du chantier. Le calendrier hebdomadaire affiche les horaires individuels. Les prévisions du récapitulatif du personnel utilisent le même calcul.
+Les horaires réellement pointés restent ceux déclarés : ils ne sont pas raccourcis automatiquement.
+Les créneaux partiels gardent la pause saisie, sauf le vendredi matin des apprentis, sans pause. Les journées complètes appliquent la pause contractuelle. Les week-ends explicitement planifiés conservent leurs horaires.
+
+Exemple de votre capture : vendredi 25/09/2026 = 7h + 3h = 10h ; lundi 28 au jeudi 01/10 = 4 × 16h = 64h. Total : 74h, au lieu de 80h.
+Les 72h vendues restent distinctes : il y a donc 2h de plus affectées au calendrier.
+
+Le ZIP complet contient toute l’application. Le ZIP des fichiers à importer est cumulatif et inclut les tests mis à jour. Aucun changement de clé API ni de modèle IA n’est nécessaire.
