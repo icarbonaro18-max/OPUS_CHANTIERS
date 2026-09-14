@@ -1,0 +1,20 @@
+OPUS V21 — Interventions en cours et achevées
+
+Cliquer sur Interventions :
+- Interventions en cours : à planifier, planifiées et en cours de réalisation.
+- Interventions achevées : terminées et déjà facturées.
+
+Chaque onglet affiche son nombre d'interventions et permet la recherche.
+L'ouverture affiche par défaut les interventions en cours.
+Après « Terminer et enregistrer », la fiche passe automatiquement dans
+Interventions achevées dès que sa fin est enregistrée avec succès.
+La fiche conserve son numéro, ses heures, son rapport et ses bons de matériel.
+Les interventions annulées ne sont pas affichées dans ces deux listes.
+L'administrateur conserve la modification d'une fiche achevée.
+
+Les erreurs d'archivage PDF restent signalées séparément :
+une fin enregistrée reste classée comme achevée même si le PDF doit être renvoyé.
+
+Importer les fichiers dans GitHub en conservant les dossiers.
+Attendre les tests et le déploiement, puis rouvrir l'application.
+Cette version inclut les mises à jour précédentes.
