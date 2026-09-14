@@ -7,6 +7,9 @@
     },
     "api/transcribe.js": {
       "maxDuration": 60
+    },
+    "api/commande.js": {
+      "maxDuration": 60
     }
   }
 }

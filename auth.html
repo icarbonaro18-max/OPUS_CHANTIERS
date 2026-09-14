@@ -32,7 +32,9 @@
 
       // Une fois la réponse Microsoft traitée et mise en cache par MSAL,
       // retour à l'application principale. Celle-ci retrouve alors le compte.
-      location.replace(new URL('./', location.href).href);
+      const returnPath = sessionStorage.getItem('opus-auth-return');
+      sessionStorage.removeItem('opus-auth-return');
+      location.replace(returnPath === '/commandes/' ? new URL('/commandes/', location.href).href : new URL('./', location.href).href);
     } catch (error) {
       console.error(error);
       status.textContent = `La connexion n’a pas abouti : ${error?.message || error}. Revenez à OPUS CHANTIERS et réessayez.`;

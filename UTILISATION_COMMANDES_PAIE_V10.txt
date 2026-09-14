@@ -1,0 +1,35 @@
+OPUS — V10 : commandes et fiches mensuelles d’heures
+
+MISE EN LIGNE
+Importer le ZIP des fichiers à importer dans le dépôt OPUS_CHANTIERS comme pour les mises à jour précédentes. Le ZIP complet est la sauvegarde complète du projet. Le déploiement Vercel doit être terminé avant de tester.
+Aucune nouvelle clé API : l’extraction utilise OPENAI_API_KEY et OPENAI_MODEL déjà configurés. La lecture d’images nécessite que ce modèle accepte les images (gpt-4.1-mini). Internet est nécessaire pour Microsoft et l’extraction.
+
+APPLICATION BONS DE COMMANDE
+Après déploiement : https://opus-chantiers.vercel.app/commandes/
+Interface distincte, icône distincte, hébergement commun. Connexion Microsoft réservée aux identités Ignazio déjà configurées. La nouvelle API vérifie le compte côté serveur. Les PDF classés dans les chantiers sont ensuite accessibles à l’équipe selon les droits Microsoft existants.
+Ouvrir l’adresse puis utiliser Installer l’application lorsqu’il est proposé, ou le menu d’installation du navigateur Chrome/Edge. Répéter sur chaque ordinateur.
+Importer une capture rapprochée, une image ou un PDF (8 pages maximum, 20 Mo par fichier, 3,5 Mo transmis à l’IA). Pour les e-mails, copier/coller leur contenu. Les fichiers Outlook .msg/.eml ne sont pas lus directement.
+Les PDF sont rendus en images localement puis les pages sont transmises au modèle. Les images originales ne sont pas automatiquement stockées dans OPUS.
+Relire les lignes, références, quantités, adresse et statut. Une commande validée ne signifie pas que le matériel est disponible. Les inconnues doivent être vérifiées dans la source.
+Le logo OPUS est inclus. Les logos officiels fournisseurs peuvent être importés via « Logo du fournisseur » après saisie du nom. Ils sont mémorisés par fournisseur et par compte sur cet ordinateur ; ils ne sont pas fournis automatiquement dans cette version. À défaut le nom du fournisseur est imprimé.
+Choisir un chantier et la rubrique : Fournisseurs ou Dépôt de Buc. Vérifier le classement proposé. Enregistrer dans OPUS crée le PDF dans 03_COMMANDES/FOURNISSEURS/<fournisseur> ou 03_COMMANDES/DEPOT_BUC. Les documents existants ne sont pas écrasés.
+Télécharger le PDF permet aussi un import manuel. Le bon est un document interne sans prix. Il ne passe aucune commande au fournisseur et ne remplace pas son bon de livraison.
+Sauvegarder le brouillon télécharge un JSON transférable vers un autre ordinateur. Les images sources et logos ne sont pas inclus ; les brouillons ne sont pas automatiquement synchronisés. Les modifications non sauvegardées restent dans la page ouverte.
+
+EXEMPLE REÇU
+Le fichier Mémo.log contient une erreur Adobe Distiller (police Aptos, invalidfont) : aucun PDF n’a été produit. Utiliser la capture ou l’impression PDF du navigateur. La capture CLAREO reçue est très réduite : vérifier les références sur une version rapprochée.
+
+FICHES MENSUELLES D’HEURES
+Bureau > Paie / heures > choisir le mois > Consulter / modifier les fiches et exporter en PDF > choisir le salarié.
+Le tableau sépare le pointage terrain et les heures retenues pour la paie. Le bouton Journée prévue applique 8h lundi-jeudi, 7h vendredi (salarié 39h) ou 3h vendredi (apprenti 35h).
+Exemple : rendez-vous 8h30, journée commencée à 8h ; saisir 8h retenues et le motif « Attente avant rendez-vous ». Le pointage terrain reste inchangé.
+Choisir la nature : travail, école, congés payés, maladie, sans solde, fermeture à qualifier ou autre. Les rappels d’absences ne sont pas automatiquement transformés en heures rémunérées.
+Enregistrer au fil du mois. Chaque fiche est conservée dans OPUS, avec les versions précédentes. Avant le PDF, vérifier et cocher chaque date. Le PDF est individuel, sans montant de salaire ; il totalise les heures par nature.
+Si les données terrain changent, les corrections sont conservées mais les journées concernées sont à revérifier. Le calendrier réel et les heures vendues du chantier ne sont pas modifiés par ces corrections.
+La lecture des fiches est réservée au Bureau dans l’interface ; les fichiers utilisent les droits de la bibliothèque Microsoft existante. Pour une confidentialité de stockage distincte des droits du chantier, prévoir une bibliothèque RH dédiée.
+
+TRIBECA
+La suppression existante retire l’intervention et les événements liés. Si elle a été confirmée et synchronisée, une nouvelle intervention ne reprend pas les heures de l’ancienne. Les anciens PDF archivés ne servent pas au calcul des heures. Les éventuels créneaux indépendants doivent être vérifiés dans Calendrier. Aucun contrôle de vos données réelles n’a été effectué depuis cet environnement.
+
+VÉRIFICATIONS
+Tests automatisés locaux ; compilation ; contrôle visuel de PDF synthétiques. Connexion Microsoft, extraction IA réelle et transfert dans votre bibliothèque restent à essayer après déploiement avec votre compte.

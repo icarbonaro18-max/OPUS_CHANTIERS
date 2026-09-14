@@ -12,7 +12,7 @@ await cp('node_modules/pdfjs-dist/wasm','vendor/wasm',{recursive:true});
 await copyFile('node_modules/pdfjs-dist/LICENSE','vendor/LICENSE-PDFJS.txt');
 for(const source of ['node_modules/@azure/msal-browser/LICENSE','node_modules/@azure/msal-browser/LICENSE.txt']){try{await copyFile(source,'vendor/LICENSE-MSAL.txt');break;}catch{}}
 await rm('_site',{recursive:true,force:true});await mkdir('_site',{recursive:true});
-for(const p of ['index.html','style.css','app.js','config.json','sw.js','manifest.webmanifest','auth.html','lib','assets','vendor','modules','icon-512.png','icon-192.png','apple-touch-icon.png','favicon-64.png'])await cp(p,'_site/'+p,{recursive:true});
+for(const p of ['index.html','style.css','app.js','config.json','sw.js','manifest.webmanifest','auth.html','commandes','lib','assets','vendor','modules','icon-512.png','icon-192.png','apple-touch-icon.png','favicon-64.png'])await cp(p,'_site/'+p,{recursive:true});
 await writeFile('_site/.nojekyll','');
 console.log('Build OPUS terminé : _site');
 
