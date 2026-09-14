@@ -8,7 +8,7 @@ export async function makePDF(order,{logo,supplierLogo='',project=''}={}){
  line(order.internal?'BON INTERNE — DÉPÔT':'BON DE COMMANDE',true,20);line('Préparation et récupération du matériel',false,10);y+=4;
  line(order.supplier+' · '+order.number,true,13);
  line('Date : '+(order.date||'Non précisée')+'   |   Référence affaire : '+(order.clientReference||'Non précisée'));
- if(project)line('Chantier : '+project,true);
+ if(project)line('Affectation : '+project,true);
  line(order.internal?'RETRAIT AU DÉPÔT DE BUC':order.deliveryMode==='retrait'?'RETRAIT EN AGENCE':'LIVRAISON',true,11);line(order.destination);
  if(order.availability)line((order.internal?'État du bon interne : ':'Suivi fournisseur : ')+order.availability);
  if(order.notes)line('Consignes : '+order.notes);

@@ -1,0 +1,43 @@
+OPUS V20 — Affecter le matériel à une intervention
+
+MATÉRIEL AU DÉPÔT
+1. Ouvrir Bons de commande → Matériel dépôt.
+2. Dans Destination, cliquer sur Interventions.
+3. Choisir l’intervention (numéro, objet, client et date).
+4. Ajouter les prises ou autres matériels et les quantités.
+5. Vérifier et cocher la validation, puis Enregistrer le bon dans OPUS.
+Le bon interne et les étiquettes A6 reprennent l’intervention choisie.
+Le lieu de retrait est le dépôt de Buc.
+
+COMMANDE FOURNISSEUR
+Dans Fournisseurs → Exporter et classer → Destination OPUS :
+cliquer sur Interventions et choisir la fiche concernée.
+Après vérification du matériel, du fournisseur et du lieu de retrait,
+cliquer sur Enregistrer dans OPUS.
+Le téléchargement seul ne lie pas le bon à l’intervention.
+
+POUR LES TECHNICIENS
+Dans OPUS Chantiers, actualiser l’application puis ouvrir l’intervention
+et son onglet Bons de commande. Le document est téléchargeable avec
+les informations de retrait fournisseur ou dépôt.
+Les commandes sont conservées dans la bibliothèque Microsoft 365 partagée.
+Les fonctions de préparation restent réservées à l’administrateur.
+
+LISTES ET SUIVI
+Les interventions sont proposées par date, avec celles à programmer à la fin.
+Les interventions annulées ne sont pas proposées.
+Si vous venez de créer une intervention, rechargez Bons de commande.
+Les chantiers restent disponibles dans l’onglet Chantiers.
+Le suivi d’un bon interne déjà enregistré reste modifiable sur sa destination.
+Pour changer sa destination, créer un nouveau bon interne.
+Une révision de bon interne met à jour son lien dans l’intervention ;
+la version précédente est conservée dans l’historique.
+Un échec de liaison à l’intervention est signalé : ne pas considérer
+le simple transfert du PDF comme un enregistrement complet.
+
+INSTALLATION
+Cette mise à jour inclut les versions précédentes, notamment V18 et V19.
+Importer les fichiers du ZIP cumulatif dans GitHub en conservant les dossiers.
+Attendre les tests et le déploiement, puis fermer et rouvrir l’application.
+Les tests locaux utilisent un stockage simulé ; la connexion Microsoft
+de votre compte n’a pas été utilisée pour un enregistrement réel.
