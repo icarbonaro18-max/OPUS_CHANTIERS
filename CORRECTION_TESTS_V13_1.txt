@@ -1,0 +1,7 @@
+OPUS — Correctif V13.1
+
+Le composant vendor/jspdf.js est généré par la compilation et absent du dépôt, ce qui est normal. Les nouveaux tests du dépôt matériel en ont besoin.
+La commande npm test prépare désormais automatiquement les composants avant de lancer les tests. Aucun test supprimé.
+
+Importer le contenu du ZIP FICHIERS_A_IMPORTER à la racine du dépôt, en remplaçant les fichiers existants. Le ZIP est cumulatif et contient notamment package.json ainsi que les tests.
+Aucune modification des paramètres Microsoft ou Vercel nécessaire.
