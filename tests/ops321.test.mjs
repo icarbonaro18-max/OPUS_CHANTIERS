@@ -37,7 +37,7 @@ test('admin client import remains private in Microsoft 365', async()=>{
 
 test('interventions support point-by-point reports with photos', async()=>{
   const js=await readFile(new URL('../lib/ops-ui.js',import.meta.url),'utf8');
-  assert.match(js,/Points de l’intervention/);
+  assert.match(js,/Points \/ équipements de l’intervention/);
   assert.match(js,/editInterventionItem/);
   assert.match(js,/plusieurs photos/);
 });
