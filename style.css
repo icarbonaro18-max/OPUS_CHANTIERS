@@ -88,3 +88,5 @@
 .projectCard.projectToday{background:#e8f4ff;border:2px solid #1976b8;border-left:7px solid #1976b8}.projectToday .calendarChip{background:#07558a;color:white;font-weight:700}
 
 .departureDialog{width:min(560px,92vw);border:0;border-radius:16px;padding:24px;color:#17384f}.departureDialog::backdrop{background:rgba(0,25,45,.55)}.departureDialog label{display:block;margin-top:16px}.departureDialog input{width:100%;padding:12px}.tabs [data-tab="orders"] small{display:block;font-size:.75em;margin-top:3px}
+
+.projectCard.projectUrgent{border:2px solid #b42318;background:#fff1f0}.projectCard.projectUrgent h3{color:#981b12}

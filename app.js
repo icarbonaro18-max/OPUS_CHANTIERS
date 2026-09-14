@@ -1,3 +1,4 @@
+import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -40,7 +41,7 @@ async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,moveProjectToInProgress});
+  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,syncProjectStages});
   await opsUI.init();
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
@@ -55,7 +56,7 @@ async function activate(){
 async function refresh(){status('Actualisation…');
  try{catalog=await g.projects();await store.set('catalog',catalog);status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);$('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;}
  catch(e){const cache=await store.get('catalog');if(cache){catalog=cache;status('Hors ligne — liste mémorisée');$('lastRefresh').textContent='Dernière liste conservée sur cet appareil. Les documents non ouverts nécessitent le réseau.';}else throw e;}
- renderProjects();if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
+ if(opsUI&&navigator.onLine){await opsUI.reload();await syncProjectStages();}renderProjects();if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
 }
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
@@ -64,7 +65,7 @@ function renderProjects(){
  document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;selected=null;showDashboard();});
  const q=norm($('search').value);let ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));if(opsUI)ps=opsUI.sortProjects(ps);
  $('projectCount').textContent=ps.length+' chantier(s)';
- $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard ${opsUI?.projectIsToday(p.id)&&!['04','99'].includes(p.category)?'projectToday':''}"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span>${opsUI?opsUI.projectEventChip(p.id):''}<span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
+ $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard ${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'projectUrgent':''} ${opsUI?.projectIsToday(p.id)&&!['04','99'].includes(p.category)?'projectToday':''}"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span>${opsUI?opsUI.projectEventChip(p.id):''}${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'<span class="chip warn">À finaliser / échéance à vérifier</span>':''}<span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
  document.querySelectorAll('[data-open-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.openProject).catch(err));
  const loose=catalog.loose.filter(p=>category==='all'||p.category===category);
  $('looseFiles').innerHTML=loose.length?`<div class="panel" style="margin-top:24px"><h2>Documents à classer dans un chantier</h2><p class="muted">Ces fichiers ont été déposés directement dans une rubrique, sans dossier chantier.</p>${loose.map(f=>`<div class="row"><div>${esc(f.name)}<p>${esc(catLabel(f.category))}</p></div><button class="secondary" data-loose="${esc(f.id)}">Consulter</button></div>`).join('')}</div>`:'';
@@ -87,8 +88,9 @@ async function openProject(id){
 async function setTab(name){tab=name;if(selected)setRoute(selected.id,name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.tab===name));$('tabContent').innerHTML='<div class="panel muted">Chargement…</div>';if(name==='overview')overview();if(name==='documents')await documents();if(name==='orders')await orders();if(name==='attestations')await attestations();if(name==='tasks')tasks();if(opsUI){let b=$('projectFieldReport');if(!b){b=document.createElement('button');b.id='projectFieldReport';b.textContent='📋 Comptes rendus d’intervention / équipements';b.style.marginBottom='16px';$('tabContent').before(b);}b.hidden=!['overview','tasks','attestations'].includes(name);b.onclick=()=>opsUI.openProjectReports(selected,meta);}}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab).catch(err));
 function overview(){
- $('tabContent').innerHTML=`<div class="grid2"><section class="panel"><div class="panelHead"><h2>La fiche chantier</h2><button id="editMetaInline" class="secondary">Modifier</button></div>${fields.filter(([k])=>!['name','notes'].includes(k)).map(([k,l])=>`<div class="detailField"><strong>${l}</strong><span>${esc(meta[k]||'Non renseigné')}</span></div>`).join('')}</section><div><section class="panel"><h2>Consignes pour l’équipe</h2><p style="white-space:pre-wrap">${esc(meta.notes||'Aucune consigne particulière renseignée.')}</p><button id="overviewDocs">Documents →</button></section><section class="panel"><h2>Attestations du chantier</h2><p class="muted">Tous les contrôles sont disponibles. Le technicien choisit uniquement ceux nécessaires aux travaux réalisés.</p><button id="overviewAtt">Ouvrir les attestations →</button></section><section class="panel"><h2>Classement</h2><label for="moveCat">État du chantier</label><select id="moveCat">${CATEGORIES.map(([c,l])=>`<option value="${c}" ${selected.category===c?'selected':''}>${l}</option>`).join('')}</select><button id="moveProject" class="secondary" style="margin-top:12px">Mettre à jour le classement</button><p class="muted" style="margin-top:12px">Le dossier est déplacé dans la rubrique correspondante, sans copie.</p></section></div></div>`;
- bind('editMetaInline',editMeta);bind('overviewDocs',()=>setTab('documents'));bind('overviewAtt',()=>setTab('attestations'));bind('moveProject',async()=>{const cat=catalog.categories.find(c=>c.name.startsWith($('moveCat').value));if(!cat)throw Error('Cette rubrique n’existe pas encore dans la bibliothèque.');if(cat.id===selected.categoryFolder.id)return;if(!confirm('Déplacer le dossier chantier dans « '+cat.name+' » ?'))return;await g.moveProject(await g.item(selected.id),cat);const id=selected.id;await refresh();await openProject(id);});
+ $('tabContent').innerHTML=`<div class="grid2"><section class="panel"><div class="panelHead"><h2>La fiche chantier</h2><button id="editMetaInline" class="secondary">Modifier</button></div>${fields.filter(([k])=>!['name','notes'].includes(k)).map(([k,l])=>`<div class="detailField"><strong>${l}</strong><span>${esc(meta[k]||'Non renseigné')}</span></div>`).join('')}</section><div><section class="panel"><h2>Consignes pour l’équipe</h2><p style="white-space:pre-wrap">${esc(meta.notes||'Aucune consigne particulière renseignée.')}</p><button id="overviewDocs">Documents →</button></section><section class="panel"><h2>Attestations du chantier</h2><p class="muted">Tous les contrôles sont disponibles. Le technicien choisit uniquement ceux nécessaires aux travaux réalisés.</p><button id="overviewAtt">Ouvrir les attestations →</button></section><section class="panel"><h2>Classement</h2><p>Le classement suit les commandes, le planning et la validation de fin de chantier.</p>${isAdmin()&&selected.category==='04'?'<button id="archiveProject">Archiver le dossier clôturé</button>':''}</section></div></div>`;
+ bind('editMetaInline',editMeta);bind('overviewDocs',()=>setTab('documents'));bind('overviewAtt',()=>setTab('attestations'));bind('archiveProject',async()=>{if(!isAdmin()||selected.category!=='04')throw Error('Seul l’administrateur peut archiver un chantier terminé.');if(!confirm('Archiver ce dossier clôturé ?'))return;await moveProgressStage(selected,'99');await refresh();await openProject(selected.id);});
+ const panel=document.createElement('section');panel.className='panel';$('tabContent').prepend(panel);if(opsUI)progressPanel(opsUI,selected,panel,async()=>{await syncProjectStages();await openProject(selected.id);});
 }
 bind('editProject',editMeta);
 async function editMeta(){const p=selected.id;if(metaConflict){const r=await journal.load(p,'fiche',null);await chooseRevision(p,'fiche',null,r,async(data,parents)=>{meta=data;metaParents=parents;metaConflict=false;editMeta();});return;}modal('Informations communes du chantier',`<p class="muted">Elles préremplissent les nouvelles attestations. Les attestations déjà enregistrées ne sont pas modifiées silencieusement.</p><form id="metaForm"><div class="formGrid">${formFields(meta)}</div><div class="actionRow"><button type="submit">Enregistrer la fiche</button><button type="button" class="secondary" id="historyMeta">Historique</button></div></form>`);
@@ -110,11 +112,6 @@ async function createProjectFromVisit(v){
  const client=opsUI?.clientById(v.clientId),site=opsUI?.siteById(client,v.siteId);
  const m={...metaDefaults({name:folderName}),name:folderName,client:v.clientName||client?.name||'',devis,adresse:v.siteAddress||site?.address||'',contact:site?.contact||'',telephone:site?.phone||'',email:site?.email||'',responsable:user.displayName,chantier:v.request||v.type||'Travaux',notes:`Créé depuis ${v.number||'une visite'} · ${v.request||''}`,tasks:[],observations:[],contactVerified:true};
  await queueSave(folder.id,'fiche',null,m,[]);await flush();await refresh();return folder;
-}
-async function moveProjectToInProgress(projectId){
- const p=catalog.projects.find(x=>x.id===projectId);if(!p||p.category==='02')return;
- const cat=catalog.categories.find(c=>c.name.trim().startsWith('02'));if(!cat)throw Error('Rubrique « 02 - EN COURS » introuvable.');
- await g.moveProject(await g.item(projectId),cat);await refresh();
 }
 // Immutable revision outbox: local acknowledgements are explicit; remote acknowledgement only after Graph success.
 function draftKey(p,k,r){return `draft:${p}:${k}:${r||'fiche'}`;}
@@ -273,3 +270,7 @@ async function init(){
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 }
 init().catch(err);
+
+let progressSyncBusy=false;
+async function moveProgressStage(p,code){const cat=catalog.categories.find(c=>c.name.trim().startsWith(code));if(!cat)throw Error('Rubrique '+code+' introuvable.');await g.moveProject(await g.item(p.id),cat);p.category=code;p.categoryFolder=cat;}
+async function syncProjectStages(){if(!opsUI||progressSyncBusy)return;progressSyncBusy=true;try{for(const p of catalog.projects){const info=progress(opsUI.data,p.id),stage=targetStage(p,info);if(stage!==p.category)await moveProgressStage(p,stage);}renderProjects();if(selected)$('projectCategory').textContent=catLabel(selected.category).toUpperCase();}finally{progressSyncBusy=false;}}
