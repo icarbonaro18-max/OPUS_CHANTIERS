@@ -124,3 +124,5 @@
  #projectTitle{font-size:21px;line-height:1.25;overflow-wrap:anywhere;white-space:normal}
  .projectCard h3{font-size:16px;overflow-wrap:anywhere;white-space:normal}
 }
+
+.unreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:2px 6px;background:#c52435;color:white;border-radius:99px;font-size:12px;margin-left:5px}#teamAlertsPanel .row>div{min-width:0;overflow-wrap:anywhere}

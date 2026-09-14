@@ -42,7 +42,7 @@ async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,refreshProjects:refresh,createProjectFromVisit,syncProjectStages});
+  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages});
   await opsUI.init();
  }catch(e){
   console.error('Module planning/interventions indisponible',e);

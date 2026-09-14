@@ -1,0 +1,35 @@
+OPUS V22 — Nouveautés pour l'équipe
+
+Un bouton Nouveautés apparaît dans la navigation principale.
+Le nombre rouge indique les éléments non lus sur cet appareil pour ce compte :
+- bons de commande des chantiers actifs, fournisseurs et dépôt ;
+- bons de matériel des interventions ;
+- consignes de demande et d'accès des interventions.
+
+Cliquer sur Nouveautés pour voir le dossier, le fournisseur ou lieu de retrait
+et, pour une intervention, sa date prévue.
+Consulter le bon retire son alerte après son ouverture réussie.
+Pour une consigne, cliquer sur « J’ai lu la consigne ».
+Ouvrir la liste seule ne supprime aucune alerte.
+Le téléchargement d'un bon depuis l'intervention retire aussi son alerte.
+Une modification du document ou des consignes déclenche une nouvelle alerte.
+Lors de la première utilisation, les éléments existants sont proposés non lus.
+
+La lecture est conservée localement par compte et appareil :
+l'ouverture sur une tablette ne marque pas le bon comme lu sur les autres.
+Effacer les données du navigateur réinitialise ce suivi.
+
+Vérification à l'ouverture, au retour dans l'application, au retour de la
+connexion puis toutes les cinq minutes tant que la page est visible.
+Le bouton Vérifier maintenant permet de lancer une nouvelle lecture.
+Un échec de vérification est affiché dans la liste ; le compteur seul
+ne garantit jamais que la connexion est à jour.
+Les formulaires terrain en cours de saisie ne sont pas rechargés par ces contrôles.
+
+Cette version fournit des alertes dans OPUS, pas de notification Android/iOS
+sur l'écran verrouillé ni de pastille sur l'icône système lorsque l'application
+est complètement fermée. Ouvrir OPUS le matin avec une connexion.
+
+Importer les fichiers dans GitHub, attendre tests et déploiement, puis rouvrir OPUS.
+Les tests locaux ne constituent pas une vérification sur une tablette connectée
+à votre bibliothèque Microsoft 365.
