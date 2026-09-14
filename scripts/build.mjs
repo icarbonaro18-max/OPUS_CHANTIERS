@@ -17,5 +17,5 @@ await writeFile('_site/.nojekyll','');
 console.log('Build OPUS terminé : _site');
 
 async function walk(dir){let out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=dir+'/'+e.name;if(e.isDirectory())out.push(...await walk(p));else out.push(p);}return out;}
-const paths=(await walk('_site')).map(p=>'./'+p.slice('_site/'.length)).filter(p=>!['./auth.html','./.nojekyll','./sw.js'].includes(p));
+const paths=(await walk('_site')).map(p=>'./'+p.slice('_site/'.length)).filter(p=>!['./auth.html','./commandes/outlook-auth.html','./.nojekyll','./sw.js'].includes(p));
 await writeFile('_site/precache.json',JSON.stringify(paths));

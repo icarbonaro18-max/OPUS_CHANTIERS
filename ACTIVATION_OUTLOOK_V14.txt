@@ -1,0 +1,32 @@
+OPUS V14 — IMPORTER LES E-MAILS FOURNISSEURS
+
+INSTALLATION
+Importer le contenu du ZIP FICHIERS_A_IMPORTER à la racine du dépôt GitHub. Le correctif V13.1 est inclus. Attendre la fin du déploiement Vercel puis actualiser OPUS.
+Ouvrir Bons de commande / Dépôt (administrateur), puis Importer depuis Outlook.
+
+ACTIVATION MICROSOFT — UNE FOIS
+La boîte opuselec@hotmail.com est un compte Microsoft personnel. Sa connexion est distincte du compte professionnel qui ouvre les dossiers OPUS. Ne pas modifier l'inscription Microsoft existante d'OPUS CHANTIERS.
+1. Ouvrir https://entra.microsoft.com avec le compte administrateur de l'entreprise.
+2. Aller dans Identité > Applications > Inscriptions d'applications > Nouvelle inscription (les intitulés peuvent varier).
+3. Nom : OPUS Outlook Fournisseurs.
+4. Types de comptes pris en charge : Comptes Microsoft personnels uniquement ; ou Comptes dans un annuaire organisationnel et comptes Microsoft personnels si cette option est la seule proposée incluant les comptes personnels.
+5. URI de redirection : plateforme Application monopage (SPA), adresse EXACTE :
+https://opus-chantiers.vercel.app/commandes/outlook-auth.html
+6. Enregistrer. Dans Autorisations API, ajouter Microsoft Graph > Autorisations déléguées > Mail.Read et User.Read. Ne pas ajouter Mail.ReadWrite ni Mail.Send. Ne pas créer de secret client.
+7. Dans Vue d'ensemble, copier l'ID d'application (client).
+8. Dans OPUS > Importer depuis Outlook > Activer la connexion Outlook, coller cet ID et cliquer Enregistrer la configuration.
+9. Cliquer Connecter ma boîte Outlook, choisir opuselec@hotmail.com, puis accepter la lecture des e-mails demandée par Microsoft. Autoriser la fenêtre de connexion si le navigateur la bloque.
+Cette configuration locale est à renseigner sur chaque ordinateur. La connexion Outlook est à refaire après fermeture ou actualisation de la page. Le compte OPUS conserve sa propre connexion Microsoft 365.
+
+UTILISATION
+Cliquer Rechercher les e-mails. Les 100 messages les plus récents depuis la date choisie sont chargés (90 derniers jours par défaut). Le classement par fournisseur utilise l'expéditeur et l'objet : il reste indicatif. Filtrer par fournisseur et rechercher une référence. Autres permet de retrouver les expéditeurs non reconnus. Charger les messages suivants pour chercher plus loin : la recherche porte seulement sur les messages déjà chargés.
+Ouvrir un message, vérifier son contenu puis Utiliser cet e-mail pour le bon. Cela remplace les anciennes sources du formulaire. Cliquer ensuite Lire la commande pour créer la proposition, vérifier les quantités, sélectionner le chantier et enregistrer dans OPUS.
+Les pièces jointes se téléchargent depuis l'aperçu : ajouter ensuite le PDF ou l'image utile dans le formulaire avant Lire la commande. Les pièces jointes ne sont pas interprétées automatiquement, les pièces de plus de 20 Mo et certains formats doivent être ouverts dans Outlook.
+Le classement ne déplace pas les e-mails et ne modifie pas leur statut lu/non lu. Pas d'envoi, suppression ni suivi automatique en arrière-plan. Pas encore de repère partagé « déjà importé ».
+La liste des messages n'est pas envoyée à l'IA. Seuls les contenus ajoutés au formulaire et soumis avec Lire la commande le sont.
+
+VALIDATION
+Tests automatisés locaux et compilation effectués. La connexion réelle à Hotmail nécessite la création de l'inscription ci-dessus et reste à vérifier sur le compte de l'utilisateur après déploiement.
+Documentation Microsoft :
+https://learn.microsoft.com/en-us/graph/permissions-reference#mailread
+https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0
