@@ -1,0 +1,13 @@
+OPUS V23 — Bouton Nouveautés visible dès l'ouverture
+
+Le bouton ovale Nouveautés se trouve désormais dans l'en-tête,
+à côté du titre CHANTIERS, et non au bout de la navigation horizontale.
+Sur téléphone, le logo et le titre sont compacts pour lui laisser la place.
+Le bouton entier devient rouge lorsqu'il reste des éléments non lus.
+Sans nouveauté, il reste visible en bleu clair.
+La lecture et la vérification des nouveautés conservent leur fonctionnement.
+Il s'agit toujours d'un indicateur dans OPUS, pas sur l'icône du téléphone.
+
+Importer les fichiers dans GitHub en conservant les dossiers.
+Attendre le déploiement puis rouvrir OPUS.
+Cette version comprend toutes les mises à jour précédentes.
