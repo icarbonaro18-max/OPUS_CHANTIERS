@@ -1,0 +1,34 @@
+OPUS V19 — Une intervention sur plusieurs jours
+
+Dans Nouvelle intervention ou Modifier la fiche :
+- Début prévu : 16/09/2026 à 08:00.
+- Fin prévue : 17/09/2026 à 17:00.
+- Sélectionner l’équipe, puis enregistrer.
+
+Une seule fiche et un seul numéro d’intervention sont conservés.
+Le calendrier reçoit un créneau le 16 et un créneau le 17, de 8 h à 17 h.
+La nuit n'est pas réservée. Une heure de déjeuner est déduite chaque jour :
+16 heures planifiées par personne pour ces deux journées, soit 32 heures
+pour deux personnes présentes les deux jours.
+Ces heures sont prévisionnelles : elles ne deviennent pas automatiquement
+des heures réalisées ou payées.
+
+Les heures indiquées sont répétées chaque jour de la période.
+Les horaires contractuels continuent de s'appliquer au vendredi :
+salarié 39 h : 8 h–16 h, une heure de pause ; apprenti : 8 h–11 h, sans pause.
+Les samedis et dimanches d'une période sont exclus par défaut.
+Cocher « Inclure les samedis et dimanches » pour les ajouter.
+Une intervention d'une seule journée le week-end reste possible.
+
+Toutes les journées sont vérifiées pour les conflits d’équipe, absences,
+école et fermetures. Un blocage indique la date concernée.
+Enregistrer à nouveau ne duplique pas les créneaux.
+Réduire la période retire les journées planifiées qui ne sont plus incluses.
+Les bons de matériel restent joints à la même intervention.
+
+Les horaires réels des comptes rendus restent saisis journée par journée
+selon le fonctionnement existant. Cette mise à jour concerne la planification.
+
+Importer les fichiers dans GitHub en conservant leur arborescence.
+Attendre les tests et le déploiement, puis fermer et rouvrir l'application.
+Cette livraison contient également les corrections V18.
