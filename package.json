@@ -9,10 +9,11 @@
   },
   "dependencies": {
     "@azure/msal-browser": "5.21.0",
-    "pdfjs-dist": "5.4.624",
-    "jspdf": "2.5.2"
+    "jspdf": "2.5.2",
+    "pdfjs-dist": "5.4.624"
   },
   "devDependencies": {
-    "esbuild": "0.25.9"
+    "esbuild": "0.25.9",
+    "jsdom": "30.0.1"
   }
 }
