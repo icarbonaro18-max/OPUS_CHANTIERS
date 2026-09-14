@@ -1,0 +1,26 @@
+OPUS V13 — Tableau mensuel, bons internes et e-mail copié
+
+FICHE D’HEURES
+Le PDF tient sur une page A4 par salarié et par mois : une ligne par jour, puis totaux Travail, Maladie, Sans solde, Congés payés, École et Autres. Les heures proviennent de la fiche relue au Bureau, sans nouvelle déduction du déjeuner. Les montants financiers et les détails techniques du chantier ne figurent pas dans le PDF.
+Les corrections détaillées restent conservées dans l’application. Une journée utilise la nature sélectionnée dans la fiche ; cette version ne répartit pas une même journée entre plusieurs natures. Vérifier les jours à situation mixte avant transmission.
+Les références des chantiers sont raccourcies, sans identifiant Microsoft. La référence originale est conservée (exemple 2026-001172 ANTIN PARIS 12).
+Le PDF de Ruben joint séparément est la remise en page du document fourni : 148h de travail, sans changement des heures saisies.
+
+ACCÈS AUX COMMANDES
+Un bouton Bons de commande / Dépôt apparaît dans OPUS Chantiers uniquement pour l’administrateur. Il ouvre l’espace Commandes dans une fenêtre/onglet séparé. La version épinglée reste accessible à https://opus-chantiers.vercel.app/commandes/.
+L’extraction reste réservée au compte d’Ignazio côté serveur. Les documents classés au chantier sont consultables selon les droits Microsoft existants.
+
+E-MAIL SANS IMPRESSION
+Sélectionner le contenu du message fournisseur dans la messagerie, copier, puis coller dans la zone Contenu du message (Ctrl+V ou Coller l’e-mail). Cliquer Lire la commande. Le résultat reste modifiable avant validation et export. Pas besoin d’imprimer.
+Un lien Outlook seul ne permet pas de lire un message privé ; la version actuelle n’accède pas directement à la boîte mail. Les pièces jointes ne sont pas automatiquement extraites d’un texte collé : importer leur PDF/image si le matériel s’y trouve.
+
+MATÉRIEL DÉPÔT
+Dans Commandes > Matériel dépôt : créer un bon, choisir le chantier, saisir matériel et quantités, puis nombre de cartons. Choisir À préparer ou Prêt. Pour marquer Récupéré, renseigner personne et date de récupération.
+Relire puis cocher la validation. Enregistrer le bon dans OPUS dépose le PDF dans le chantier / 03_COMMANDES / DEPOT_BUC et enregistre une révision du suivi dans _OPUS_SYSTEM / DEPOT_BONS. Les versions PDF précédentes sont conservées ; les compteurs de documents incluent donc ces versions.
+Actualiser le suivi enregistré permet de rouvrir le dernier état de chaque bon depuis un autre ordinateur. Après une modification, enregistrer de nouveau. Les modifications ne sont pas envoyées automatiquement avant de cliquer Enregistrer.
+Les étiquettes sont au format A6 paysage, une par carton avec numéro de chantier, numéro de bon, état et carton n/N. Imprimer à taille réelle ou adapter sur A4 selon l’imprimante, puis découper/coller. Le contenu détaillé est dans le bon.
+Le suivi porte sur les bons de préparation/retrait, pas sur un inventaire automatique des quantités restant en stock.
+
+MISE À JOUR
+Importer le ZIP des fichiers à importer, attendre le déploiement Vercel, actualiser avec Ctrl+F5. ZIP cumulatif, aucune nouvelle permission Mail.Read ni nouvelle clé API nécessaire.
+89 tests locaux validés, compilation et rendus PDF contrôlés. Connexion, extraction IA réelle et enregistrement Microsoft à essayer sur votre compte après déploiement.
