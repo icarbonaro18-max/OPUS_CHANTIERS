@@ -1,0 +1,104 @@
+OPUS V15 — ACCÈS AUX ÉQUIPES ET PLANNING DES APPRENTIS
+
+Cette mise à jour est préparée et testée localement. Elle n’est pas déployée automatiquement.
+Importer les fichiers du ZIP à la racine du dépôt, en conservant les sous-dossiers.
+Attendre la réussite de la construction Vercel, puis fermer et rouvrir l’application.
+
+1. COMPTES HABITUELS
+Ignazio : administrateur. Roberto : responsable du planning.
+Ruben et Christian : techniciens, accès aux chantiers, documents et calendrier de toutes
+les équipes. La création/modification des équipes n’est pas proposée à ces comptes.
+Ils conservent leurs possibilités de remplir les rapports terrain.
+
+config.json contient managerUsers : roberto@opuselec.fr. Cette adresse doit correspondre
+à l’identité Microsoft utilisée par Roberto pour se connecter. Si son identifiant
+Microsoft est différent, remplacer cette valeur par son identifiant réel.
+Ne pas ajouter Ruben ou Christian à managerUsers ni adminUsers.
+Leurs adresses définitives n’ont pas été inventées : renseigner leurs comptes réels
+dans les fiches du personnel existantes pour conserver l’historique des heures.
+
+Limite de l’architecture existante : ces restrictions des techniciens sont appliquées
+par l’interface. L’application principale utilise leurs droits Microsoft délégués.
+Une interdiction indépendante de l’interface sur les fichiers de planning nécessiterait
+de déplacer les écritures du planning derrière une API et de revoir les droits SharePoint.
+La page apprentis, elle, passe par une API qui ne propose aucune écriture.
+
+2. PAGE APPRENTIS
+Adresse après déploiement : https://opus-chantiers.vercel.app/planning/
+Le lien sans code affiche un champ de code. Aucun compte e-mail n’est nécessaire.
+La page affiche une semaine et permet de filtrer par salarié. Elle ne renvoie ni
+adresse e-mail, motif d’absence, paie, rapport, document ou identifiant SharePoint.
+Les affectations de toutes les équipes sont visibles aux détenteurs du code commun.
+Les horaires individuels sont calculés en heure de Paris, dont vendredi 11h pour les
+apprentis et 16h pour les salariés à 39h. Les intitulés viennent des créneaux enregistrés.
+Cliquer Actualiser pour récupérer les modifications enregistrées dans OPUS.
+Connexion internet nécessaire : aucune copie du calendrier n’est conservée hors ligne.
+
+3. ACTIVATION MICROSOFT — UNE FOIS, PAR L’ADMINISTRATEUR
+Cette activation est distincte de la connexion Outlook Hotmail qui fonctionne déjà.
+Ne pas modifier l’application OPUS Outlook Fournisseurs.
+
+a) Dans Entra > Inscriptions d’applications > Nouvelle inscription, créer
+   « OPUS Planning Lecture », comptes de cet annuaire uniquement (OPUS ELEC).
+   Aucun URI de redirection : cette application fonctionne uniquement côté serveur.
+b) API autorisées > Ajouter > Microsoft Graph > Autorisations d’application :
+   Sites.Selected. Accorder le consentement administrateur.
+c) Certificats et secrets > Nouveau secret client : copier sa VALEUR et noter son
+   expiration. Cette valeur sera saisie uniquement dans Vercel, jamais dans GitHub.
+d) Accorder à cette application le rôle READ sur le site OPUSCHANTIERS uniquement.
+   Sites.Selected seul n’accorde encore aucun accès.
+   Avec un administrateur habilité, dans Microsoft Graph Explorer, autorisation
+   déléguée Sites.FullControl.All pour cette opération d’administration :
+   POST https://graph.microsoft.com/v1.0/sites/IDENTIFIANT_DU_SITE/permissions
+   Corps JSON :
+   {
+     "roles": ["read"],
+     "grantedToIdentities": [{"application": {
+       "id": "IDENTIFIANT_CLIENT_DE_OPUS_PLANNING_LECTURE",
+       "displayName": "OPUS Planning Lecture"
+     }}]
+   }
+   Ne pas utiliser le rôle write ou une permission générale Files.Read.All.
+   Les identifiants du site et de la bibliothèque sont affichés dans OPUS >
+   Calendrier > Accès apprentis, connecté en administrateur.
+
+4. ACTIVATION VERCEL — UNE FOIS
+Projet opus-chantiers > Settings > Environment Variables, environnement Production :
+PLANNING_TENANT_ID = identifiant du locataire OPUS ELEC
+PLANNING_CLIENT_ID = identifiant client de la NOUVELLE application Planning Lecture
+PLANNING_CLIENT_SECRET = valeur du secret créé à l’étape 3
+PLANNING_DRIVE_ID = identifiant de la bibliothèque affiché dans Accès apprentis
+PLANNING_ACCESS_CODE = code commun aléatoire
+
+Dans Calendrier > Accès apprentis > Générer un nouveau code, copier le code affiché
+dans PLANNING_ACCESS_CODE. Le code doit contenir 32 à 128 lettres/chiffres/_/-.
+Le bouton génère un code aléatoire de 48 caractères, à privilégier.
+Enregistrer ces variables, puis redéployer le projet Vercel pour les activer.
+L’API refuse tout accès tant que ces variables ne sont pas configurées.
+
+5. TRANSMETTRE ET TESTER LE LIEN
+Dans Accès apprentis, coller le code actif puis Copier le lien avec ce code.
+Ouvrir ce lien dans une fenêtre privée avant de le transmettre aux salariés.
+Vérifier une affectation connue, puis la modifier avec Roberto et cliquer Actualiser
+dans la page apprentis. Vérifier aussi un vendredi avec un apprenti.
+Ce lien donne uniquement lecture au planning. Toute personne ayant le lien ou le code
+peut le consulter : le transmettre aux équipes concernées uniquement.
+Le code est retiré de la barre d’adresse dès son ouverture, et reste en mémoire pendant
+la consultation. Le serveur le vérifie de nouveau à chaque chargement.
+Pour révoquer les anciens liens : changer PLANNING_ACCESS_CODE, redéployer Vercel,
+puis transmettre le nouveau lien. Fermer efface le planning de la page.
+
+6. TÉLÉPHONE
+Ouvrir /planning/ sur le téléphone. Utiliser « Installer l’application » ou
+« Ajouter à l’écran d’accueil » selon le navigateur. L’icône porte le nom Planning OPUS.
+L’icône ouvre la page sans enregistrer le code : le saisir, ou rouvrir le lien transmis.
+
+7. CONTRÔLES AVANT DIFFUSION
+Les tests locaux couvrent le filtrage des données, les horaires du vendredi,
+les refus sans code/avec code erroné, l’absence d’écriture de l’API et les entrées
+de modification d’équipes des comptes techniciens. La connexion Microsoft réelle
+ne peut être validée qu’après l’activation des étapes 3 et 4 dans votre environnement.
+
+Documentation Microsoft :
+https://learn.microsoft.com/en-us/graph/permissions-selected-overview
+https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow

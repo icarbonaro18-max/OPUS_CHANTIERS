@@ -10,6 +10,9 @@
     },
     "api/commande.js": {
       "maxDuration": 60
+    },
+    "api/planning-reader.js": {
+      "maxDuration": 60
     }
   }
 }
