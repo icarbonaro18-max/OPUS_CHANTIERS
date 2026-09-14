@@ -1,0 +1,43 @@
+OPUS V16 — PLANNING PAR CRÉNEAU HORAIRE
+
+Importer les fichiers du ZIP à la racine du dépôt en conservant les dossiers.
+Attendre la réussite Vercel puis fermer et rouvrir l’application pour charger la mise à jour.
+
+CALENDRIER > SEMAINE
+Une colonne par jour du lundi au vendredi, de 6h à 20h, avec des cases de 30 minutes.
+La grille est défilante sur tablette. Plusieurs équipes en même temps apparaissent
+côte à côte dans la même journée. La vue Mois reste disponible, notamment pour
+les interventions du week-end. Un rendez-vous hors plage étend la grille si nécessaire.
+
+PLANIFIER TROIS PASSAGES POUR LA MÊME ÉQUIPE
+1. Cliquer dans la case de lundi à 8h.
+2. Choisir le chantier Interphone, début 8h, fin 11h, pause 0h, puis l’équipe.
+3. Enregistrer. Ajouter un deuxième chantier de 11h à 12h, puis un troisième de 13h à 17h.
+La même équipe est autorisée sur ces créneaux distincts. Un créneau commençant
+à 11h est compatible avec le précédent finissant à 11h.
+Un chevauchement (ex. 10h30–12h contre 8h–11h) reste bloqué.
+Prévoir les déplacements et le déjeuner dans les horaires : ils ne sont pas calculés.
+Les affectations annulées ne bloquent plus les personnes.
+
+ANCIENS CRÉNEAUX
+Une ancienne affectation de 8h à 17h réserve toujours cette plage. Cliquer dessus,
+puis modifier la fin (par exemple 11h) AVANT d’ajouter une autre intervention.
+La mise à jour ne devine pas la durée de vos anciens rendez-vous et ne les raccourcit pas.
+
+PAUSES ET HORAIRES
+Pour un nouveau rendez-vous court (jusqu’à 5h), la pause proposée est 0h.
+Au-delà, elle est proposée à 1h. Toute pause saisie manuellement reste votre choix.
+Les règles habituelles 39h/35h restent appliquées : apprentis vendredi jusqu’à 11h.
+Pour un début à 6h ou une fin tardive, cocher « Horaires exceptionnels » dans le
+formulaire. Les heures saisies sont alors conservées pour cette affectation, pause
+soustraite, sans limitation aux horaires habituels. Cela concerne toute l’équipe choisie.
+Pour des horaires différents, faire des affectations distinctes.
+Les heures supplémentaires à payer restent à vérifier sur les heures réelles
+et les fiches mensuelles. Le planning ne devient pas automatiquement du temps travaillé.
+
+DROITS
+Ignazio et Roberto composent les équipes. Les techniciens consultent la grille et
+ouvrent les fiches depuis leurs rendez-vous. Les motifs d’absence restent affichés
+seulement à l’administrateur. Les fermetures continuent de bloquer la planification.
+La page séparée des apprentis de la V15 est conservée et nécessite toujours son
+activation Microsoft/Vercel si celle-ci n’a pas encore été faite.
