@@ -1,0 +1,8 @@
+OPUS CHANTIERS — V30
+Les trois accès rapides sur les cartes chantiers sont désormais plus compacts :
+hauteur minimale 28 px, texte 12 px bleu foncé sur fond blanc, fin contour bleu.
+La hauteur est proche des pastilles de date. Les intitulés restent complets et
+reviennent à la ligne si nécessaire sur les petits écrans.
+Cette version cumulative contient les améliorations de la V29 et précédentes.
+Décompresser puis importer les fichiers dans GitHub, attendre le déploiement
+réussi, fermer et rouvrir l'application pour charger les nouveaux styles.

@@ -1,0 +1,21 @@
+OPUS CHANTIERS — V31 — Contrôle et archivage
+
+Sur les cartes À contrôler, l'administrateur dispose du bouton
+Chantier contrôlé → Terminé. Confirmer le contrôle et la vérification des
+attestations pour classer le dossier dans Terminés.
+
+Les dossiers Terminés passent dans Archives après 15 jours sans modification.
+Les dates des documents et sous-dossiers, rapports et suivis sont vérifiées.
+Une simple consultation ne repousse pas le délai. Un rendez-vous encore à venir
+bloque l'archivage. Aucun chantier À contrôler n'est archivé automatiquement.
+Les documents sont conservés : archivage signifie déplacement dans Archives.
+
+La vérification s'exécute pendant les actualisations de l'application ouverte
+avec le compte administrateur (au plus une vérification par heure et dossier).
+Si l'application est fermée, le classement attend sa prochaine ouverture.
+Une erreur réseau ou une date de modification manquante empêche l'archivage.
+Pour les anciens dossiers déjà terminés, les 15 jours démarrent à leur première
+actualisation avec cette version, afin d'éviter un archivage immédiat.
+
+Version cumulative incluant V30. Décompresser et importer dans GitHub, attendre
+la réussite du déploiement, puis fermer et rouvrir l'application.
