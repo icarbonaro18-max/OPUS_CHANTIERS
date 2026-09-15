@@ -1,0 +1,31 @@
+/* Last stylesheet: override old tablet minimum widths without hiding appointments. */
+#calendarPage{min-width:0}
+body.calendarScreen #shell{grid-template-columns:minmax(0,1fr);max-width:none}
+body.calendarScreen main{padding:10px;min-width:0}
+body.calendarScreen #mainNav{flex-wrap:wrap;overflow:visible;gap:4px}
+body.calendarScreen #mainNav button{min-width:0;padding:6px 10px;font-size:12px;min-height:40px}
+#calendarPage .calendarViewSwitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+#calendarPage .calendarViewSwitch button{min-height:44px}
+#calendarPage[data-view=day] .hourEvent{font-size:13px;padding:3px 6px}
+#calendarPage[data-view=day] .hourEvent b{font-size:11px}
+#calendarPage .hourGrid{touch-action:pan-x pan-y pinch-zoom}
+@media(max-width:1100px){body.calendarScreen>header{padding:6px 10px;gap:6px;min-height:0;flex-wrap:wrap}body.calendarScreen .brand img{width:110px;max-height:34px}body.calendarScreen .brand{gap:8px}body.calendarScreen .brand span{padding-left:8px;font-size:15px}body.calendarScreen .brand small{display:none}body.calendarScreen .topright{flex-wrap:wrap;gap:4px}body.calendarScreen .topright button{padding:5px 8px;font-size:11px;min-height:36px}body.calendarScreen #connection{font-size:10px}#calendarPage .pageHeading{gap:6px;flex-wrap:wrap}#calendarPage .pageHeading h1{font-size:18px}}
+#calendarPage .hourScroll{overflow:visible;max-height:none;width:100%;border-radius:8px}
+#calendarPage .hourGrid{--calendar-height:clamp(280px,48dvh,620px);--minute:calc(var(--calendar-height) / var(--span));min-width:0;width:100%;grid-template-columns:38px repeat(var(--days,5),minmax(0,1fr))}
+#calendarPage .hourDay{min-width:0;background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(60 * var(--minute) - 1px),#d8e3ec calc(60 * var(--minute) - 1px),#d8e3ec calc(60 * var(--minute)))}
+#calendarPage .hourHead{min-width:0;padding:6px 2px;font-size:11px;overflow-wrap:anywhere}
+#calendarPage .hourHead .opusClosure,#calendarPage .hourHead .absenceBadge{font-size:9px}
+#calendarPage .hourAxis span{font-size:10px;right:3px;transform:translateY(-45%)}
+#calendarPage .hourSlot{height:calc(60 * var(--minute));display:block}
+#calendarPage .hourSlot:nth-child(even){display:none}
+#calendarPage .hourEvent{overflow:hidden;padding:2px;border-left-width:2px;font-size:10px;line-height:1.1;min-width:0}
+#calendarPage .hourEvent b{font-size:9px;white-space:nowrap}
+#calendarPage .hourEvent strong{font-weight:600}
+#calendarPage .pageHeading{margin-bottom:8px}
+#calendarPage .pageHeading h1{font-size:22px}
+#calendarPage .pageHeading .muted,#calendarPage .eyebrow{display:none}
+#calendarPage .calendarViewSwitch{margin-bottom:6px}
+#calendarPage .calendarTools{flex-wrap:wrap;margin-bottom:8px;font-size:12px}
+.calendarPreview{max-width:640px}.calendarPreview p{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:600px){#calendarPage .hourGrid{grid-template-columns:28px repeat(var(--days,5),minmax(0,1fr));--calendar-height:clamp(280px,48dvh,450px)}#calendarPage .hourEvent{font-size:8px}#calendarPage .hourEvent b{font-size:7px}#calendarPage .hourHead{font-size:9px}#calendarPage .hourAxis span{font-size:8px}.projectQuickActions{justify-content:flex-start}.projectQuickActions button{font-size:12px;padding:8px 10px}}
+.hourDayDetails{background:transparent!important;color:inherit!important;border:0!important;padding:2px!important;font:inherit!important;min-width:0!important;width:100%;white-space:normal}.dayAppointment{display:block;width:100%;margin:8px 0;white-space:normal;text-align:left}
