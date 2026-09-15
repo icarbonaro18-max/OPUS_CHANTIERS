@@ -1,0 +1,11 @@
+OPUS V24 — Lecture des bons plus nette
+
+Le lecteur PDF tient compte de la résolution de l'écran du téléphone.
+Les boutons + et − permettent un zoom jusqu'à 300 % avec un nouveau rendu.
+Largeur écran rétablit la vue adaptée au téléphone.
+Lorsque la page est agrandie, déplacer la vue horizontalement pour lire les colonnes.
+Le bouton Télécharger reste facultatif pour les PDF lisibles dans OPUS.
+La qualité d'une photo ou d'un document déjà scanné flou reste limitée par sa source.
+
+Importer les fichiers dans GitHub puis attendre le déploiement avant de rouvrir OPUS.
+Toutes les mises à jour précédentes sont incluses.

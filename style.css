@@ -127,6 +127,10 @@
 
 .unreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:2px 6px;background:#c52435;color:white;border-radius:99px;font-size:12px;margin-left:5px}#teamAlertsPanel .row>div{min-width:0;overflow-wrap:anywhere}
 
+#viewerBody{padding:12px;overflow:auto;-webkit-overflow-scrolling:touch}
+#viewerBody canvas.sharpPdf{max-width:none;display:block;margin:0 auto}
+#pdfZoomTools{flex-wrap:wrap;gap:6px}
+@media(max-width:760px){.viewerToolbar{padding:8px;gap:8px}.viewerToolbar button{padding:7px 10px;font-size:12px}.viewerToolbar .pager{flex-wrap:wrap;gap:6px}#viewerTitle{font-size:13px;min-width:0}}
 /* The alert control belongs to the header, outside the scrolling navigation. */
 #teamAlerts{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:3px;border-radius:999px;min-height:44px;padding:6px 10px;font-size:12px;line-height:1.2;white-space:nowrap;background:#eaf2f8;color:var(--navy);border:1px solid #cad9e5;letter-spacing:0}
 #teamAlerts.hasUnread{background:#bd2033;color:#fff;border-color:#bd2033}

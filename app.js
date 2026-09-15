@@ -243,16 +243,28 @@ function legacyImport(){modal('Reprendre un dossier existant',`<p>Import ponctue
  for(const doc of d.documents||[]){if(!doc.blobData)continue;const category=doc.category==='Rapport bureau de contrôle'?'02_RAPPORT_CONTROLE':doc.category==='Bon de commande'?'03_COMMANDES':'01_FEUILLE_CHANTIER';const folder=await g.folder(selected.id,category);const blob=await (await fetch(doc.blobData)).blob();await g.upload(folder.id,safeName(doc.fileName||'document.pdf'),blob);}
  await flush();$('modal').close();await openProject(selected.id);toast('Reprise effectuée. Vérifiez les données et les envois en attente.');});});
 }
+let pdfZoom=1,pdfRenderId=0;
 async function showBlob(blob,name,mime=''){
+ pdfZoom=1;pdfRenderId++;
  viewerBlob={blob,name};$('viewer').hidden=false;$('viewerTitle').textContent=name;$('viewerBody').innerHTML='<p>Préparation de l’aperçu…</p>';pdfDoc=null;
  const isPdf=blob.type.includes('pdf')||mime.includes('pdf')||/\.pdf$/i.test(name);
  if(isPdf){try{const lib=await import('./vendor/pdf.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.mjs',location.href).href;pdfDoc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false,standardFontDataUrl:new URL('./vendor/standard_fonts/',location.href).href,cMapUrl:new URL('./vendor/cmaps/',location.href).href,cMapPacked:true,wasmUrl:new URL('./vendor/wasm/',location.href).href}).promise;pdfPage=1;await renderPdf();}
  catch(e){const u=URL.createObjectURL(blob);$('viewerBody').innerHTML='<div class="hint">Le lecteur intégré est indisponible. Le lecteur du navigateur est proposé ci-dessous ; le bouton Télécharger reste disponible.</div>';const frame=document.createElement('iframe');frame.src=u;frame.title=name;$('viewerBody').append(frame);viewerBlob.url=u;}}
  else if(blob.type.startsWith('image/')||/\.(png|jpe?g|webp)$/i.test(name)){const u=URL.createObjectURL(blob),img=document.createElement('img');img.src=u;img.alt=name;$('viewerBody').replaceChildren(img);viewerBlob.url=u;}
  else $('viewerBody').innerHTML='<div class="panel"><p>Ce format n’a pas de lecteur intégré. Utilisez « Télécharger » pour l’ouvrir avec son logiciel.</p></div>';
- $('prevPage').hidden=$('nextPage').hidden=!pdfDoc;if(!pdfDoc)$('pageCounter').textContent='';
+ $('prevPage').hidden=$('nextPage').hidden=!pdfDoc;ensurePdfZoom();$('pdfZoomTools').hidden=!pdfDoc;if(!pdfDoc)$('pageCounter').textContent='';
 }
-async function renderPdf(){const page=await pdfDoc.getPage(pdfPage);const w=Math.min(1300,Math.max(350,$('viewerBody').clientWidth-36));const base=page.getViewport({scale:1});const v=page.getViewport({scale:w/base.width});const c=document.createElement('canvas');c.width=v.width;c.height=v.height;await page.render({canvasContext:c.getContext('2d'),viewport:v}).promise;$('viewerBody').replaceChildren(c);$('pageCounter').textContent=pdfPage+' / '+pdfDoc.numPages;$('prevPage').disabled=pdfPage===1;$('nextPage').disabled=pdfPage===pdfDoc.numPages;}
+function ensurePdfZoom(){if($('pdfZoomTools'))return;const tools=document.createElement('div');tools.id='pdfZoomTools';tools.className='pager';tools.innerHTML='<button id="pdfZoomOut" class="whiteBtn" aria-label="Réduire">−</button><span id="pdfZoomLabel">100 %</span><button id="pdfZoomIn" class="whiteBtn" aria-label="Agrandir">+</button><button id="pdfZoomFit" class="whiteBtn">Largeur écran</button>';document.querySelector('.viewerToolbar').append(tools);for(const [id,delta] of [['pdfZoomOut',-.5],['pdfZoomIn',.5],['pdfZoomFit',0]])$(id).onclick=async()=>{if(!pdfDoc)return;pdfZoom=delta?Math.min(3,Math.max(1,pdfZoom+delta)):1;try{await renderPdf();}catch(e){toast('Zoom indisponible : '+e.message);}};}
+async function renderPdf(){
+ const doc=pdfDoc,index=pdfPage,renderId=++pdfRenderId;if(!doc)return;
+ const {pdfDisplay}=await import('./lib/pdf-display.js');const page=await doc.getPage(index),base=page.getViewport({scale:1});
+ const size=pdfDisplay(base.width,base.height,Math.min(1300,$('viewerBody').clientWidth-24),pdfZoom,window.devicePixelRatio||1),v=page.getViewport({scale:size.scale});
+ const c=document.createElement('canvas');c.width=size.pixelWidth;c.height=size.pixelHeight;c.style.width=size.width+'px';c.style.height=size.height+'px';c.className='sharpPdf';
+ await page.render({canvasContext:c.getContext('2d'),viewport:v,transform:[size.ratio,0,0,size.ratio,0,0]}).promise;
+ if(renderId!==pdfRenderId||doc!==pdfDoc||$('viewer').hidden)return;
+ $('viewerBody').replaceChildren(c);$('pageCounter').textContent=index+' / '+doc.numPages;$('prevPage').disabled=index===1;$('nextPage').disabled=index===doc.numPages;
+ ensurePdfZoom();$('pdfZoomLabel').textContent=Math.round(pdfZoom*100)+' %';$('pdfZoomOut').disabled=pdfZoom===1;$('pdfZoomIn').disabled=pdfZoom===3;
+}
 bind('prevPage',async()=>{if(pdfDoc&&pdfPage>1){pdfPage--;await renderPdf();}});bind('nextPage',async()=>{if(pdfDoc&&pdfPage<pdfDoc.numPages){pdfPage++;await renderPdf();}});
 $('closeViewer').onclick=()=>{$('viewer').hidden=true;if(viewerBlob?.url)URL.revokeObjectURL(viewerBlob.url);pdfDoc?.destroy();pdfDoc=null;$('viewerBody').innerHTML='';};$('downloadFile').onclick=()=>{if(viewerBlob)download(viewerBlob.blob,viewerBlob.name);};
 function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000);}

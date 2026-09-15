@@ -1,0 +1,16 @@
+OPUS CHANTIERS - V25 - Logos proportionnels
+
+Les nouveaux PDF conservent les proportions originales du logo OPUS ELEC :
+- Fiches mensuelles d'heures.
+- Bons de commande fournisseurs et bons internes du dépôt.
+- Étiquettes cartons.
+- Documents Enedis et mandat.
+
+Les rapports d'intervention, visites et logos fournisseurs conservaient déjà
+leurs proportions. Ils restent inchangés.
+
+Importer les fichiers de cette mise à jour dans le dépôt GitHub, puis attendre
+la réussite du déploiement. Fermer et rouvrir l'application.
+
+Les PDF déjà enregistrés ne sont pas modifiés : il faut les générer à nouveau
+pour bénéficier de la correction. Aucun pointage ni commande n'est supprimé.
