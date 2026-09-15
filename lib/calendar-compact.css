@@ -1,4 +1,7 @@
 /* Last stylesheet: override old tablet minimum widths without hiding appointments. */
+.projectCard .projectQuickActions{gap:6px}
+.projectCard .projectQuickActions button{background:#fff;color:var(--navy);border:1px solid #b9cee0;border-radius:999px;min-height:28px;min-width:0;padding:4px 10px;font-size:12px;line-height:18px;white-space:normal}
+.projectCard .projectQuickActions button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #calendarPage{min-width:0}
 body.calendarScreen #shell{grid-template-columns:minmax(0,1fr);max-width:none}
 body.calendarScreen main{padding:10px;min-width:0}
