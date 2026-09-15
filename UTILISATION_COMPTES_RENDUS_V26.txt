@@ -1,0 +1,32 @@
+OPUS CHANTIERS - V26 - Comptes rendus chantier
+
+Dans chaque dossier chantier, un grand bouton « Créer / consulter un compte
+rendu » reste visible au-dessus du contenu, quel que soit l'onglet choisi.
+
+1. Choisir Fin de journée, Compte rendu d'intervention ou Fin de chantier.
+2. Créer le rapport et renseigner le travail, l'avancement et les suites.
+3. Indiquer le matériel complémentaire (références, quantités) et sa date de besoin.
+4. Ajouter les photos générales depuis l'appareil photo ou la galerie.
+   Plus de limite de six photos dans les rapports de chantier. Les images sont
+   optimisées ; procéder par petits lots pour ménager la mémoire de la tablette.
+5. Renseigner les horaires réellement effectués et la pause, puis envoyer le
+   compte rendu au bureau. Un brouillon peut être enregistré avant l'envoi.
+
+Le rapport et ses photos sont enregistrés dans OPUS. Le PDF est classé sous
+le chantier / 05_PDF_GENERES / COMPTES_RENDUS et peut être téléchargé pour partage.
+Les photos sont incluses dans le PDF. Il n'y a pas d'envoi automatique au client.
+
+L'administrateur voit les rapports envoyés dans Nouveautés avec les besoins
+matériels. Vérification à l'ouverture, au retour dans l'application, toutes
+les cinq minutes lorsqu'elle est visible ou par « Vérifier maintenant ».
+Ce ne sont pas des notifications système lorsque l'application est fermée.
+
+Une fin de journée ne clôture pas le chantier. Une fin de chantier signale
+le contrôle à effectuer ; le circuit existant de contrôle/clôture reste intact.
+Le besoin matériel ne déclenche pas de commande automatique.
+
+Créer un rapport par passage/journée, sans recopier les mêmes heures dans
+plusieurs rapports. Les horaires de l'équipe restent gérés dans le planning.
+En cas d'échec du transfert, vérifier le message affiché avant de quitter.
+
+Mise à jour cumulative à importer dans GitHub, puis attendre le déploiement.

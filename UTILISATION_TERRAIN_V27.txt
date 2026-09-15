@@ -1,0 +1,54 @@
+OPUS CHANTIERS - V27 - Accès rapides terrain
+
+CHANTIERS
+Sur chaque carte, sans ouvrir le dossier :
+- Rapport de fin d'intervention : crée un rapport de fin de chantier.
+- Suivi de chantier : crée un compte rendu intermédiaire / de journée.
+- Commandes fournisseurs : ouvre directement les commandes, regroupées par
+  sous-dossier fournisseur. Un onglet distinct donne accès au dépôt de Buc.
+Le bouton Ouvrir donne toujours accès au dossier complet.
+
+RAPPORTS
+Les deux types de rapports gardent les points séparés, les photos et les
+observations. Utiliser Ajouter un équipement / point pour une pièce ou une zone.
+Les champs Avancement et Matériel disposent aussi des outils français / italien.
+La dictée dépend du microphone, des autorisations et du service IA configuré.
+
+Le tableau des besoins matériels contient référence (facultative), description,
+quantité et unité (U, m, lot, boîte). Les quantités doivent être positives.
+Les besoins et les photos sont joints au rapport PDF et visibles au bureau.
+Il s'agit d'une demande interne, pas d'un achat automatique chez un fournisseur.
+
+Enregistrer une fin de chantier : rapport puis PDF enregistrés, ensuite demande
+de classement À contrôler. En cas d'échec, le message distingue le PDF et le
+classement ; réessayer sans créer un autre rapport.
+Enregistrer un suivi : le chantier reste dans son état actuel.
+Au bureau, ouvrir le suivi du chantier À contrôler, valider le contrôle et les
+attestations nécessaires, puis Dossier terminé / enregistrer le contrôle.
+La clôture reste réservée à l'administrateur. La facturation est faite au bureau.
+
+PLANNING
+Trois boutons visibles : Jour, Semaine et Mois. Jour affiche une seule journée,
+avec les flèches pour passer à la précédente ou à la suivante.
+Plage habituelle : 7 h à 18 h. Les rendez-vous plus tôt ou plus tard étendent
+automatiquement la plage pour rester visibles.
+La grille hebdomadaire prend la largeur disponible et adapte la hauteur aux
+dimensions de l'écran. Les repères sont horaires ; les heures exactes des
+rendez-vous et les conflits de planning restent conservés.
+Toucher un rendez-vous affiche les détails : nom, adresse, équipe, horaires.
+Ouvrir le dossier et Modifier le rendez-vous sont des actions distinctes.
+Toucher le nom d'un jour affiche sa liste complète, utile pour les passages
+très courts et les rendez-vous simultanés sur un petit téléphone.
+
+COMMANDES
+Choisir une affaire est requis avant de générer un nouveau bon. Le PDF reprend
+son numéro et son nom en évidence, même si l'e-mail fournisseur ne contient
+qu'un numéro. Une correspondance unique peut présélectionner le chantier ;
+une référence absente ou ambiguë doit être affectée manuellement.
+Les anciens PDF ne changent pas : les régénérer si nécessaire.
+
+INSTALLATION
+Mise à jour cumulative V27 incluant V26. Importer les fichiers dans GitHub,
+attendre le déploiement réussi, fermer puis rouvrir l'application.
+Tests fonctionnels et PDF vérifiés. Le rendu physique téléphone / tablette
+reste à confirmer sur les appareils : navigateur de test indisponible ici.

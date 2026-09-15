@@ -1,0 +1,30 @@
+OPUS CHANTIERS — V28 — Plusieurs affaires dans une journée
+
+Cette version inclut toutes les améliorations V27 : planning compact 7 h–18 h,
+boutons Jour / Semaine / Mois, aperçu des rendez-vous, trois accès rapides sur
+les chantiers, rapports et tableau des besoins, numéro et nom sur les commandes.
+
+EXEMPLE UCPA / PATINOIRE
+1. Calendrier > Planifier : choisir l'affaire 1194 et les horaires de la journée.
+2. Dans Plusieurs affaires, Ajouter / retirer des affaires : cocher la 715.
+3. Nom court : UCPA · Patinoire.
+4. Organisation : 1194 le matin, 715 l'après-midi.
+5. Choisir les techniciens une seule fois et enregistrer.
+
+Un seul bloc apparaît. Son aperçu donne l'équipe, la consigne et les deux
+affaires, avec leurs adresses et les boutons pour ouvrir chaque dossier.
+Modifier le rendez-vous permet aussi de retirer une affaire du regroupement.
+Les conflits horaires et les droits de composition des équipes restent appliqués.
+Les rendez-vous déjà créés séparément ne sont pas fusionnés automatiquement.
+
+HEURES ET DOSSIERS
+Les heures de chaque salarié sont comptées une fois pour le rendez-vous commun.
+Elles ne sont pas arbitrairement réparties entre les budgets des deux affaires :
+le suivi indique des heures non ventilées. Pour un décompte précis par affaire,
+utiliser des créneaux distincts ou les rapports propres à chaque affaire.
+Le regroupement du calendrier ne fusionne ni les documents ni la facturation.
+Chaque chantier conserve ses commandes, son rapport final et son contrôle.
+
+Importer les fichiers de la V28, attendre la réussite du déploiement, puis fermer
+et rouvrir l'application. Les tests fonctionnels sont vérifiés ; le rendu sur
+les appareils reste à confirmer sur votre tablette et votre téléphone.

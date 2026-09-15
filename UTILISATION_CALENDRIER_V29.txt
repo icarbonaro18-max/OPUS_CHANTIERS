@@ -1,0 +1,15 @@
+OPUS CHANTIERS — V29 — Calendrier terrain
+
+Pour les techniciens et Roberto, ouvrir Calendrier affiche la journée en cours.
+Jour, Semaine et Mois sont toujours visibles. Les flèches changent la période.
+La grille Jour / Semaine utilise la hauteur disponible sous les commandes et
+la largeur de l'écran. Le bandeau est réduit ; les onglets reviennent à la ligne.
+Les horaires restent 7 h–18 h, étendus en cas de rendez-vous exceptionnel.
+Le zoom natif à deux doigts reste autorisé. Une fois agrandi, il est normal
+de devoir déplacer la vue ; dézoomer pour retrouver la grille entière.
+Un appui sur un rendez-vous affiche les consignes, l'adresse et l'équipe.
+Les jours très chargés restent consultables via leur liste de rendez-vous.
+
+Version cumulative incluant V28. Importer les fichiers, attendre le déploiement
+réussi, puis fermer et rouvrir l'application. Le rendu et le geste de zoom
+restent à vérifier sur les appareils physiques.
