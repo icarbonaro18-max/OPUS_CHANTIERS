@@ -1,9 +1,10 @@
 import {jsPDF} from '../vendor/jspdf.js';
 import {installPdfFonts} from '../lib/pdf-fonts.js';
+import {addPdfLogo} from '../lib/pdf-logo.js';
 export async function makePDF(order,{logo,supplierLogo='',project=''}={}){
  const p=new jsPDF({unit:'mm',format:'a4'});await installPdfFonts(p);p.setFont('OpusSans');let y=18;
  const line=(text,bold=false,size=10)=>{p.setFont('OpusSans',bold?'bold':'normal');p.setFontSize(size);const lines=p.splitTextToSize(String(text||''),174);for(const l of lines){if(y>272){p.addPage();y=20;}p.text(l,18,y);y+=size*.48;}y+=3;};
- p.setTextColor(12,61,99);if(logo){p.addImage(logo,'PNG',18,14,49,16);y=43;}
+ p.setTextColor(12,61,99);if(logo){addPdfLogo(p,logo,18,14,49,16);y=43;}
  if(supplierLogo){const a=p.getImageProperties(supplierLogo);const w=Math.min(40,16*a.width/a.height),h=w*a.height/a.width;p.addImage(supplierLogo,undefined,192-w,15,w,h);}
  line(order.internal?'BON INTERNE — DÉPÔT':'BON DE COMMANDE',true,20);line('Préparation et récupération du matériel',false,10);y+=4;
  line(order.supplier+' · '+order.number,true,13);
