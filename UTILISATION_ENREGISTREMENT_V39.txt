@@ -1,0 +1,11 @@
+V39 — Validation et messages d’enregistrement des rapports
+
+Correction reproduite par test : modifier une heure ou la pause décochait la validation du résumé français, même si son contenu n’avait pas changé. La validation est désormais conservée quand les données servant au résumé sont inchangées. Une modification des notes impose toujours une nouvelle validation.
+
+Les messages d’avancement, de réussite et d’échec apparaissent près du bouton Envoyer le compte rendu au bureau. Le formulaire fait défiler le message à l’écran. Si le résumé n’est pas validé, le panneau de relecture s’ouvre et la case de validation est indiquée. Les champs invalides du formulaire sont également signalés. Annuler la confirmation affiche Envoi annulé au lieu de laisser Enregistrement en cours.
+
+Pour le rapport en cours : relire le résumé français, cocher sa validation, puis Envoyer le compte rendu au bureau et confirmer l’heure de départ. Si les notes ont changé, régénérer et relire le résumé.
+
+La capture IMG_0893 montre le formulaire, mais aucun message d’erreur. Elle ne permet pas d’attribuer avec certitude l’incident de ce rapport à ces défauts. La V39 améliore aussi le diagnostic si une autre erreur Microsoft/PDF/classement subsiste.
+
+15 tests ciblés réussis. Pas de vérification sur iPhone réel ni de modification des données de production. Importer ce correctif dans GitHub pour le déployer selon la procédure habituelle. La V38 (corbeille des rapports) est incluse.
