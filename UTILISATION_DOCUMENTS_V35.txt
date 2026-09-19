@@ -1,0 +1,17 @@
+V35 — Documents et coordonnées
+
+Touchez directement le nom du PDF ou du dossier dans Documents. Les bons fournisseurs et dépôt s’ouvrent également depuis leur nom. Les noms longs reviennent à la ligne.
+
+À l’ouverture du chantier par l’administrateur, si le client ou l’adresse manque, OPUS cherche une feuille PDF dans 01_FEUILLE_CHANTIER (ou une feuille nommée Feuille…pdf à la racine).
+Avec une seule feuille reconnue et le même numéro de devis, OPUS complète les coordonnées manquantes dans la fiche commune : client, adresse des travaux, et contact/téléphone/e-mail lorsqu’ils sont explicitement identifiés dans le bloc chantier. Les champs existants sont conservés. Les nouvelles attestations et les nouveaux rapports bénéficient de la fiche commune.
+Plusieurs PDF : utiliser Vue d’ensemble > Reprendre la feuille PDF pour choisir et valider la source. Un PDF scanné ou non reconnu nécessite une saisie manuelle. Aucun OCR ni déduction d’adresse client depuis celle des travaux.
+La reprise ne crée pas de fiche dans un carnet clients séparé et ne réécrit pas les anciens rapports. Les écritures suivent la file de synchronisation Microsoft habituelle.
+
+Version cumulative, non déployée. Suite : 137 tests réussis, puis vérification ciblée de l’extraction des coordonnées. Pas d’essai sur la bibliothèque Microsoft réelle.
+
+Simplifications supplémentaires :
+- Un seul groupe fournisseur/dépôt : sa liste de documents est dépliée automatiquement.
+- Dans Reprendre la feuille PDF, une seule feuille : lecture et aperçu automatiques, validation conservée.
+- Documents non classés et bons joints aux interventions : ouverture par le nom également.
+
+Conseils d’utilisation : une fiche commune par chantier, un rapport court avec photos après chaque passage et une validation de fin par le bureau. Garder une confirmation pour terminer un chantier, envoyer une commande ou valider un texte généré.

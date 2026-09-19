@@ -1,0 +1,17 @@
+V33 — Rapports simplifiés et interface claire
+
+Intervention, suivi de chantier et visite :
+1. Dicter ou écrire ce qui a été fait / constaté.
+2. Prendre des photos ou les ajouter depuis la galerie.
+3. Au besoin, créer le résumé en français, relire et cocher sa validation.
+4. Vérifier les horaires réels et envoyer au bureau.
+
+Les équipements, observations et besoins de matériel restent accessibles dans des volets facultatifs. Les informations déjà saisies sont conservées. Les volets contenant des observations ou des points existants restent ouverts.
+Les brouillons restent disponibles. Les PDF et les actions secondaires sont regroupés. L’arrivée réelle reste à renseigner : les heures prévues ne sont jamais prises pour des heures travaillées.
+Un rapport de fin de chantier passe à contrôler après enregistrement du rapport et du PDF ; un suivi laisse le chantier en cours.
+La dictée et les fonctions IA conservent leurs besoins de connexion et d’autorisation. La rédaction ne prétend pas analyser les photos.
+
+Le style clair V32 est inclus dans l’application principale, les commandes, le planning et les formulaires modules. Les formulaires techniques spécialisés gardent leurs champs métier ; le parcours simplifié concerne les rapports de chantier, d’intervention et de visite.
+
+Vérification automatisée : suite de tests et génération de l’application. Pas de validation visuelle sur tablette physique ni d’essai réel d’envoi Microsoft dans cet environnement.
+Mise à jour prête à importer ; aucune publication en ligne effectuée.

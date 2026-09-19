@@ -1,0 +1,14 @@
+V34 — Début des formulaires de rapport allégé
+
+À l’ouverture d’un rapport de chantier, d’intervention ou de visite, le rappel affiche uniquement :
+- le dossier (nom / numéro),
+- le client,
+- le lieu d’intervention,
+- le contact sur place, si renseigné.
+
+Le grand bloc initial et la phrase d’introduction ont été retirés. Le réglage de langue se trouve avec la zone de rédaction.
+Les champs restent à compléter ; aucun texte de travaux réalisés n’est ajouté automatiquement. Les rapports existants conservent leurs données.
+Photos, dictée, français propre, résumé, horaires réels et enregistrement restent disponibles.
+Cette modification concerne le formulaire de saisie. La composition des PDF reste inchangée.
+
+Archives cumulatives avec V33. Prête à importer, non déployée.

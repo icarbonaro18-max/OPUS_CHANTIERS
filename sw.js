@@ -1,6 +1,6 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.4.32-light-interface-1';
+const CACHE=PREFIX+'3.4.35-documents-coordinates-1';
 const SCOPE=new URL(self.registration.scope);
 let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
