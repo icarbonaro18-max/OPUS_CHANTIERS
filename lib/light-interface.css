@@ -46,3 +46,24 @@
   #calendarPage .hourEvent strong{font-weight:500}
  }
 }
+@media screen{
+ .simpleReport{max-width:820px;margin:auto}.simpleReport .reportIntro{color:#526a7d;margin:8px 0 16px;font-size:13px}
+ .simpleReport .quickReport,.reportEssential{background:#fff;border:1px solid #dce5ed;border-radius:10px;padding:14px;margin:12px 0;box-shadow:none}
+ .simpleReport textarea{width:100%;min-height:85px;box-sizing:border-box}
+ .reportOptional{border:1px solid #dce5ed;border-radius:8px;background:#fff;padding:10px 12px;margin:10px 0;min-width:0}
+ .reportOptional>summary{cursor:pointer;color:#24567c;padding:4px 0;font-size:13px}
+ .reportOptional .quickReport{border:0;padding:8px 0;margin:0}.reportOptional .fieldTools{flex-wrap:wrap}
+ .reportSend{align-items:center;flex-wrap:wrap}.reportSend>button[type=submit]{background:#24567c;color:#fff;padding:12px 16px;min-height:44px}.reportSend>details{margin:0}
+ .reportKind{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.reportKind select{flex:1;min-width:180px}
+ .simpleReport .fieldTools,.simpleReport .photoButtons{display:flex;gap:6px;flex-wrap:wrap}.simpleReport .reportHours{margin-top:14px}
+ @media(max-width:760px){
+  dialog{max-width:calc(100vw - 16px);box-sizing:border-box;padding:12px}.simpleReport .formGrid{grid-template-columns:1fr}.simpleReport .formGrid>*{min-width:0}
+  .simpleReport .reportEssential,.simpleReport .quickReport{padding:12px}.simpleReport .photoButtons>*{flex:1;min-width:0;font-size:13px}
+  .simpleReport .reportSend>button[type=submit]{width:100%}.simpleReport .fieldTools button{font-size:12px;padding:7px 9px}
+  .materialRequestTable{overflow-x:auto} .moduleCard p,.helpCard p{font-size:13px;line-height:1.45}
+ }
+}
+
+@media screen{.reportIdentity{padding:10px 12px;border:1px solid #dce5ed;border-radius:8px;background:#f7f9fc;font-size:13px;line-height:1.6;overflow-wrap:anywhere}.reportIdentity strong{font-weight:500}.reportEssential .languageBar{margin-top:8px;padding:6px 0;font-size:12px}}
+
+@media screen{button.documentLink{display:block;text-align:left;width:100%;max-width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;background:transparent;border:0;padding:4px 0;color:#24567c;font-size:inherit;font-weight:500}.row>div{min-width:0}.documentLink:hover{text-decoration:underline}.docBreadcrumb{flex-wrap:wrap}.docBreadcrumb button{white-space:normal;overflow-wrap:anywhere}}
