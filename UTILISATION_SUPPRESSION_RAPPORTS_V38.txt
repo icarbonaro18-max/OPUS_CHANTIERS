@@ -1,0 +1,12 @@
+V38 — Suppression des rapports
+
+Depuis la liste des comptes rendus du chantier, l’administrateur peut glisser un rapport vers la gauche (geste horizontal franc), ou appuyer sur Supprimer.
+Le rapport disparaît après confirmation de l’enregistrement par Microsoft. En cas d’échec, il reste dans la liste.
+Le bouton Corbeille permet de restaurer les rapports supprimés, même après fermeture de l’application.
+Le défilement vertical ne supprime pas les rapports. Les techniciens ne disposent pas de cette suppression.
+
+Cette suppression est réversible : elle retire le compte rendu des listes actives. Les photos, heures et PDF déjà archivés dans OneDrive sont conservés. Le statut du chantier n’est pas annulé par cette suppression.
+Aucun rapport existant n’a été supprimé à distance.
+
+Importer les fichiers du ZIP dans le dépôt pour publier la mise à jour habituelle. Cette archive n’est pas un déploiement.
+Vérification : huit tests ciblés réussis (droits, restauration, sauvegarde en échec, gestes, accès aux rapports). Le geste reste à vérifier sur un iPhone/tablette réel.
