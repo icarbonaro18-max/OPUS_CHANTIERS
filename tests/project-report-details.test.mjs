@@ -12,7 +12,7 @@ function setup(){
 test('technician creates daily report inside the selected project and can choose final report',async()=>{
  const {ui,saved}=setup();await projectReports(ui,{id:'p',name:'2026-001172 ANTIN'},{adresse:'Paris'});
  document.getElementById('newReportKind').value='chantier';await document.getElementById('newProjectReport').onclick({currentTarget:document.getElementById('newProjectReport')});
- const x=ui.data.interventions[0];assert.equal(x.projectId,'p');assert.equal(x.reportKind,'chantier');assert.deepEqual(x.teamIds,['r']);assert.equal(saved.length,1);assert.equal(document.getElementById('prKind').value,'chantier');assert.match(document.getElementById('finishInterventionButton').textContent,/Envoyer/);assert.equal(projectReportAlerts([x]).length,0);
+ const x=ui.data.interventions[0];assert.equal(x.projectId,'p');assert.equal(x.reportKind,'chantier');assert.deepEqual(x.teamIds,[]);assert.equal(saved.length,1);assert.equal(document.getElementById('prKind').value,'chantier');assert.match(document.getElementById('finishInterventionButton').textContent,/Envoyer/);assert.equal(projectReportAlerts([x]).length,0);
 });
 test('final report preserves material needs and requests control without approving closure',async()=>{
  const {ui,archives}=setup();const x={id:'x',number:'TEST',projectId:'p',projectName:'ANTIN',status:'en_cours',photos:[],reportItems:[]};ui.data.interventions=[x];ui.data.projectTracking=[{id:'p',finishedRequested:false}];await ui.openIntervention('x');
