@@ -1,3 +1,4 @@
+import {isIndependentIntervention} from '../lib/work-records.js';
 import {safeName} from '../lib/cloud.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function readInterventions(g){
@@ -8,7 +9,7 @@ export async function readInterventions(g){
  return {rows,file:meta};
 }
 export function interventionTargets(rows){
- return rows.filter(x=>x.status!=='annulee').sort((a,b)=>String(a.plannedStart||'9999').localeCompare(String(b.plannedStart||'9999'))).map(x=>({
+ return rows.filter(isIndependentIntervention).sort((a,b)=>String(a.plannedStart||'9999').localeCompare(String(b.plannedStart||'9999'))).map(x=>({
  id:'intervention:'+x.id,kind:'intervention',linkId:x.id,number:x.number,
  name:[x.number,x.title,x.clientName,x.plannedStart?new Date(x.plannedStart).toLocaleDateString('fr-FR'):'À programmer'].filter(Boolean).join(' · ')
  }));
@@ -24,7 +25,7 @@ export function mountTargetPicker(select,targets){
 }
 export async function orderFolder(g,target,group,supplier=''){
  if(target.kind==='intervention'){
- const {rows}=await readInterventions(g),x=rows.find(x=>x.id===target.linkId&&x.status!=='annulee');
+ const {rows}=await readInterventions(g),x=rows.find(x=>x.id===target.linkId&&isIndependentIntervention(x));
  if(!x)throw Error('Cette intervention n’est plus disponible. Actualisez la liste.');
  const root=await g.folder('root','INTERVENTIONS'),dir=await g.folder(root.id,safeName(x.number+'_'+x.id).slice(0,90));
  return g.folder(dir.id,'BONS_COMMANDE');
@@ -35,7 +36,7 @@ export async function orderFolder(g,target,group,supplier=''){
 }
 export async function linkOrder(g,target,item,details){
  if(target.kind!=='intervention')return;
- const {rows,file}=await readInterventions(g),x=rows.find(x=>x.id===target.linkId&&x.status!=='annulee');
+ const {rows,file}=await readInterventions(g),x=rows.find(x=>x.id===target.linkId&&isIndependentIntervention(x));
  if(!x||!file?.eTag)throw Error('PDF transféré, mais intervention non liée. Actualisez et réessayez.');
  const old=(x.materialOrders||[]).find(o=>details.recordId&&o.orderRecordId===details.recordId);
  const row={...old,id:old?.id||crypto.randomUUID(),orderRecordId:details.recordId||'',fileId:item.id,name:item.name,title:details.title||'',supplier:details.supplier||'',source:details.source||'fournisseur',pickup:details.pickup||'',notes:details.notes||'',createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),history:old?[...(old.history||[]),{...old,history:undefined}]:[]};
