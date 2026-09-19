@@ -1,0 +1,48 @@
+/* Screen-only interface; exported PDF and print styles keep their own layout. */
+@media screen{
+ :root{--bg:#f7f9fc;--ink:#263c50;--muted:#5e7183;--line:#dce5ed;--navy:#24567c;--blue:#286c9f;--radius:10px}
+ body{background:#f7f9fc;color:#263c50;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;line-height:1.45}
+ h1,h2,h3,h4{font-weight:500;letter-spacing:0;line-height:1.3}
+ h1{font-size:25px}h2{font-size:19px}h3{font-size:16px}
+ strong,b{font-weight:600}label,summary,button,.btn{font-weight:500}
+ button,.btn,button.secondary,button.whiteBtn{background:#edf4fa;color:#24567c;border:1px solid #d4e2ee;box-shadow:none;border-radius:8px;font-size:13px;font-weight:500;padding:8px 12px}
+ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #286c9f;outline-offset:2px}
+ input,select,textarea{background:#fff;color:#263c50;border-color:#c8d5e0;font-weight:400;border-radius:7px}
+ .mainNav,.tabs{background:#fff;gap:5px}
+ .mainNav button,.tabs button,.nav,.categoryPill{font-weight:500}
+ .mainNav button.active,.tabs button.selected,#calendarPage .calendarViewSwitch button.active,.categoryPill.active{background:#dcebf7;color:#194f78;border-color:#a7c8df}
+ .panel,.card,.projectCard,.moduleCard,.welcomeCard{border-color:#dce5ed;border-radius:10px;box-shadow:none}
+ .projectCard{padding:16px 18px;gap:12px}.projectCard h3{font-size:16px;font-weight:500}.projectCard p{font-size:12px}
+ .projectCard.projectToday{background:#f0f7fc;border:1px solid #b7d4e8;border-left:4px solid #83b6d9}
+ .projectToday .calendarChip{background:#deedf8;color:#24567c;font-weight:500}
+ .chip,.chips>span,.countBadge,.roleBadge{font-weight:500}
+ .projectHero,.moduleToolbar,.viewerToolbar{background:#edf4fa;color:#24567c;border:1px solid #d4e2ee;box-shadow:none}
+ .projectHero h1{font-weight:500}.projectHero p,.projectHero .eyebrow{color:#4d6980}
+ .brand span{font-weight:500;letter-spacing:0}.brand img{width:145px;object-fit:contain}
+ #projectAside{background:#edf3f8;color:#24567c;border-right:1px solid #dce5ed}
+ #projectAside .nav{color:#24567c}#projectAside .nav.active{background:#fff;color:#194f78;border-color:#c8dce9}
+ #projectAside .asideNote,#projectAside .asideNote strong{color:#506b81}
+ .metric{padding:12px;border-radius:9px;box-shadow:none}.metric strong{font-size:23px;font-weight:500}
+ #projectFieldReport{background:#edf4fa;color:#24567c;border:1px solid #c8dce9;box-shadow:none;font-size:14px;padding:12px;font-weight:500}
+ .projectReportSummary{border-left:3px solid #a7c8df}
+ .projectCard .projectQuickActions button{background:#fff;color:#24567c;font-weight:500}
+ #teamAlerts{font-weight:500}#teamAlerts.hasUnread{background:#bd2033;color:#fff;border-color:#bd2033}
+ button.danger,.btn.danger{background:#fff0f1;color:#a12635;border-color:#eccbd0}
+ #saveModulePdf{background:#e5f4eb;color:#23643e;border-color:#b9ddc7}
+ #status{font-weight:500}
+ @media(max-width:760px){
+  body{font-size:14px}body>header{padding:10px 12px;gap:8px;min-height:0}
+  .brand{gap:10px}.brand img,body>header>img{width:115px;max-height:38px;object-fit:contain}.brand span{font-size:17px;padding-left:10px}.brand small{font-size:10px}
+  .topright{gap:6px;flex-wrap:wrap}.topright button{font-size:12px;padding:7px 10px;font-weight:500}#connection{font-size:11px}
+  main{padding:14px 10px}.pageHeading{gap:8px;margin-bottom:14px}.pageHeading h1,h1,.welcome h1{font-size:22px;font-weight:500}.pageHeading .eyebrow{font-size:10px;letter-spacing:.5px}.pageHeading .muted{font-size:12px}
+  h2{font-size:18px}h3{font-size:15px}.panel,.card{padding:14px}.projectCard{padding:13px;gap:10px}.projectCard h3{font-size:15px;font-weight:500;overflow-wrap:anywhere}
+  button,.btn{min-height:40px;font-size:13px;padding:8px 11px;font-weight:500}input,select,textarea{font-size:16px;min-height:42px;padding:9px}
+  .mainNav{flex-wrap:wrap;overflow:visible;padding:7px;gap:4px}.mainNav button{font-size:12px;padding:7px 9px;min-height:38px;white-space:normal}
+  .tabs{flex-wrap:wrap;gap:4px}.tabs button{font-size:12px;padding:7px 9px;min-height:38px}
+  .chips{gap:5px}.chip,.calendarChip,.roleBadge{font-size:11px;font-weight:500}.countBadge{font-size:12px}
+  .searchline{margin:14px 0;gap:8px}.searchline input{font-size:16px}.projectHero{padding:14px}.projectHero h1{font-size:20px}
+  .viewerToolbar,.moduleToolbar{padding:8px;gap:8px}.viewerToolbar strong,.moduleToolbar strong{font-size:14px;font-weight:500}.pager{gap:5px;font-size:12px}.pager button{font-size:12px;padding:7px 9px}
+  .projectCard .projectQuickActions button{min-height:28px;padding:4px 10px;font-size:12px}
+  #calendarPage .hourEvent strong{font-weight:500}
+ }
+}
