@@ -1,0 +1,26 @@
+V41 — Chantiers, interventions indépendantes et Bureau
+
+INTERVENTIONS
+Cette rubrique affiche uniquement les interventions indépendantes : dépannage, SAV et passage ponctuel. Les comptes rendus rattachés à un chantier ne sont plus inclus dans les listes, recherches et compteurs En cours / Achevées.
+Après envoi réussi du compte rendu et de son PDF, l’intervention passe dans Achevées. Elle apparaît aussi dans Bureau / À facturer jusqu’au marquage Facturé.
+
+CHANTIERS
+Les comptes rendus existants restent accessibles depuis leur chantier, et maintenant également depuis le Bureau. Aucun rapport n’est supprimé ou recréé pour cette séparation. Les anciens numéros INT des rapports sont conservés pour préserver les liens et PDF déjà enregistrés.
+Fin de chantier : À contrôler, puis validation par le bureau vers Terminé. Cette validation reste distincte de celle d’une intervention indépendante.
+
+BUREAU / À FACTURER
+Deux listes : Chantiers terminés et Interventions achevées. Un chantier figure une seule fois, quel que soit le nombre de ses rapports. Les chantiers À contrôler ne sont pas encore inclus.
+Les chantiers archivés non marqués facturés restent visibles pour ne pas perdre le suivi de facturation après l’archivage à 15 jours.
+Marquer facturé demande un numéro facultatif, enregistre l’information, puis retire le dossier de la liste À facturer. Cela ne crée ni n’envoie de facture. Les rapports et le statut Terminé/Archivé du chantier restent conservés.
+
+BUREAU / TOUS LES RAPPORTS
+Recherche par client, affaire ou numéro. Filtres Chantiers / Interventions indépendantes / Visites et Enregistrés / Brouillons. Appuyer sur le nom ouvre le rapport existant. Voir le PDF ouvre la copie archivée quand son identifiant est enregistré dans l’application.
+Les brouillons sont disponibles pour être repris ; les rapports mis à la corbeille ne sont pas affichés dans cette liste. Les pièces déposées manuellement restent dans Documents du chantier : elles ne sont pas transformées en comptes rendus.
+Les observations, demandes de matériel, devis complémentaires, clients, personnel et paie restent accessibles dans le Bureau.
+
+MISE À JOUR
+Importer le contenu du ZIP cumulatif dans GitHub selon la procédure habituelle. Il inclut les corrections précédentes jusqu’à V40. Après publication, le menu latéral affiche Version 3.4.41. Ne pas supprimer les données Microsoft ni recréer les rapports : le classement des listes s’applique aux données existantes dès le chargement.
+Aucune publication distante ou modification des données de production n’a été faite ici.
+
+VÉRIFICATIONS
+Construction et suite complète : 157 tests réussis. Après les dernières vérifications de navigation, les 5 tests Bureau / séparation passent, y compris le maintien des anciens rendez-vous et l’accès aux rapports et PDF. Pas de test visuel sur une tablette réelle ni de validation sur votre compte Microsoft.
