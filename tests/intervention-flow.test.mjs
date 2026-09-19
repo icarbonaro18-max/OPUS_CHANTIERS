@@ -8,3 +8,18 @@ test('departure dialog validates chronological date and confirms editable actual
 test('display failure cannot interrupt report PDF storage',async()=>{const {ui,x,archives}=setup();await ui.openIntervention(x.id);document.body.insertAdjacentHTML('beforeend','<main id="interventionsPage"></main>');document.getElementById('aStart').value='2026-09-14T09:45';document.getElementById('aWork').value='Travaux terminés';ui.renderInterventions=async()=>{throw Error('affichage');};await finishAndExport(ui,x,{ask:async()=> '2026-09-14T12:00'});assert.equal(archives.length,1);assert.match(document.getElementById('reportSaveStatus').textContent,/validée/);});
 test('missing hours retain a recoverable draft and show a persistent error',async()=>{const {ui,x}=setup();let draft;ui.c.saveReportDraft=async value=>{draft=value;};await ui.openIntervention(x.id);document.getElementById('aWork').value='Éclairage remplacé';await finishAndExport(ui,x);assert.equal(draft.workDone,'Éclairage remplacé');assert.equal(draft.status,'planifiee');assert.match(document.getElementById('reportSaveStatus').textContent,/arrivée réelle/);});
 test('final report only confirms review after verified move; failed move keeps recovery',async()=>{const {ui,x,messages}=setup();x.projectId='p';x.reportKind='chantier';let cleared=false;ui.c.clearReportDraft=async()=>{cleared=true;};ui.c.ensureProjectReview=async()=>{throw Error('déplacement refusé');};await ui.openIntervention(x.id);document.getElementById('aStart').value='2026-09-14T09:45';document.getElementById('aWork').value='Travaux terminés';await finishAndExport(ui,x,{ask:async()=> '2026-09-14T12:00'});assert.equal(cleared,false);assert.match(messages.at(-1),/non confirmé/);ui.c.ensureProjectReview=async()=>{};await finishAndExport(ui,x,{ask:async()=> '2026-09-14T12:00'});assert.equal(cleared,true);assert.match(messages.at(-1),/Chantier à contrôler/);});
+test('changing hours preserves approved summary; changing report notes invalidates it',async()=>{
+ const {ui,x,archives}=setup();await ui.openIntervention(x.id);
+ document.getElementById('aStart').value='2026-09-14T09:45';document.getElementById('aWork').value='Éclairage réparé';
+ ui.assistant.request=async()=>({text:'L’éclairage a été réparé.'});
+ await document.getElementById('generateClientReport').onclick({});
+ const approve=document.getElementById('approveClientReport');approve.checked=true;
+ const end=document.getElementById('aEnd');end.value='2026-09-14T12:00';end.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(approve.checked,true);
+ await finishAndExport(ui,x,{ask:async()=>end.value});assert.equal(archives.length,1);
+ const work=document.getElementById('aWork');work.value='Travaux modifiés';work.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(approve.checked,false);
+ await finishAndExport(ui,x,{ask:async()=>end.value});assert.equal(archives.length,1);
+ const status=document.getElementById('reportSaveStatus');assert.equal(status.nextElementSibling.id,'finishInterventionButton');assert.match(status.textContent,/Envoi bloqué/);assert.equal(approve.closest('details').open,true);
+});
+test('cancelled confirmation replaces progress message and allows retry',async()=>{
+ const {ui,x}=setup();await ui.openIntervention(x.id);document.getElementById('aStart').value='2026-09-14T09:45';await finishAndExport(ui,x,{ask:async()=>null});assert.match(document.getElementById('reportSaveStatus').textContent,/Envoi annulé/);assert.equal(document.getElementById('finishInterventionButton').disabled,false);
+});
