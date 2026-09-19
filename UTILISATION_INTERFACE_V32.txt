@@ -1,0 +1,8 @@
+OPUS CHANTIERS — V32 — Interface allégée
+Couleurs plus claires, boutons bleu pâle, textes moins gras, titres et bandeaux
+plus compacts sur téléphone. Les alertes non lues restent rouges.
+Les commandes, le planning et les formulaires bénéficient du même habillage.
+Les champs de saisie restent lisibles à 16 px sur téléphone, et le zoom natif
+reste autorisé. Les exports PDF et l'impression gardent leurs propres styles.
+Version cumulative incluant V31. Importer, attendre le déploiement réussi puis
+fermer et rouvrir l'application. Rendu physique à confirmer sur vos appareils.
