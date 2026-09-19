@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {countDocuments} from '../lib/document-counts.js';
+test('folder badges count nested user files, excluding system records; unreadable is not zero',async()=>{const g={children:async id=>({p:[{id:'a',folder:{},name:'Rapports'},{id:'sys',folder:{},name:'_OPUS'}],a:[{name:'rapport.pdf'},{name:'intervention.json'},{name:'photo.jpg'}]})[id]};assert.equal(await countDocuments(g,'p'),2);await assert.rejects(()=>countDocuments({children:async()=>{throw Error('offline');}},'p'),/offline/);});

@@ -1,0 +1,13 @@
+V37 — Rapport final et classement du chantier
+
+Correction : les deux types « Fin d’intervention — à contrôler » et « Fin de chantier — à contrôler » déclenchent le passage à À contrôler après archivage réussi. Le suivi de journée laisse le chantier en cours.
+
+Rattrapage : à l’actualisation, les chantiers À préparer / En cours ayant un rapport final terminé et un archivage PDF confirmé dans les données OPUS passent à À contrôler. Aucune nouvelle saisie du rapport n’est nécessaire. Une décision ultérieure du bureau de poursuivre les travaux reste prioritaire.
+Un PDF déposé manuellement ou provenant d’un ancien module, sans compte rendu final lié dans les données OPUS, ne suffit pas à déclencher cette règle.
+
+Pour classer immédiatement un chantier dont le rapport est déjà vérifié sur OneDrive : Vue d’ensemble > Signaler les travaux finis — à contrôler. Le passage Terminé reste la validation du bureau.
+
+La cause exacte de l’incident de l’affaire dictée « 11K84 » n’a pas été vérifiée sur OneDrive. La distinction de types dans le code est confirmée et corrigée.
+Version cumulative prête à importer, non déployée.
+
+Accès aux rapports : le bouton Rapport de fin d’intervention affiche désormais la liste existante avant toute création. Toucher le nom reprend la fiche ; Voir le PDF enregistré ouvre le PDF lorsqu’un lien est disponible. La zone Nouveau rapport est placée sous la liste. Ouvrir cette liste ne crée plus de brouillon automatiquement. Les anciens brouillons ne sont pas supprimés.

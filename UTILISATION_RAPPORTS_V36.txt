@@ -1,0 +1,19 @@
+V36 — Enregistrement des rapports et accès aux documents
+
+Rapports : onglet Rapports du chantier > Mes comptes rendus et PDF. Toucher le nom du compte rendu pour retrouver la fiche. Les nouveaux PDF archivés disposent d’un accès Voir le PDF enregistré. Les anciens PDF restent dans Documents > 05_PDF_GENERES > COMPTES_RENDUS.
+
+Documents : toucher le nom du dossier ou du fichier. Une case affiche 0, 1, 2… fichiers, sous-dossiers compris. Les fichiers techniques internes ne sont pas comptés. En cas d’échec de lecture : À vérifier, jamais un faux zéro.
+
+Fiabilisation de l’enregistrement :
+- copie de secours locale à la tentative d’envoi, liée au compte et à l’appareil ; reprise proposée en rouvrant le même rapport ;
+- message persistant si une heure manque, si le résumé n’est pas validé ou si l’envoi échoue ;
+- une erreur de rafraîchissement n’empêche plus l’archivage du PDF ;
+- PDF confirmé par un identifiant Microsoft ;
+- passage à À contrôler confirmé par lecture du dossier Microsoft après déplacement ;
+- une erreur de lecture des interventions n’est plus remplacée par une liste vide ;
+- une ancienne action différée ne ferme plus une nouvelle fenêtre de rapport.
+
+Fin de chantier : À contrôler, puis Terminé uniquement après validation du bureau. Suivi de journée : chantier maintenu en cours.
+Ne pas effacer les données du navigateur en cas de problème : la copie de secours est locale. Cette version ne garantit pas de récupérer les saisies perdues avant son installation.
+Les formulaires techniques/attestations sauvegardés via leur lecteur PDF restent distincts des comptes rendus de fin de chantier.
+Version cumulative prête à importer, non déployée. Tests locaux, sans essai sur la bibliothèque Microsoft de production. La cause exacte du problème observé sur la tablette n’a pas été confirmée par un journal de cet appareil.
