@@ -1,0 +1,9 @@
+V40 — Équipe du calendrier dans les rapports de chantier
+
+Ouvrir le rapport existant, vérifier l’arrivée réelle (date de l’intervention), puis la rubrique Techniciens. Si l’équipe du rapport est vide et un rendez-vous correspondant est identifiable, les personnes du calendrier sont précochées. Les affaires groupées sont prises en compte. Les rendez-vous annulés sont exclus.
+
+Si plusieurs équipes correspondent, choisir les personnes présentes. Les noms sont enregistrés avec le rapport et repris par son PDF. Les horaires réels, photos et textes restent conservés. L’auteur connecté n’est plus automatiquement considéré comme le seul technicien.
+
+Une équipe déjà renseignée est conservée et reste modifiable dans cette rubrique. Pour un ancien rapport ne contenant que l’auteur, corriger les cases avant l’envoi. Aucun ancien PDF OneDrive n’est modifié automatiquement : reprendre le rapport, vérifier les noms et enregistrer de nouveau son PDF.
+
+ZIP cumulatif incluant V38 et V39. À importer dans GitHub pour déploiement habituel ; aucune publication distante effectuée ici. Tests automatisés ciblés, pas d’essai sur tablette réelle.
