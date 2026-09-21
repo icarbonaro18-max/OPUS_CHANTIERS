@@ -23,7 +23,7 @@ test('completed intervention card has admin archive action and archived card has
  const dom=new JSDOM('<body/>');globalThis.document=dom.window.document;
  const x={id:'i',number:'INT-1',status:'terminee',teamIds:[]};
  const context={c:{isAdmin:()=>true},teamNames:()=>''};
- document.body.innerHTML=OpsUI.prototype.interventionCard.call(context,x);assert.equal(document.querySelector('[data-archive-int]').textContent,'Valider et archiver');
+ document.body.innerHTML=OpsUI.prototype.interventionCard.call(context,x);assert.equal(document.querySelector('[data-archive-int]').textContent,'Valider et achever');
  x.archivedAt='date';document.body.innerHTML=OpsUI.prototype.interventionCard.call(context,x);assert.equal(document.querySelector('[data-archive-int]').dataset.restore,'true');
  context.c.isAdmin=()=>false;document.body.innerHTML=OpsUI.prototype.interventionCard.call(context,x);assert.equal(document.querySelector('[data-archive-int]'),null);dom.window.close();
 });

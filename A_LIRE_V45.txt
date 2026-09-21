@@ -1,0 +1,10 @@
+OPUS V45 — Classement des interventions
+
+Importer lib/, tests/, style.css et sw.js à la racine du dépôt existant en conservant les dossiers. Ce correctif inclut le bouton de V44. Après déploiement, actualiser l’application.
+
+En cours : interventions planifiées ou en cours.
+Terminées : rapport terminé, en attente de votre contrôle.
+Achevées : interventions contrôlées par vous avec le bouton vert clair « Valider et achever ».
+L’action « Remettre dans les terminées » permet de revenir en arrière.
+Rapports, photos et facturation conservés. Aucun changement de calendrier ni de données Microsoft.
+Vérification : les quatre tests ciblés de classement et de droits réussissent.

@@ -147,3 +147,8 @@
 @media(max-width:760px){#projectFieldReport{font-size:15px;padding:15px}}
 .projectQuickActions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.projectQuickActions button{border-radius:999px;padding:10px 14px;font-size:13px;min-height:44px;white-space:normal}
 .materialRequestTable{overflow-x:auto}.materialRequestTable table{width:100%;table-layout:fixed}.materialRequestTable th:nth-child(1){width:22%}.materialRequestTable th:nth-child(2){width:38%}.materialRequestTable th:nth-child(3){width:15%}.materialRequestTable th:nth-child(4){width:17%}.materialRequestTable th:nth-child(5){width:8%}.materialRequestTable input,.materialRequestTable select{min-width:0;width:100%;padding:7px 3px}.materialRequestTable td{padding:4px}.materialRequestTable button{padding:4px}
+
+/* Validation administrative des interventions terminées. */
+#interventionsPage button[data-archive-int][data-restore="false"]{background:#dcf5e3;color:#185a32;border:1px solid #8bcaa0;font-weight:500}
+#interventionsPage button[data-archive-int][data-restore="false"]:hover{background:#c5ebd0}
+#interventionsPage button[data-archive-int]:focus-visible{outline:3px solid #257944;outline-offset:3px}
