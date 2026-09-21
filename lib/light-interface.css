@@ -67,3 +67,14 @@
 @media screen{.reportIdentity{padding:10px 12px;border:1px solid #dce5ed;border-radius:8px;background:#f7f9fc;font-size:13px;line-height:1.6;overflow-wrap:anywhere}.reportIdentity strong{font-weight:500}.reportEssential .languageBar{margin-top:8px;padding:6px 0;font-size:12px}}
 
 @media screen{button.documentLink{display:block;text-align:left;width:100%;max-width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;background:transparent;border:0;padding:4px 0;color:#24567c;font-size:inherit;font-weight:500}.row>div{min-width:0}.documentLink:hover{text-decoration:underline}.docBreadcrumb{flex-wrap:wrap}.docBreadcrumb button{white-space:normal;overflow-wrap:anywhere}}
+
+@media screen{
+ button.officeReportTile{display:flex;align-items:center;gap:14px;width:100%;max-width:480px;text-align:left;background:#fff;padding:16px;margin:0 0 18px;border:1px solid #c8dce9;border-radius:12px;min-height:76px}
+ .officeReportTile>span:first-child{flex:1;min-width:0}.officeReportTile strong{display:block;font-size:17px;font-weight:500}.officeReportTile small{display:block;color:#5e7183;margin-top:4px}
+ .officeReportBrowser{min-width:0}.officeReportRow{flex-wrap:wrap;gap:6px}.officeReportRow>div:first-child{flex:1 1 260px}.officeReportRow .actionRow{flex-wrap:wrap;gap:6px}.officeReportRow p{margin:4px 0;font-size:12px}
+ .officeClientDetails>summary{cursor:pointer;padding:12px 0;color:#24567c}
+ .planningConfirmation{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;margin:8px 0;background:#eaf5ee;border:1px solid #c5dfcf;border-radius:8px;color:#23563a}
+ .planningConfirmation p{flex:1 1 200px;margin:0;overflow-wrap:anywhere}.planningConfirmation.warning{background:#fff7e6;color:#73521d;border-color:#e7d3a6}
+ .reportCompletionLink{width:100%;min-height:44px}.reportOutcome{font-size:13px;color:#5e7183;flex-basis:100%;margin:4px 0}
+ @media(max-width:760px){.officeReportBrowser .formGrid{grid-template-columns:1fr}.officeReportBrowser .actionRow button{min-height:44px}.officeReportRow{align-items:flex-start}}
+}
