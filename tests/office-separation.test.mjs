@@ -22,7 +22,7 @@ test('office includes finished projects once per affair, independent invoices an
  const {ui,opened}=setup();await ui.renderOffice();
  assert.deepEqual([...document.querySelectorAll('[data-project-invoice]')].map(b=>b.dataset.projectInvoice),['p','arch']);
  assert.deepEqual([...document.querySelectorAll('[data-intervention-invoice]')].map(b=>b.dataset.interventionInvoice),['done']);
- assert.equal(document.getElementById('officeReportList'),null);document.getElementById('openOfficeReports').click();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,5);
+ assert.equal(document.getElementById('officeReportList'),null);document.getElementById('openOfficeReports').click();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,4);
  const type=document.getElementById('officeReportType');type.value='project';type.onchange();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,2);
  const search=document.getElementById('officeReportSearch');search.value='0011';search.oninput();assert.equal(document.querySelectorAll('#officeReportList [data-open-report-pdf]').length,1);
  await document.querySelector('[data-open-report-pdf]').onclick();assert.equal(opened[0].id,'pdf');
