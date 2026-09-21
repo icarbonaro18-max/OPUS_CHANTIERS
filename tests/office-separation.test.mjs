@@ -22,12 +22,12 @@ test('office includes finished projects once per affair, independent invoices an
  const {ui,opened}=setup();await ui.renderOffice();
  assert.deepEqual([...document.querySelectorAll('[data-project-invoice]')].map(b=>b.dataset.projectInvoice),['p','arch']);
  assert.deepEqual([...document.querySelectorAll('[data-intervention-invoice]')].map(b=>b.dataset.interventionInvoice),['done']);
- assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,5);
+ assert.equal(document.getElementById('officeReportList'),null);document.getElementById('openOfficeReports').click();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,5);
  const type=document.getElementById('officeReportType');type.value='project';type.onchange();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,2);
  const search=document.getElementById('officeReportSearch');search.value='0011';search.oninput();assert.equal(document.querySelectorAll('#officeReportList [data-open-report-pdf]').length,1);
  await document.querySelector('[data-open-report-pdf]').onclick();assert.equal(opened[0].id,'pdf');
  let id;ui.openIntervention=async v=>{id=v;};search.value='0029';search.oninput();await document.querySelector('[data-open-report]').onclick();assert.equal(id,'draft');
- search.value='';type.value='visit';type.onchange();ui.openVisit=async v=>{id=v;};await document.querySelector('[data-open-report]').onclick();assert.equal(id,'v');
+ search.value='';search.oninput();type.value='visit';type.onchange();ui.openVisit=async v=>{id=v;};await document.querySelector('[data-open-report]').onclick();assert.equal(id,'v');
 });
 test('project invoice persisted without losing tracking or changing reports; failure rolls back; admin-only',async()=>{
  const {ui,projects}=setup();ui.data.projectTracking.push({id:'p',budget:72,controlApproved:true,history:[]});const reports=JSON.stringify(ui.data.interventions);let stored;
