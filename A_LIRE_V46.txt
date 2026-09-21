@@ -1,0 +1,5 @@
+OPUS V46 — Historique des dossiers facturés
+Importer les dossiers lib et tests et le fichier sw.js à la racine du dépôt existant, en conservant les chemins. Après déploiement, actualiser.
+Bureau > Facturés : rechercher par client, dossier ou numéro de facture. Cliquer le nom pour ouvrir le dossier.
+Remettre à facturer : après confirmation, corrige le classement OPUS. Ne supprime ni n’annule la facture émise. Ancien numéro conservé dans l’historique. Réservé à l’administrateur. Photos, rapports et archivage conservés.
+Aucune donnée client dans cette mise à jour.
