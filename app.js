@@ -1,3 +1,4 @@
+import {verifyPlannedProject} from './lib/planning-confirmation.js';
 import {displayDocumentCounts} from './lib/document-counts.js';
 import {autoFillCoordinates} from './lib/project-autofill.js';
 import {mountCompleteProject,ensureCompletionClock,canAutoArchive} from './lib/project-lifecycle.js';
@@ -45,7 +46,7 @@ async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
+  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
   await opsUI.init();
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
@@ -292,9 +293,27 @@ async function init(){
 }
 init().catch(err);
 
-let progressSyncBusy=false;
+let progressSyncTask=null;
 async function moveProgressStage(p,code){const cat=catalog.categories.find(c=>c.name.trim().startsWith(code));if(!cat)throw Error('Rubrique '+code+' introuvable.');await g.moveProject(await g.item(p.id),cat);p.category=code;p.categoryFolder=cat;}
-async function syncProjectStages(){if(!opsUI||progressSyncBusy)return;progressSyncBusy=true;try{for(const p of catalog.projects){const info=progress(opsUI.data,p.id),stage=targetStage(p,info);if(stage!==p.category){if(stage==='04'){if(!isAdmin())continue;await ensureCompletionClock(opsUI,p);}await moveProgressStage(p,stage);}if(p.category==='04'&&isAdmin()){await ensureCompletionClock(opsUI,p);const checked=opsUI.archiveChecks||(opsUI.archiveChecks=new Map());if(Date.now()-(checked.get(p.id)||0)>3600000){checked.set(p.id,Date.now());try{if(await canAutoArchive(opsUI,p))await moveProgressStage(p,'99');}catch(e){toast('Archivage différé pour '+p.name+' : '+e.message);}}}}renderProjects();if(selected)$('projectCategory').textContent=catLabel(selected.category).toUpperCase();}finally{progressSyncBusy=false;}}
+async function syncProjectStages(){
+ if(!opsUI)return;if(progressSyncTask)return progressSyncTask;
+ progressSyncTask=(async()=>{
+  for(const p of catalog.projects){
+   const info=progress(opsUI.data,p.id),stage=targetStage(p,info);
+   if(stage!==p.category){
+    if(stage==='04'){if(!isAdmin())continue;await ensureCompletionClock(opsUI,p);}
+    if(stage==='02'&&p.category==='01')await verifyPlannedProject(opsUI,p.id);
+    else await moveProgressStage(p,stage);
+   }
+   if(p.category==='04'&&isAdmin()){
+    await ensureCompletionClock(opsUI,p);const checked=opsUI.archiveChecks||(opsUI.archiveChecks=new Map());
+    if(Date.now()-(checked.get(p.id)||0)>3600000){checked.set(p.id,Date.now());try{if(await canAutoArchive(opsUI,p))await moveProgressStage(p,'99');}catch(e){toast('Archivage différé pour '+p.name+' : '+e.message);}}
+   }
+  }
+  renderProjects();if(selected)$('projectCategory').textContent=catLabel(selected.category).toUpperCase();
+ })();
+ try{await progressSyncTask;}finally{progressSyncTask=null;}
+}
 
 async function ensureProjectReview(id){
  const p=catalog.projects.find(p=>p.id===id),cat=catalog.categories.find(c=>c.name.trim().startsWith('03'));
@@ -304,4 +323,12 @@ async function ensureProjectReview(id){
  const item=await g.item(id);if(item.parentReference?.id!==cat.id)await g.moveProject(item,cat);
  const verified=await g.item(id);if(verified.parentReference?.id!==cat.id)throw Error('Déplacement non confirmé par Microsoft');
  p.category='03';p.categoryFolder=cat;renderProjects();if(selected?.id===id){selected=p;$('projectCategory').textContent=catLabel('03').toUpperCase();}
+}
+
+async function ensurePlannedProject(id){
+ if(!opsUI?.canPlan())throw Error('Planification non autorisée');
+ if(progressSyncTask)try{await progressSyncTask;}catch{}
+ const result=await verifyPlannedProject(opsUI,id);renderProjects();
+ if(selected?.id===id){selected=catalog.projects.find(p=>p.id===id);$('projectCategory').textContent=catLabel(selected.category).toUpperCase();}
+ return result;
 }

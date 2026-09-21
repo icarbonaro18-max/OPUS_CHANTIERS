@@ -1,0 +1,62 @@
+OPUS CHANTIERS — MISE À JOUR V42 — 21/09/2026
+Version affichée : 3.4.42
+
+1. BUREAU : COMPTES RENDUS
+La vignette « Comptes rendus », en haut du Bureau, affiche leur nombre.
+Appuyer dessus ouvre les rapports, par pages de 10, avec recherche et filtres
+Chantiers / Interventions indépendantes / Visites et Enregistrés / Brouillons.
+Appuyer sur le nom ou « Consulter » ouvre le PDF lorsqu’il est référencé.
+« Modifier » reprend la fiche existante. Sans PDF référencé, le nom ouvre la fiche.
+Le bouton « Tous les comptes rendus » ramène à la liste depuis une fiche ouverte
+dans le Bureau. Les filtres sont conservés pendant cette session.
+« Supprimer » place le rapport dans une corbeille, avec possibilité de restauration.
+Ces actions de gestion au Bureau sont réservées à l’administrateur.
+Les photos, les heures et les PDF déjà enregistrés sont conservés. La suppression
+ne détruit pas les fichiers OneDrive et ne marque pas une affaire comme facturée.
+La liste des clients est repliée par défaut pour raccourcir la page du Bureau.
+
+2. ROBERTO : TERMINER UNE INTERVENTION INDÉPENDANTE
+Ouvrir l’intervention, compléter le compte rendu / les photos et les horaires réels.
+Appuyer sur « Enregistrer dans OPUS et terminer », puis confirmer le départ réel.
+L’application enregistre le rapport, archive le PDF et confirme l’état achevé.
+Un bouton « Voir les interventions achevées » permet de retrouver l’intervention.
+Si le PDF ou la sauvegarde finale échoue, un message précise l’étape non confirmée :
+réessayer sur la même fiche. Ne pas créer un autre rapport.
+Les notes et les heures déjà sauvegardées restent conservées.
+Un brouillon ne termine pas l’intervention. Les heures prévues ne remplacent jamais
+les heures réellement effectuées. La dictée, les photos et le résumé FR sont conservés.
+Les nouveaux rapports de fin de chantier vont à « À contrôler », pour validation
+par le bureau. Un suivi de chantier ne clôture pas le chantier.
+Modifier un rapport d’un chantier déjà terminé ou archivé ne rouvre pas ce chantier.
+
+3. PLANIFIER UN CHANTIER
+Enregistrer le rendez-vous dans le calendrier fait passer un chantier « À préparer »
+en « En cours », même si les commandes ou les heures prévues au devis ne sont pas
+encore renseignées. Cela vaut aussi pour un rendez-vous futur.
+Toutes les affaires regroupées dans un même rendez-vous sont prises en compte.
+Un bandeau reste visible dans le calendrier après sauvegarde :
+« Planning enregistré. [Affaire] : En cours. »
+Le classement Microsoft est vérifié avant cette confirmation.
+Si le calendrier est enregistré mais le classement non confirmé, utiliser
+« Vérifier le classement » : cette action ne recrée pas le rendez-vous.
+Les chantiers déjà à contrôler, terminés ou archivés ne sont pas rouverts par
+une nouvelle planification. Le bandeau rappelle alors leur statut conservé.
+Les rendez-vous existants sont repris lors de la synchronisation des classements.
+Après installation, actualiser une fois pour reclasser les chantiers déjà planifiés.
+
+4. INSTALLATION
+Cette archive est une mise à jour cumulative de l’application existante.
+Décompresser OPUS_FICHIERS_A_IMPORTER_20260921_V42.zip et importer son contenu
+à la racine du dépôt GitHub, en conservant les sous-dossiers et en remplaçant
+les fichiers correspondants. Attendre la fin du déploiement Vercel.
+Ne pas téléverser le ZIP lui-même à la place de son contenu.
+Après avoir sauvegardé les fiches ouvertes, accepter la mise à jour proposée
+par l’application / la rouvrir. Vérifier « Version 3.4.42 ».
+Aucune publication ni modification de vos données Microsoft n’a été effectuée ici.
+
+VÉRIFICATIONS
+Build et tests automatisés, dont les parcours Bureau, corbeille, droits de Roberto,
+fin d’intervention, erreurs de sauvegarde, classement vérifié, rendez-vous groupés,
+reprise après échec sans doublon et conservation des classements clôturés.
+Vérification des interfaces via un DOM de test ; pas de test sur votre compte
+Microsoft ni sur vos appareils réels.
