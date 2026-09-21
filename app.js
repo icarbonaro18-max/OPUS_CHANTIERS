@@ -50,18 +50,21 @@ async function activate(){
   await opsUI.init();
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
-  opsUI=null;
-  const nav=$('mainNav');if(nav)nav.hidden=true;
-  toast('Connexion Microsoft active. Le module planning/interventions n’a pas pu se charger : rechargez l’application après la mise à jour.');
+  if(opsUI)opsUI.dataLoadError=e;
+  const nav=$('mainNav');if(nav)nav.hidden=false;
+  if(!opsUI)document.querySelectorAll('[data-main]').forEach(b=>b.onclick=()=>{if(b.dataset.main==='projects')showDashboard();else modal('Chargement indisponible','<p>Le module ne s’est pas chargé. Vos données Microsoft n’ont pas été modifiées. Rechargez l’application après avoir importé tous les fichiers de la mise à jour.</p>');});
+  $('officeNav').hidden=!isAdmin();
+  toast('Les visites et interventions n’ont pas pu être chargées. Les onglets restent accessibles pour réessayer.');
  }
  await updatePending();await refresh();await restoreRoute();if(opsUI)await opsUI.restoreSection();clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine || document.hidden)return;try{await flush();if(live || $('modal').open || !$('viewer').hidden)return;if(!selected)await refresh();else if(tab==='documents')await documents(false);else if(tab==='attestations')await attestations();}catch(e){status('Hors ligne / à vérifier');}},Math.max(30,config.pollSeconds||45)*1000);
  await flush();
 }
-async function refresh(){status('Actualisation…');
+async function refresh(){status('Actualisation…');const wasDataLoadError=!!opsUI?.dataLoadError;
  try{catalog=await g.projects();await store.set('catalog',catalog);status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);$('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;}
  catch(e){const cache=await store.get('catalog');if(cache){catalog=cache;status('Hors ligne — liste mémorisée');$('lastRefresh').textContent='Dernière liste conservée sur cet appareil. Les documents non ouverts nécessitent le réseau.';}else throw e;}
- if(opsUI&&navigator.onLine){await opsUI.reload();await syncProjectStages();}renderProjects();if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
+ if(opsUI&&navigator.onLine){try{await opsUI.reload();await syncProjectStages();}catch(e){status('Données à recharger');toast(e.message);}}
+ renderProjects();if(opsUI&&(wasDataLoadError||opsUI.dataLoadError)&&opsUI.section!=='projects'&&!$('modal').open)await opsUI.show(opsUI.section);if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
 }
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
