@@ -1,0 +1,8 @@
+OPUS V44 — bouton de classement des interventions
+
+Importer les dossiers lib et tests ainsi que sw.js à la racine du dépôt GitHub existant, en conservant les chemins. Ne pas remplacer le dépôt complet. Après le déploiement Vercel, actualiser l’application.
+
+Compte administrateur > Interventions > Interventions achevées > Ouvrir pour consulter le rapport > revenir à la liste > Valider et archiver.
+Dans Interventions archivées : Remettre dans les achevées permet de revenir en arrière.
+Les rapports, photos, rendez-vous et le statut de facturation sont conservés. Aucune donnée client dans ce ZIP.
+Validation : construction réussie et 179 tests réussis. Ce ZIP doit être déployé pour rendre le bouton disponible.
