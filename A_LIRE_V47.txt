@@ -1,0 +1,5 @@
+OPUS V47 — Adresse du rendez-vous avant devis
+Mise à jour à appliquer sur la version V46. Importer lib/, tests/ et sw.js dans le dépôt existant en conservant les chemins. Après déploiement, actualiser.
+Visites / Devis > Nouvelle visite ou Modifier la visite : choisir le syndic puis saisir Adresse du rendez-vous / copropriété. Le bouton Reprendre l’adresse du site sélectionné / client permet de copier une adresse existante.
+L’adresse saisie appartient à la visite, est conservée lors des modifications et est reprise dans le calendrier et les rapports de visite. La fiche du syndic n’est pas modifiée.
+Test de sauvegarde, relecture et conservation de la fiche client réussi.
