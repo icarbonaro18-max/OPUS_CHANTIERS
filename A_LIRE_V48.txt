@@ -1,0 +1,9 @@
+OPUS V48 — Visite avant devis : client, lieu et contact distincts
+
+Cette mise à jour inclut le champ adresse de V47 et les contacts sur place.
+Décompresser, importer lib/, tests/ et sw.js à la racine du dépôt existant en conservant leur emplacement. Attendre que le déploiement Vercel réussisse, puis fermer les formulaires et recharger l’application. Le ZIP seul ne met pas le site à jour.
+
+Visites / Devis > Nouvelle visite : choisir le syndic, sélectionner éventuellement un site connu, puis saisir ou corriger Adresse du rendez-vous / copropriété. Renseigner Contact sur place, Téléphone / SMS, E-mail et Accès / consignes.
+La sélection d’un client ne remplace pas la saisie du lieu. La sélection explicite d’un site connu reprend ses coordonnées, modifiables pour cette visite.
+La fiche de visite propose Appeler et Envoyer un SMS, qui ouvrent l’application correspondante du téléphone ; aucun SMS automatique n’est envoyé.
+Les coordonnées de visite ne modifient pas la fiche d’un syndic existant.
