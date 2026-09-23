@@ -1,0 +1,21 @@
+OPUS V53 — Objet et consignes visibles
+À appliquer après V52. Décompresser et importer les fichiers dans GitHub
+OPUS_CHANTIERS en conservant les dossiers et en remplaçant les mêmes fichiers.
+Attendre le déploiement puis fermer et rouvrir l’application.
+
+Dans Planifier / Modifier le rendez-vous :
+- Objet court du rendez-vous : ex. Recherche de panne dans le hall.
+- À faire / consignes : le contexte et les actions prévues pour ce passage.
+Ces champs sont disponibles pour les chantiers, interventions et visites.
+Un passage de trois heures peut être rattaché au chantier existant, sans créer
+une intervention indépendante. Les autres rendez-vous gardent leurs consignes.
+
+En touchant le rendez-vous : objet, demande du client et consignes du passage
+apparaissent avec l’adresse et l’équipe. Les textes restent complets.
+Dans la liste des interventions : toucher le titre pour ouvrir la fiche.
+L’objet et les consignes restent visibles en haut de la fiche simplifiée.
+Les anciens textes déjà enregistrés sont repris automatiquement à l’affichage.
+
+Validation : 204 tests locaux réussis, dont sauvegarde des consignes pour
+les trois types de rendez-vous, lecture calendrier et fiche simplifiée.
+Pas de mise en ligne ni de modification des données Microsoft par cette livraison.
