@@ -1,3 +1,4 @@
+import {showProjectScreen} from './lib/project-navigation.js';
 import {verifyPlannedProject} from './lib/planning-confirmation.js';
 import {displayDocumentCounts} from './lib/document-counts.js';
 import {autoFillCoordinates} from './lib/project-autofill.js';
@@ -79,10 +80,10 @@ function renderProjects(){
  $('looseFiles').innerHTML=loose.length?`<div class="panel" style="margin-top:24px"><h2>Documents à classer dans un chantier</h2><p class="muted">Ces fichiers ont été déposés directement dans une rubrique, sans dossier chantier.</p>${loose.map(f=>`<div class="row"><div><button type="button" class="documentLink" data-loose="${esc(f.id)}">${esc(f.name)}</button><p>${esc(catLabel(f.category))}</p></div></div>`).join('')}</div>`:'';
  document.querySelectorAll('[data-loose]').forEach(b=>b.onclick=()=>openDocument(loose.find(f=>f.id===b.dataset.loose)).catch(err));
 }
-function showDashboard(){if(opsUI){opsUI.section='projects';opsUI.setActiveNav();localStorage.setItem('opus-main-section','projects');}$('projectAside').hidden=false;$('dashboard').hidden=false;$('projectPage').hidden=true;for(const id of ['interventionsPage','visitsPage','calendarPage','officePage'])$(id).hidden=true;$('allProjects').classList.toggle('active',category==='all');setRoute();renderProjects();}
+function showDashboard(){showProjectScreen(opsUI,false);$('projectAside').hidden=false;$('dashboard').hidden=false;$('projectPage').hidden=true;for(const id of ['interventionsPage','visitsPage','calendarPage','officePage'])$(id).hidden=true;$('allProjects').classList.toggle('active',category==='all');setRoute();renderProjects();}
 $('allProjects').onclick=()=>{category='all';selected=null;showDashboard();};$('backProjects').onclick=()=>{selected=null;showDashboard();};$('search').oninput=renderProjects;bind('refresh',async()=>{await flush();await refresh();if(selected)await setTab(tab);});
 async function openProject(id){
- const p=catalog.projects.find(x=>x.id===id);if(!p)return;if(opsUI){opsUI.section='projects';opsUI.setActiveNav();localStorage.setItem('opus-main-section','projects');$('projectAside').hidden=false;}status('Ouverture du chantier…');
+ const p=catalog.projects.find(x=>x.id===id);if(!p)throw Error('Chantier introuvable. Actualisez la liste des chantiers.');status('Ouverture du chantier…');
  selected=p;docStack=[{id:p.id,name:'Documents du chantier'}];
  let remoteLoaded=true,r;try{r=await journal.load(p.id,'fiche',null);await store.set('meta:'+p.id,r);}catch(e){remoteLoaded=false;r=await store.get('meta:'+p.id);if(!r)throw e;status('Fiche locale — hors ligne');}
  meta=r.data||metaDefaults(p);metaParents=r.heads.map(h=>h.revision);metaConflict=r.heads.length>1;
@@ -95,7 +96,7 @@ async function openProject(id){
  $('projectChips').innerHTML=[meta.client,meta.devis?'Devis '+meta.devis:'',user.displayName].filter(Boolean).map(s=>`<span class="chip">${esc(s)}</span>`).join('');
  $('projectWarning').innerHTML=r.heads.length>1?'<div class="warning">Plusieurs versions de la fiche existent. Vérifiez-les avant de poursuivre.</div>':(!meta.client||!meta.adresse)?'<div class="hint">Complétez client, adresse et devis une seule fois. Ces informations seront reprises dans chaque nouvelle attestation.</div>':'';
  if(r.heads.length>1)await chooseRevision(p.id,'fiche',null,r,async(data,parents)=>{meta=data;metaParents=parents;metaConflict=false;await queueSave(p.id,'fiche',null,data,parents);await openProject(p.id);});
- $('dashboard').hidden=true;$('projectPage').hidden=false;await setTab('overview');refreshOrderCounts(p.id);if(remoteLoaded)status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);
+ showProjectScreen(opsUI,true);await setTab('overview');refreshOrderCounts(p.id);if(remoteLoaded)status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);
 }
 async function setTab(name){tab=name;if(selected)setRoute(selected.id,name);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.tab===name));$('tabContent').innerHTML='<div class="panel muted">Chargement…</div>';if(name==='reports'){const count=opsUI.data.interventions.filter(x=>x.projectId===selected.id).length;$('tabContent').innerHTML='<section class="panel"><h2>Rapports du chantier ('+count+')</h2><button type="button" id="listReports">Mes comptes rendus et PDF</button></section>';$('listReports').onclick=()=>opsUI.openProjectReports(selected,meta);await opsUI.openProjectReports(selected,meta);}if(name==='overview')overview();if(name==='documents')await documents();if(name==='orders')await orders();if(name==='attestations')await attestations();if(name==='tasks')tasks();if(opsUI){let b=$('projectFieldReport');if(!b){b=document.createElement('button');b.id='projectFieldReport';b.textContent='Créer / consulter un compte rendu — journée, intervention, fin de chantier';$('tabContent').before(b);}b.hidden=false;b.onclick=()=>opsUI.openProjectReports(selected,meta);}}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab).catch(err));

@@ -78,3 +78,12 @@
  .reportCompletionLink{width:100%;min-height:44px}.reportOutcome{font-size:13px;color:#5e7183;flex-basis:100%;margin:4px 0}
  @media(max-width:760px){.officeReportBrowser .formGrid{grid-template-columns:1fr}.officeReportBrowser .actionRow button{min-height:44px}.officeReportRow{align-items:flex-start}}
 }
+
+@media screen{
+ .projectHero .chip{background:#fff;color:#24567c;border:1px solid #bdd1e1}
+ #mainNav button[data-main="calendar"]{background:#e0f2e7;color:#195b39;border:1px solid #83b99a;font-weight:600}
+ #mainNav button[data-main="calendar"]:hover{background:#cce9d8}
+ #mainNav button[data-main="calendar"].active{background:#246b45;color:#fff;border-color:#246b45}
+ .eventAccessItem{padding:8px 12px;margin:8px 0;border-left:3px solid #83b99a;background:#f0f7f3;color:#214c36}
+ .eventAccessItem p{margin:4px 0}
+}

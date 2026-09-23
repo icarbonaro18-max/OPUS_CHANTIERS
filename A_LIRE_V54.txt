@@ -1,0 +1,13 @@
+OPUS — Correctif V54, à appliquer après V53
+
+Extraire le ZIP puis importer son contenu à la racine du dépôt OPUS_CHANTIERS en conservant le dossier lib et le dossier tests. Ne pas importer le ZIP lui-même. Ne supprimer aucun autre fichier.
+Attendre la réussite du déploiement Vercel. Fermer puis rouvrir l’application après avoir enregistré les formulaires ouverts.
+
+Corrections :
+- Résumé calendrier : consignes générales, accès, contact, téléphone, e-mail et observations disponibles dans la fiche chantier. Les visites/interventions affichent leurs coordonnées de site.
+- Ouvrir le dossier depuis le calendrier rétablit la disposition des chantiers et masque les autres pages. Une erreur d’ouverture est signalée.
+- Texte des pastilles du dossier bleu foncé sur fond blanc.
+- Onglet Calendrier vert, avec état actif plus foncé.
+
+Validation : construction réussie, 207 tests réussis. Vérification sur votre tablette à effectuer après déploiement : ouvrir un rendez-vous avec consignes, consulter le dossier puis revenir au calendrier.
+Ce ZIP ne modifie pas les données Microsoft 365. Aucune mise en production n’a été effectuée par cette livraison.
