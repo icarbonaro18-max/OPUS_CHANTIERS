@@ -1,0 +1,12 @@
+OPUS V49 — Documents et suivi Visites / Devis
+
+Importer lib/, tests/ et sw.js à la racine du dépôt existant en conservant les chemins, attendre le déploiement puis actualiser.
+
+Nouvelle visite : sélectionner des PDF ou photos dans Documents pour préparer le rendez-vous. Ils sont transférés lors de l’enregistrement. 20 Mo maximum par fichier.
+Ouvrir une visite : Documents de préparation affiche les fichiers cliquables et permet d’en ajouter. Les fichiers sont enregistrés dans Microsoft 365 et restent distincts des photos du compte rendu.
+
+Visites à réaliser : rendez-vous prévus.
+Visites terminées : compte rendu terminé.
+Devis effectués : cliquer Devis effectué et saisir le numéro de devis. Le bureau peut corriger ce numéro. Les visites déjà converties en chantier apparaissent aussi dans ce dernier onglet. Aucun chantier n’est automatiquement terminé par cette action.
+
+Les clients, adresses, rapports, pièces jointes et planning restent conservés.
