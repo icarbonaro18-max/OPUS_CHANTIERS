@@ -65,14 +65,14 @@ test('intervention form persistence saves split and intervention together; failu
  const before=ui.data.events;ui.save=async()=>{throw Error('offline');};x.plannedStart=at('13:00');x.plannedEnd=at('15:00');
  await assert.rejects(saveInterventionDays(ui,x),/offline/);assert.equal(ui.data.events,before);
 });
-test('busy project selectable in red; school/absence and overlapping interventions remain blocked',()=>{
+test('busy project selectable in red; school/absence remain blocked, planned interventions can move',()=>{
  const dom=new JSDOM('<div></div>',{url:'https://opus.test'});globalThis.document=dom.window.document;
  const ui={data:{events:[project],people,closures:[]},personById:id=>people.find(p=>p.id===id),role:()=> 'admin'};
  const html=OpsUI.prototype.teamPickerHtml.call(ui,[],'2026-09-23','10:00','12:00');
  document.body.innerHTML=html;assert.equal(document.querySelector('[value=r]').disabled,false);assert.match(html,/#a52d38/);
  OpsUI.prototype.validateScheduling.call(ui,'2026-09-23','10:00','12:00',['r'],'',false,true);
  assert.throws(()=>OpsUI.prototype.validateScheduling.call(ui,'2026-09-23','10:00','12:00',['r']),/déjà affecté/);
- ui.data.events.push(intervention);assert.throws(()=>OpsUI.prototype.validateScheduling.call(ui,'2026-09-23','10:00','12:00',['r'],'',false,true),/déjà affecté/);
+ ui.data.events.push(intervention);OpsUI.prototype.validateScheduling.call(ui,'2026-09-23','10:00','12:00',['r'],'',false,true);
  ui.data.events=[project];people[0].absences=[{start:'2026-09-23',end:'2026-09-23',type:'maladie'}];
  assert.throws(()=>OpsUI.prototype.validateScheduling.call(ui,'2026-09-23','10:00','12:00',['r'],'',false,true),/Maladie/);delete people[0].absences;
 });
@@ -89,4 +89,33 @@ test('calendar form performs reassignment and day/week/month expose the same per
  const albanOnly=ui.data.events.find(e=>e.teamIds.includes('a')).id;
  for(const view of ['day','week','month']){ui.calendarView=view;await ui.renderCalendar();assert.equal(document.getElementById('calendarPerson').value,'r');assert.equal(document.querySelector('[data-event="'+albanOnly+'"]'),null);assert.ok(document.querySelector('[data-event]'));}
  ui.calendarFitCleanup?.();
+});
+
+test('project-to-project, then urgent intervention, then restoration in reverse order',()=>{
+ const b={...intervention,kind:'project',id:'b',linkId:'other',end:at('14:00')};
+ let rows=reassignPlanning([project],[b],[],people);
+ assert.deepEqual(slots(rows,'r'),[['project',8,10],['project',10,14],['project',14,17]]);
+ const urgent={...intervention,id:'urgent',start:at('11:00'),end:at('12:00')};
+ rows=reassignPlanning(rows,[urgent],[],people);
+ assert.deepEqual(slots(rows,'r'),[['project',8,10],['project',10,11],['intervention',11,12],['project',12,14],['project',14,17]]);
+ assert.equal(rows.reduce((n,e)=>n+plannedTotal(e,people),0),16);
+ rows=reassignPlanning(JSON.parse(JSON.stringify(rows)),[],['urgent'],people);
+ assert.deepEqual(slots(rows,'r'),[['project',8,10],['project',10,14],['project',14,17]]);
+ rows=reassignPlanning(rows,[],['b'],people);assert.deepEqual(rows,[project]);
+});
+test('intervention and visit donors are split, not deleted; moving the booking restores them',()=>{
+ for(const kind of ['intervention','visit']){
+ const donor={...project,kind},booking={...intervention,kind:'project',id:'new'};
+ const rows=reassignPlanning([donor],[booking],[],people);
+ assert.deepEqual(slots(rows,'r'),[[kind,8,10],['project',10,12],[kind,12,17]]);
+ const changed=reassignPlanning(rows,[{...booking,start:at('13:00'),end:at('15:00')}],[],people);
+ assert.deepEqual(slots(changed,'r'),[[kind,8,13],['project',13,15],[kind,15,17]]);
+ assert.deepEqual(reassignPlanning(changed,[],['new'],people),[donor]);
+ }
+});
+test('V50 saved displacement migrates without moving an existing appointment',()=>{
+ const legacy=reassignPlanning([project],[intervention],[],people).map(e=>{const c={...e};delete c.allocationPriority;return c;});
+ const unrelated={...project,id:'other-day',start:'2026-09-24T08:00',end:'2026-09-24T17:00'};
+ const rows=reassignPlanning(legacy,[unrelated],[],people);
+ assert.deepEqual(slots(rows.filter(e=>e.id!=='other-day'),'r'),[['project',8,10],['intervention',10,12],['project',12,17]]);
 });

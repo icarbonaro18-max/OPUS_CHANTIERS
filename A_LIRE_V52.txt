@@ -1,0 +1,27 @@
+OPUS V52 — Réaffectation du personnel entre rendez-vous
+
+À installer après les correctifs V50/V51.
+Décompresser puis importer le contenu dans GitHub OPUS_CHANTIERS en conservant
+les dossiers lib/ et tests/ et en remplaçant les fichiers de même nom.
+Attendre le déploiement réussi puis fermer et rouvrir l'application.
+La mise en ligne n'a pas été effectuée par cette livraison.
+
+CORRECTION
+Le rouge indique une affectation existante, sans bloquer la nouvelle affectation.
+Chantier vers chantier, intervention vers chantier, chantier vers intervention
+et visites : la dernière affectation enregistrée prend la priorité sur les heures
+choisies. Le créneau précédent est découpé uniquement pour les personnes sélectionnées.
+Exemple : chantier A 8h–17h puis chantier B 10h–12h : A 8h–10h, B 10h–12h,
+retour A 12h–17h. Les autres personnes restent sur A.
+La planification de chantiers sur plusieurs jours utilise aussi cette règle.
+Les urgences successives sont prises en charge. Déplacer ou supprimer le nouveau
+rendez-vous rétablit ses anciennes plages. Les originaux sont conservés dans le planning.
+Les pauses restent prises en compte ; les horaires réels déjà saisis ne sont pas
+réécrits automatiquement. Les absences, écoles et fermetures restent bloquantes.
+Aucun document, rapport, client, devis ou statut métier n'est supprimé par ce correctif.
+
+VÉRIFICATION
+Construction réussie et 200 tests locaux réussis, notamment les transferts entre
+chantiers, les urgences successives, le retour au planning initial, la compatibilité
+V50, les autres équipiers et le calcul des heures.
+Pas de test sur les données Microsoft de production ni sur votre tablette physique.
