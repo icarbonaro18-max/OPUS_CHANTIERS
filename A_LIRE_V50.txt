@@ -1,0 +1,41 @@
+OPUS V50 — Ajustement du planning et vue par personne
+23 septembre 2026
+
+Correctif à appliquer sur votre application à jour V49.
+Ce ZIP contient uniquement les fichiers modifiés et le nouveau module nécessaire.
+
+INSTALLATION
+1. Décompresser ce ZIP.
+2. Importer les fichiers dans le dépôt OPUS_CHANTIERS, en conservant les dossiers lib/ et tests/.
+   Remplacer les fichiers de même nom. Ne pas importer le ZIP lui-même dans le dépôt.
+3. Attendre la fin du déploiement Vercel/GitHub.
+4. Recharger l’application sur les téléphones et tablettes.
+Cette livraison n’a pas été déployée automatiquement.
+
+UTILISATION
+Créer/planifier une intervention et choisir ses heures.
+Une personne déjà affectée à un chantier apparaît en rouge et reste sélectionnable.
+Enregistrer : seuls les créneaux concernés de cette personne sont retirés du chantier.
+Exemple : chantier 08h–17h, intervention 10h–12h : chantier 08h–10h,
+intervention 10h–12h, retour chantier 12h–17h. Le reste de l’équipe reste au chantier.
+Les pauses prévues sont conservées dans le calcul des heures restantes ; les pauses
+n’ayant pas d’heure explicite dans l’application, elles sont imputées aux créneaux restants.
+Déplacer/supprimer l’intervention rétablit ses anciens créneaux de chantier.
+Dans le calendrier, choisir « Général · toutes les équipes » ou le nom d’une personne.
+Le filtre fonctionne pour Jour, Semaine, Mois et les détails de la journée.
+Le filtre sert à consulter le planning ; il ne change pas les droits d’accès.
+
+LIMITES VOLONTAIRES
+Les écoles, absences et fermetures restent bloquantes.
+Une intervention/visite déjà réservée n’est pas écrasée par une nouvelle intervention.
+Un chantier avec des horaires réels saisis doit être vérifié au bureau : ses heures
+réelles ne sont jamais automatiquement découpées.
+Aucun changement de vos rapports, visites ou statuts métier existants.
+Le ZIP ne contient aucune donnée client ni sauvegarde Microsoft.
+
+VÉRIFICATION
+Construction réussie et 197 tests réussis, dont les nouveaux scénarios :
+réaffectation de deux heures, autres équipiers conservés, pauses et vendredi,
+interventions successives, modification/suppression, journée entière,
+retour après erreur d’enregistrement et filtres Jour/Semaine/Mois.
+Tests locaux ; connexion Microsoft et déploiement de production non effectués ici.
