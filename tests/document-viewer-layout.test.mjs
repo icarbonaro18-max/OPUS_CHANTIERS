@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {JSDOM} from 'jsdom';import {layoutDocumentViewer} from '../lib/document-viewer-layout.js';
+test('long PDF filenames cannot collapse vertically even with legacy flex CSS',()=>{
+ const d=new JSDOM('<style>.viewerToolbar{display:flex}#viewerTitle{flex:1;overflow-wrap:anywhere}</style><section id="viewer"><div class="viewerToolbar"><button>Retour</button><strong id="viewerTitle">BC_REXEL_123456789.pdf</strong><div class="pager"><button>Précédente</button><span>1 / 2</span><button>Suivante</button></div></div><div id="viewerBody"></div></section>');
+ layoutDocumentViewer(d.window.document);const title=d.window.document.getElementById('viewerTitle');assert.equal(d.window.getComputedStyle(title).whiteSpace,'nowrap');assert.equal(d.window.getComputedStyle(title).overflowWrap,'normal');assert.equal(d.window.getComputedStyle(d.window.document.querySelector('.viewerToolbar')).display,'grid');assert.equal(title.title,'BC_REXEL_123456789.pdf');
+ const zoom=d.window.document.createElement('div');zoom.className='pager';d.window.document.querySelector('.viewerToolbar').append(zoom);layoutDocumentViewer(d.window.document);assert.equal(zoom.style.gridColumn,'1 / -1');assert.equal(d.window.document.getElementById('viewerBody').style.minHeight,'0px');
+});

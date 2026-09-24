@@ -1,0 +1,24 @@
+OPUS V56 — Lecteur mobile et vendredis apprentis
+À appliquer à votre application récente V53 ou supérieure. V54 et V55 incluses.
+
+INSTALLATION
+Extraire le ZIP. Importer tous ses fichiers et dossiers à la racine du dépôt OPUS_CHANTIERS en conservant leur arborescence. Ne pas supprimer les autres fichiers.
+Attendre le succès du déploiement Vercel. Enregistrer les formulaires ouverts, fermer toutes les fenêtres OPUS puis rouvrir l’application.
+Vérifier « Version 3.4.56 » en bas du menu sur ordinateur/tablette. Si la version est différente, la mise à jour n’est pas encore chargée : ne pas effacer les données de l’application ni les brouillons. Vérifier le déploiement.
+
+LECTEUR
+Le titre dispose de sa propre ligne et reste horizontal. La structure est fixée dès le HTML puis à chaque ouverture du lecteur. Navigation et zoom se trouvent sur leurs propres lignes, la barre est limitée à 35 % de la hauteur. Tester un PDF à nom long sur téléphone et tablette. Aucun essai sur appareil physique effectué ici ; la version actuellement déployée n’a pas pu être vérifiée depuis cet environnement.
+
+PLANNING
+Ouvrir ou créer un rendez-vous. Dans « Ce passage sur place », ouvrir « Apprentis : vendredi jusqu’à 16 h » et cocher les apprentis concernés. Affecter ces personnes à l’équipe. Saisir 8h–16h et une pause de 1h pour une journée complète.
+Le choix concerne uniquement les vendredis de ce rendez-vous ou de cette série. Les autres apprentis gardent leur vendredi jusqu’à 11h. Les absences et jours d’école restent bloquants. Une plage vendredi après-midi devient possible pour les apprentis cochés.
+
+BILAN DE PAIE
+Le planning ne devient pas automatiquement du temps réalisé. Les pointages ou les heures retenues par le bureau alimentent le bilan.
+Dans la fiche du salarié, un bouton permet de confirmer un vendredi 8h–16h avec 1h de pause : 7h travaillées. Le motif est enregistré et la journée doit être relue.
+Les heures de travail retenues au-delà des 3h habituelles du vendredi sont signalées en jaune : 7h moins 3h = 4h en plus. Elles sont déjà comprises dans le total travaillé, sans double comptage.
+Le PDF comporte les dates surlignées et une page de détail avec horaires pointés (ou confirmation du bureau), pause et total des heures supplémentaires proposées au comptable. Leur qualification et leur traitement restent à valider avec la semaine complète par le comptable.
+
+VALIDATION
+Construction réussie ; 210 tests réussis ; PDF exemple rendu et contrôlé visuellement sur deux pages.
+Aucune donnée client Microsoft 365 modifiée. Aucune mise en production effectuée par cette livraison.

@@ -1,3 +1,4 @@
+import {layoutDocumentViewer} from './lib/document-viewer-layout.js';
 import {showProjectScreen} from './lib/project-navigation.js';
 import {verifyPlannedProject} from './lib/planning-confirmation.js';
 import {displayDocumentCounts} from './lib/document-counts.js';
@@ -258,7 +259,7 @@ function legacyImport(){modal('Reprendre un dossier existant',`<p>Import ponctue
 let pdfZoom=1,pdfRenderId=0;
 async function showBlob(blob,name,mime=''){
  pdfZoom=1;pdfRenderId++;
- viewerBlob={blob,name};$('viewer').hidden=false;$('viewerTitle').textContent=name;$('viewerBody').innerHTML='<p>Préparation de l’aperçu…</p>';pdfDoc=null;
+ viewerBlob={blob,name};$('viewer').hidden=false;$('viewerTitle').textContent=name;layoutDocumentViewer();$('viewerBody').innerHTML='<p>Préparation de l’aperçu…</p>';pdfDoc=null;
  const isPdf=blob.type.includes('pdf')||mime.includes('pdf')||/\.pdf$/i.test(name);
  if(isPdf){try{const lib=await import('./vendor/pdf.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.mjs',location.href).href;pdfDoc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false,standardFontDataUrl:new URL('./vendor/standard_fonts/',location.href).href,cMapUrl:new URL('./vendor/cmaps/',location.href).href,cMapPacked:true,wasmUrl:new URL('./vendor/wasm/',location.href).href}).promise;pdfPage=1;await renderPdf();}
  catch(e){const u=URL.createObjectURL(blob);$('viewerBody').innerHTML='<div class="hint">Le lecteur intégré est indisponible. Le lecteur du navigateur est proposé ci-dessous ; le bouton Télécharger reste disponible.</div>';const frame=document.createElement('iframe');frame.src=u;frame.title=name;$('viewerBody').append(frame);viewerBlob.url=u;}}
@@ -266,7 +267,7 @@ async function showBlob(blob,name,mime=''){
  else $('viewerBody').innerHTML='<div class="panel"><p>Ce format n’a pas de lecteur intégré. Utilisez « Télécharger » pour l’ouvrir avec son logiciel.</p></div>';
  $('prevPage').hidden=$('nextPage').hidden=!pdfDoc;ensurePdfZoom();$('pdfZoomTools').hidden=!pdfDoc;if(!pdfDoc)$('pageCounter').textContent='';
 }
-function ensurePdfZoom(){if($('pdfZoomTools'))return;const tools=document.createElement('div');tools.id='pdfZoomTools';tools.className='pager';tools.innerHTML='<button id="pdfZoomOut" class="whiteBtn" aria-label="Réduire">−</button><span id="pdfZoomLabel">100 %</span><button id="pdfZoomIn" class="whiteBtn" aria-label="Agrandir">+</button><button id="pdfZoomFit" class="whiteBtn">Largeur écran</button>';document.querySelector('.viewerToolbar').append(tools);for(const [id,delta] of [['pdfZoomOut',-.5],['pdfZoomIn',.5],['pdfZoomFit',0]])$(id).onclick=async()=>{if(!pdfDoc)return;pdfZoom=delta?Math.min(3,Math.max(1,pdfZoom+delta)):1;try{await renderPdf();}catch(e){toast('Zoom indisponible : '+e.message);}};}
+function ensurePdfZoom(){if($('pdfZoomTools'))return;const tools=document.createElement('div');tools.id='pdfZoomTools';tools.className='pager';tools.innerHTML='<button id="pdfZoomOut" class="whiteBtn" aria-label="Réduire">−</button><span id="pdfZoomLabel">100 %</span><button id="pdfZoomIn" class="whiteBtn" aria-label="Agrandir">+</button><button id="pdfZoomFit" class="whiteBtn">Largeur écran</button>';document.querySelector('.viewerToolbar').append(tools);layoutDocumentViewer();for(const [id,delta] of [['pdfZoomOut',-.5],['pdfZoomIn',.5],['pdfZoomFit',0]])$(id).onclick=async()=>{if(!pdfDoc)return;pdfZoom=delta?Math.min(3,Math.max(1,pdfZoom+delta)):1;try{await renderPdf();}catch(e){toast('Zoom indisponible : '+e.message);}};}
 async function renderPdf(){
  const doc=pdfDoc,index=pdfPage,renderId=++pdfRenderId;if(!doc)return;
  const {pdfDisplay}=await import('./lib/pdf-display.js');const page=await doc.getPage(index),base=page.getViewport({scale:1});
