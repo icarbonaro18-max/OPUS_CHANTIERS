@@ -1,0 +1,22 @@
+OPUS 3.4.57 — Réceptions
+
+Patch pour la version 3.4.53 ou ultérieure. Inclut les correctifs V54 à V56.
+Importer les fichiers à la racine du dépôt en conservant les sous-dossiers.
+Ne supprimer aucun autre fichier. Aucune donnée Microsoft 365 n'est migrée ou effacée.
+
+Visites / Devis > + Réception : choisir un chantier ou une intervention,
+vérifier l'adresse reprise du dossier, indiquer les dates et participants.
+Les champs restent modifiables. La fiche du dossier d'origine reste inchangée.
+Dans la réception : photos/PDF et réserves facultatifs, puis Réception effectuée.
+La réception passe dans Visites terminées sans rapport obligatoire,
+sans modifier la facturation ni le statut du dossier d'origine.
+L'équipe peut également être ajustée dans le calendrier.
+
+Contrôles : tests automatiques et compilation. Vérifier sur un rendez-vous
+d'essai après publication : création, calendrier, documents et clôture.
+La vérification visuelle sur téléphone/tablette reste à effectuer.
+
+IMPORTANT : le succès GitHub Pages ne confirme pas le déploiement Vercel.
+Vérifier que le dernier commit est Prêt en production sur Vercel,
+puis fermer les fenêtres OPUS et rouvrir. Version attendue : 3.4.57.
+Ne pas effacer les données du navigateur pour forcer la mise à jour.
