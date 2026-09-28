@@ -1,0 +1,21 @@
+OPUS 3.4.58 — Annulation des interventions
+
+Ouvrir Interventions > la fiche > Annuler l’intervention.
+Saisir le motif puis Confirmer l’annulation.
+Disponible pour les administrateurs et responsables du planning (dont Roberto).
+La fiche reste consultable dans Annulées avec motif, date et auteur.
+Le planning de l’équipe est libéré, sans rapport obligatoire ni heures réalisées ajoutées.
+Les créneaux de chantier auparavant déplacés sont rétablis.
+Les interventions terminées, facturées, archivées et les comptes rendus de chantier ne sont pas annulables par ce bouton.
+Si des horaires réels existent, l’annulation est bloquée pour contrôle au bureau.
+En cas d’échec de synchronisation du planning, rouvrir la fiche Annulée et utiliser Terminer la libération du planning.
+
+INSTALLATION
+Ce ZIP contient les fichiers modifiés, pour une version 3.4.53 ou ultérieure.
+Il inclut les modifications V54 à V57, dont les réceptions.
+Extraire le ZIP puis importer son contenu à la racine du dépôt GitHub, en conservant les sous-dossiers lib et tests. Remplacer les fichiers correspondants, sans supprimer les autres fichiers du dépôt.
+Attendre le déploiement Vercel du nouveau commit, puis rouvrir OPUS.
+Version attendue : 3.4.58. Ne pas effacer les données du navigateur.
+Ce ZIP n’est pas déployé automatiquement. Aucune intervention réelle n’a été annulée pendant la préparation.
+
+Validation : compilation réussie, 216 tests de régression et 1 test supplémentaire du parcours d’annulation (217 réussis).
