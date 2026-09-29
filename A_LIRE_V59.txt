@@ -1,0 +1,33 @@
+OPUS 3.4.59 — Rendez-vous libres privés
+
+INSTALLATION
+Patch cumulatif pour OPUS 3.4.53 ou ultérieure, incluant les réceptions et l’annulation des interventions V58.
+Extraire le ZIP, importer les fichiers à la racine du dépôt GitHub en conservant les sous-dossiers. Remplacer les fichiers correspondants sans supprimer les autres fichiers.
+Attendre que Vercel publie le nouveau commit. Version attendue : 3.4.59.
+Aucune publication n’a été réalisée par la préparation de ce ZIP.
+
+UTILISATION
+Calendrier > Activer mes rendez-vous privés (avec le compte administrateur Ignazio).
+Accepter l’autorisation Microsoft pour le dossier de l’application dans votre OneDrive personnel.
+Cliquer + Rendez-vous libre privé : objet, catégorie, début/fin, journée entière, lieu et notes.
+Un rendez-vous n’a besoin ni de client, ni de chantier, ni de rapport.
+Cliquer un rendez-vous pour le modifier ou le supprimer.
+Le filtre Mes rendez-vous privés affiche uniquement cet agenda. La vue générale combine agenda privé et planning de l’équipe.
+Utiliser Actualiser mes rendez-vous pour récupérer les changements saisis sur l’autre appareil.
+
+ACTIVATION MICROSOFT
+Le code demande séparément la permission déléguée Microsoft Graph Files.ReadWrite.AppFolder, uniquement lors de l’activation par l’administrateur. Les permissions du planning partagé ne sont pas élargies.
+Si Microsoft affiche une demande d’approbation administrateur, dans Microsoft Entra : Inscriptions d’applications > application OPUS (clientId de config.json) > Autorisations API > Ajouter Microsoft Graph > Autorisations déléguées > Files.ReadWrite.AppFolder. Accorder le consentement si la politique de votre organisation l’exige, puis relancer l’activation dans OPUS.
+Un OneDrive professionnel provisionné est nécessaire pour le compte Ignazio.
+Documentation : https://learn.microsoft.com/en-us/graph/onedrive-sharepoint-appfolder
+
+CONFIDENTIALITÉ
+Les nouveaux rendez-vous privés sont enregistrés dans le dossier d’application du OneDrive du compte connecté (/me/drive/special/approot), jamais dans les fichiers de planning partagés _OPUS_SYSTEM.
+Ils ne sont pas intégrés aux heures salariés, aux exports de paie, aux alertes d’équipe ou aux affectations partagées.
+Roberto et les techniciens n’accèdent pas à ce calendrier dans OPUS. Ne partagez pas vous-même le dossier personnel contenant ces rendez-vous. Les droits d’administration Microsoft 365 et les autres applications autorisées au OneDrive restent applicables.
+Les rendez-vous opérationnels existants dans le planning partagé restent partagés : aucune migration ni suppression automatique n’est effectuée. Pour un ancien rendez-vous personnel, le recréer dans Mes rendez-vous privés puis supprimer son ancien créneau partagé.
+Cette fonction ne synchronise pas votre calendrier Outlook et n’envoie aucune invitation.
+
+VÉRIFICATIONS
+Compilation et 221 tests automatisés réussis : séparation des données, exclusion des utilisateurs non administrateurs, sauvegarde et suppression privées, contrôle de concurrence, journée entière et régressions existantes.
+La connexion réelle au OneDrive du compte Ignazio doit être activée et vérifiée après déploiement ; elle n’a pas été testée avec ses identifiants ici.

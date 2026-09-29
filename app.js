@@ -1,3 +1,4 @@
+import {PrivateCalendar} from './lib/private-calendar.js';
 import {layoutDocumentViewer} from './lib/document-viewer-layout.js';
 import {showProjectScreen} from './lib/project-navigation.js';
 import {verifyPlannedProject} from './lib/planning-confirmation.js';
@@ -39,6 +40,15 @@ async function authInit(){
 }
 async function token(){try{return (await msal.acquireTokenSilent({scopes:config.scopes,account:msal.getActiveAccount()})).accessToken;}
  catch(e){status('Reconnexion nécessaire');$('login').textContent='Renouveler la connexion';throw new Error('Connexion Microsoft expirée ou autorisation manquante. Utilisez votre nom en haut, puis « Reconnecter ». Les saisies locales sont conservées.');}}
+let privateCalendarSession=null;
+async function connectPrivateCalendar(interactive=false){
+ if(!isAdmin())throw Error('Accès réservé à votre compte administrateur.');
+ const account=msal.getActiveAccount(),scopes=['Files.ReadWrite.AppFolder'];
+ async function privateToken(){return (await msal.acquireTokenSilent({scopes,account})).accessToken;}
+ try{await privateToken();}catch(e){if(!interactive)throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
+ if(!privateCalendarSession||privateCalendarSession.ownerId!==user.id)privateCalendarSession=new PrivateCalendar(new Graph(privateToken),user.id);
+ await privateCalendarSession.load();return privateCalendarSession;
+}
 async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
 async function connectCloud(account){
  appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);
@@ -48,7 +58,7 @@ async function activate(){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
+  opsUI=new OpsUI({graph:g,connectPrivateCalendar,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
   await opsUI.init();
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
