@@ -1,0 +1,13 @@
+OPUS 3.4.61 — Association explicite du calendrier privé
+
+1. Importer les fichiers à la racine du dépôt GitHub en conservant les sous-dossiers. Ne pas supprimer les autres fichiers.
+2. Attendre le déploiement Vercel puis rouvrir OPUS. Le titre Mes rendez-vous privés doit afficher v3.4.61.
+3. Dans Ma fiche dans le planning, choisir CARBONARO Ignazio.
+4. Cliquer Associer à mon agenda privé.
+
+L’application sélectionne alors le filtre de cette fiche et affiche ses rendez-vous privés existants et futurs avec ses rendez-vous opérationnels. Aucune ressaisie des rendez-vous n’est nécessaire.
+L’association est conservée dans le OneDrive du compte administrateur et récupérée sur les autres appareils après actualisation des rendez-vous privés.
+Les rendez-vous privés ne sont pas copiés dans le planning partagé. L’association ne donne aucun droit de lecture aux autres salariés.
+Si le numéro v3.4.61 n’apparaît pas, la nouvelle version n’est pas encore chargée : vérifier le déploiement Vercel avant de poursuivre.
+
+Patch cumulatif depuis 3.4.53. Compilation et 224 tests réussis. La connexion réelle du compte utilisateur et le déploiement ne sont pas exécutés ici.

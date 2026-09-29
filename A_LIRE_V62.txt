@@ -1,0 +1,22 @@
+OPUS 3.4.62 — Rendez-vous privés récurrents et filtre personnel
+
+INSTALLATION
+Importer le contenu du ZIP à la racine du dépôt GitHub, en conservant les sous-dossiers et les autres fichiers. Attendre le déploiement Vercel. La zone Mes rendez-vous privés doit afficher v3.4.62. Ce ZIP inclut les correctifs précédents V58 à V61 (compatible à partir de V53).
+
+CORRECTION DU FILTRE IGNAZIO
+Dans Calendrier > Mes rendez-vous privés, choisir CARBONARO Ignazio dans Ma fiche dans le planning, puis cliquer Associer à mon agenda privé.
+Cette association est enregistrée une fois dans votre OneDrive privé. Les rendez-vous existants et futurs apparaissent dans votre filtre personnel sans ressaisie. Sur un autre appareil, utiliser Actualiser mes rendez-vous.
+Si v3.4.62 n’est pas visible, vérifier que le dernier commit est publié sur Vercel et rouvrir OPUS.
+
+RÉPÉTITION
+Créer ou ouvrir un rendez-vous privé. Renseigner l’objet et les horaires (ou Journée entière).
+Cocher Toutes les semaines. Choisir un ou plusieurs jours : lundi à dimanche. Renseigner Répéter jusqu’au, date incluse.
+Exemples : réunion de chantier chaque mardi à 9h ; école lundi, mardi, jeudi et vendredi à 8h20.
+La première date de début est le point de départ : seules les dates sélectionnées à partir de ce jour sont affichées.
+La date de fin est obligatoire, avec une durée maximale de cinq ans. Les horaires suivent l’heure locale du navigateur, y compris lors du changement d’heure. Utiliser des appareils réglés sur Europe/Paris.
+Les vacances scolaires ne sont pas exclues automatiquement.
+Cliquer une occurrence ouvre la série : modifier affecte toute la série, y compris son historique ; Supprimer toute la série retire toutes les occurrences. La modification d’une seule occurrence n’est pas proposée dans cette version.
+Les rendez-vous privés restent personnels : pas d’invitation envoyée, pas de publication dans le planning partagé et pas d’heures salarié générées.
+
+Vérification : compilation et 226 tests réussis, incluant récurrence sur plusieurs jours, changement d’heure, date de fin, association personnelle et confidentialité entre comptes.
+La publication Vercel et la vérification sur le compte Microsoft réel restent à effectuer après import.
