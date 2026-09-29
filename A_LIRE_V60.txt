@@ -1,0 +1,10 @@
+OPUS 3.4.60 — Filtre planning personnel
+
+Les rendez-vous privés existants et futurs apparaissent dans le planning général, dans Mes rendez-vous privés et dans le filtre du salarié correspondant au compte administrateur connecté (Ignazio Carbonaro).
+Le rapprochement utilise l’adresse e-mail de la fiche personnel, puis à défaut le nom complet, indépendamment de l’ordre prénom/nom. En cas de doublon ou de nom différent non reconnu, renseigner l’adresse e-mail Microsoft du gérant dans sa fiche personnel.
+Les rendez-vous privés ne sont jamais copiés dans le planning partagé et ne modifient pas les heures salariés. Ils restent exclus du calendrier des autres comptes et des filtres des autres salariés.
+Aucune ressaisie des rendez-vous privés existants n’est nécessaire.
+
+Importer les fichiers du ZIP à la racine du dépôt GitHub, en conservant les sous-dossiers et sans supprimer les autres fichiers. Attendre le déploiement Vercel, puis rouvrir OPUS : version attendue 3.4.60.
+Patch cumulatif compatible à partir de 3.4.53, incluant V54 à V59. Pour l’activation initiale Microsoft du calendrier privé, voir A_LIRE_V59.txt.
+Compilation et 222 tests réussis. Aucun déploiement effectué ici.
