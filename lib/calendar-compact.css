@@ -32,3 +32,37 @@ body.calendarScreen #mainNav button{min-width:0;padding:6px 10px;font-size:12px;
 .calendarPreview{max-width:640px}.calendarPreview p{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:600px){#calendarPage .hourGrid{grid-template-columns:28px repeat(var(--days,5),minmax(0,1fr));--calendar-height:clamp(280px,48dvh,450px)}#calendarPage .hourEvent{font-size:8px}#calendarPage .hourEvent b{font-size:7px}#calendarPage .hourHead{font-size:9px}#calendarPage .hourAxis span{font-size:8px}.projectQuickActions{justify-content:flex-start}.projectQuickActions button{font-size:12px;padding:8px 10px}}
 .hourDayDetails{background:transparent!important;color:inherit!important;border:0!important;padding:2px!important;font:inherit!important;min-width:0!important;width:100%;white-space:normal}.dayAppointment{display:block;width:100%;margin:8px 0;white-space:normal;text-align:left}
+
+/* V63: use the whole application viewport for a readable planning. */
+@media screen{
+ #calendarPage .calendarDisplayTools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+ #calendarPage .calendarExpandedAction{display:none}
+ #calendarPage #expandCalendar{background:#24567c;color:white;border-color:#24567c;min-height:44px}
+ body.calendarScreen.calendarExpanded{overflow:hidden}
+ body.calendarScreen.calendarExpanded>header,body.calendarScreen.calendarExpanded>#mainNav,
+ body.calendarScreen.calendarExpanded #projectAside{display:none}
+ body.calendarScreen.calendarExpanded #calendarPage:not([hidden]){position:fixed;inset:0;z-index:90;background:var(--bg);padding:12px;box-sizing:border-box;overflow:auto;display:flex;flex-direction:column;gap:6px}
+ body.calendarExpanded #calendarPage>.pageHeading,body.calendarExpanded #calendarPage>.privateCalendarPanel{display:none}
+ body.calendarExpanded #calendarPage .calendarExpandedAction{display:inline-block}
+ body.calendarExpanded #calendarPage .calendarDisplayTools,
+ body.calendarExpanded #calendarPage .calendarViewSwitch,
+ body.calendarExpanded #calendarPage .calendarTools{flex-shrink:0;margin:0}
+ body.calendarExpanded #calendarPage .calendarViewSwitch{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+ body.calendarExpanded #calendarPage .calendarViewSwitch label{display:flex;align-items:center;gap:8px;margin:0;flex:1 1 260px}
+ body.calendarExpanded #calendarPage .calendarViewSwitch select{width:auto;flex:1;min-width:0;max-width:440px;margin:0;padding:8px}
+ body.calendarExpanded #calendarPage .calendarTools{position:static;padding:0}
+ body.calendarExpanded #calendarPage .hourScroll{flex:1 0 auto;overflow:visible}
+ body.calendarExpanded #calendarPage .hourHead{font-size:13px;padding:8px 3px}
+ body.calendarExpanded #calendarPage .hourEvent{font-size:13px;line-height:1.2;padding:3px;overflow:auto}
+ body.calendarExpanded #calendarPage .hourEvent b{font-size:11px}
+ body.calendarExpanded #calendarPage .hourAxis span{font-size:12px}
+ body.calendarExpanded #calendarPage .monthCalendar{flex:1;display:flex;flex-direction:column}
+ body.calendarExpanded #calendarPage .monthCells{flex:1;grid-auto-rows:minmax(95px,1fr)}
+ body.calendarExpanded #calendarPage .monthEvent{font-size:13px}
+ @media(max-width:600px){
+  body.calendarScreen.calendarExpanded #calendarPage:not([hidden]){padding:6px}
+  body.calendarExpanded #calendarPage .hourEvent{font-size:10px}
+  body.calendarExpanded #calendarPage .hourEvent b{font-size:9px}
+  body.calendarExpanded #calendarPage .hourHead{font-size:10px}
+ }
+}

@@ -1,0 +1,16 @@
+OPUS CHANTIERS — V3.4.63 — Planning agrandi
+
+Cette mise à jour cumulative s’applique sur OPUS V53 ou version ultérieure.
+Copiez tout le contenu de ce ZIP à la racine du projet, en remplaçant les fichiers existants, puis effectuez votre déploiement habituel sur Vercel.
+Après déploiement, actualisez l’application. La version affichée doit être 3.4.63.
+
+Dans Calendrier, cliquez sur « Agrandir le planning », tout en haut.
+Les menus, le titre et les réglages privés sont masqués pour laisser le planning occuper toute la fenêtre de l’application.
+Les filtres de personnel, les vues Jour/Semaine/Mois et les boutons de dates restent accessibles.
+Les rendez-vous sont affichés avec des textes plus grands. En vue Jour, une seule colonne permet une lecture encore plus confortable.
+Les commandes de création restent disponibles selon les droits de votre compte et l’activation de votre agenda privé.
+Cliquez sur « Réduire le planning » ou appuyez sur Échap pour retrouver les menus et les réglages. Lorsqu’une fenêtre de rendez-vous est ouverte, Échap reste réservé à cette fenêtre.
+Le mode agrandi reste actif pendant la navigation dans les dates et les vues.
+
+Ce ZIP contient le code de mise à jour, pas une sauvegarde des données Microsoft 365. Il ne modifie pas les fiches clients ni les rendez-vous enregistrés.
+Validation : compilation réussie, 226 tests existants réussis et contrôle des commandes du mode agrandi.
