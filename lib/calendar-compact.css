@@ -72,3 +72,7 @@ body.calendarScreen #mainNav button{min-width:0;padding:6px 10px;font-size:12px;
   #calendarPage .calendarTools button{font-size:11px;padding:3px 5px;flex:none}
  }
 }
+
+/* Private site meetings: red without changing event typography or visibility. */
+#calendarPage .hourEvent.privateSiteMeeting,#calendarPage .monthEvent.privateSiteMeeting{background:#ffe5e5;color:#8a1720;border-left-color:#c52b38}
+#newPrivateSiteEvent{background:#ffe5e5;color:#8a1720;border-color:#dca2a8;margin:6px 0}

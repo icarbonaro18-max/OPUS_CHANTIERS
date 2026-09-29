@@ -1,0 +1,14 @@
+OPUS CHANTIERS — V3.4.65 — Rendez-vous de chantier privés, en rouge
+
+Mise à jour cumulative compatible V53 et versions suivantes.
+Copiez le contenu du ZIP à la racine du projet en remplaçant les fichiers, puis effectuez votre déploiement habituel. Actualisez l’application et vérifiez la version 3.4.65.
+
+Dans Calendrier, ouvrez le panneau ⋯ puis cliquez sur « + Rendez-vous de chantier ».
+Votre agenda privé doit être activé. Choisissez le chantier : le titre se remplit automatiquement. Indiquez la date et les heures de début et de fin (une heure proposée par défaut, durée modifiable).
+Pour un rendez-vous hebdomadaire, cochez « Toutes les semaines », choisissez les jours et la date de fin.
+Ces rendez-vous sont rouges dans les vues Jour, Semaine et Mois. Ils restent privés et n’affectent aucune équipe. L’association à votre fiche planning reste celle de votre agenda privé.
+Pour modifier un rendez-vous, cliquez dessus. Une modification ou suppression d’un rendez-vous récurrent concerne toute sa série.
+Le planning compact et le panneau escamotable de V64 sont conservés.
+
+Validation : compilation et 226 tests réussis. Vérifications supplémentaires du choix de chantier, de la sauvegarde privée, d’une durée de 90 minutes, de la répétition et des droits d’accès.
+Le ZIP contient du code, pas une sauvegarde de vos données Microsoft 365.
