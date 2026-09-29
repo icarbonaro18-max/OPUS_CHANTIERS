@@ -1,0 +1,15 @@
+OPUS CHANTIERS — V3.4.64 — Planning prioritaire et commandes escamotables
+
+Mise à jour cumulative compatible avec OPUS V53 et les versions suivantes.
+Copiez tout le contenu du ZIP à la racine du projet en remplaçant les fichiers existants, puis déployez comme habituellement sur Vercel. Actualisez ensuite l’application. Vérifiez la version 3.4.64.
+
+À l’ouverture du calendrier, le tableau des journées est directement visible. Les paramètres et les commandes privées sont rangés dans un panneau fermé par défaut.
+Le bouton ⋯ ouvre le panneau coulissant à droite : planifier, actualiser les rendez-vous privés, créer un rendez-vous libre et associer votre fiche planning. Les commandes dépendent de vos droits et de l’activation de l’agenda privé.
+Fermez le panneau avec la croix, Échap ou en cliquant à l’extérieur.
+Sur téléphone, le filtre et J / S / M / ⋯ restent alignés sur une seule ligne.
+La taille des textes des rendez-vous est celle d’avant V63. L’espace libéré agrandit le tableau, sans grossir son texte.
+Le bouton Agrandir/Réduire de V63 est remplacé par cette présentation compacte dès l’ouverture.
+Les rendez-vous et les fiches clients enregistrés ne sont pas modifiés.
+
+Validation : compilation et 226 tests réussis, contrôle des commandes du panneau et de la navigation.
+Ce ZIP contient le code de mise à jour, pas une sauvegarde de vos données Microsoft 365.
