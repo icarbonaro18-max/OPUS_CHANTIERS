@@ -1,0 +1,8 @@
+OPUS CHANTIERS — V3.4.66 — Rendez-vous privés en vert foncé
+
+Les rendez-vous privés sont désormais affichés sur fond vert foncé avec un texte blanc, dans les vues Jour, Semaine et Mois.
+Les rendez-vous de chantier privés conservent leur couleur rouge.
+La taille des textes, le planning compact et les droits de visibilité restent identiques.
+
+Mise à jour cumulative compatible V53 et versions suivantes : copiez les fichiers du ZIP à la racine du projet en remplaçant les fichiers existants, puis effectuez votre déploiement habituel. Actualisez l’application et vérifiez la version 3.4.66.
+Ce ZIP contient le code de mise à jour, pas les données Microsoft 365.

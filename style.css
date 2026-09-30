@@ -161,4 +161,4 @@
 #viewer #viewerBody{flex:1 1 0;min-height:0;min-width:0;padding:12px;overflow:auto}
 
 /* Rendez-vous personnels : affichage uniquement depuis le calendrier privé. */
-.hourEvent.private,.monthEvent.private,.eventCard.private{background:#f0e8ff;border-left:4px solid #7952a3;color:#37234d;}
+#calendarPage .hourEvent.private:not(.privateSiteMeeting),#calendarPage .monthEvent.private:not(.privateSiteMeeting),#calendarPage .eventCard.private:not(.privateSiteMeeting){background:#17543d;border-left:4px solid #0d3929;color:#fff;}
