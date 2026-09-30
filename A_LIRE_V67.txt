@@ -1,0 +1,19 @@
+OPUS CHANTIERS — V3.4.67 — Adresses suggérées et affaires actives
+
+Mise à jour cumulative compatible V53 et versions suivantes. Remplacez les fichiers à la racine du projet puis effectuez votre déploiement habituel. Actualisez l’application et vérifiez la version 3.4.67.
+
+ADRESSES
+À partir de quatre caractères, jusqu’à cinq adresses françaises sont proposées via le service public IGN / Base Adresse Nationale. Cliquez sur une proposition ou utilisez les flèches puis Entrée. La saisie libre reste possible, y compris en cas d’absence de réseau.
+Champs concernés : lieu des rendez-vous privés, adresses des interventions et visites, adresse des nouveaux clients, facturation, sites clients et fiche chantier.
+La recherche nécessite Internet. Seul le texte tapé dans le champ d’adresse est envoyé au service IGN ; aucun nom de client, note ou jeton Microsoft n’est joint. Aucune clé Google à configurer.
+Documentation : https://cartes.gouv.fr/aide/fr/guides-utilisateur/utiliser-les-services-de-la-geoplateforme/geocodage/
+Limite de validation : le service distant n’a pas pu être joint depuis l’environnement de préparation ; les essais du composant utilisent des réponses simulées et couvrent aussi la panne réseau.
+
+LISTES DE CHOIX
+Commandes fournisseur / dépôt et planification : les nouvelles suggestions masquent les affaires clôturées. Chantiers : catégories Terminé (04) et Archivé (99). Interventions / visites : terminées, facturées, converties, annulées ou archivées.
+Les affaires actives sont triées de la création la plus récente à la plus ancienne, avec repli sur la date prévue puis le numéro lorsqu’une date de création manque.
+Les rendez-vous de chantier privés et les affaires supplémentaires d’une planification utilisent également les chantiers actifs.
+Les anciens dossiers restent dans l’historique. Le rattachement déjà choisi d’un bon ou d’un rendez-vous existant est conservé lors de sa réouverture.
+Rechargez l’application et l’espace commandes après une clôture pour rafraîchir les listes chargées.
+
+Ce ZIP contient le code de mise à jour, pas une sauvegarde des données Microsoft 365.

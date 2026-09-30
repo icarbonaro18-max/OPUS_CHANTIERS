@@ -16,7 +16,7 @@ test('project reports stay out of independent tabs, counts and material targets 
  const {ui}=setup();const before=JSON.stringify(ui.data.interventions);await ui.renderInterventions();
  assert.match(document.getElementById('intCurrent').textContent,/\(1\)/);assert.match(document.getElementById('intCompleted').textContent,/\(1\)/);
  assert.equal(document.querySelector('#intList [data-int]').dataset.int,'i');document.getElementById('intCompleted').click();assert.equal(document.querySelector('#intList [data-int]').dataset.int,'done');
- assert.deepEqual(interventionTargets(ui.data.interventions).map(t=>t.linkId),['i','done']);assert.equal(JSON.stringify(ui.data.interventions),before);
+ assert.deepEqual(interventionTargets(ui.data.interventions).map(t=>t.linkId),['i']);assert.equal(JSON.stringify(ui.data.interventions),before);
 });
 test('office includes finished projects once per affair, independent invoices and all three report kinds',async()=>{
  const {ui,opened}=setup();await ui.renderOffice();

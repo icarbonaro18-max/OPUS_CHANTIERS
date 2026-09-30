@@ -1,3 +1,4 @@
+import {activeSuggestion,activeProject,newestFirst} from '../lib/active-suggestions.js';
 import {isIndependentIntervention} from '../lib/work-records.js';
 import {safeName} from '../lib/cloud.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -8,9 +9,9 @@ export async function readInterventions(g){
  if(!Array.isArray(rows))throw Error('Liste des interventions illisible.');
  return {rows,file:meta};
 }
-export function interventionTargets(rows){
- return rows.filter(isIndependentIntervention).sort((a,b)=>String(a.plannedStart||'9999').localeCompare(String(b.plannedStart||'9999'))).map(x=>({
- id:'intervention:'+x.id,kind:'intervention',linkId:x.id,number:x.number,
+export function interventionTargets(rows,{includeClosed=false}={}){
+ return rows.filter(isIndependentIntervention).filter(x=>includeClosed||activeSuggestion(x)).sort(newestFirst).map(x=>({
+ selectable:activeSuggestion(x),id:'intervention:'+x.id,kind:'intervention',linkId:x.id,number:x.number,
  name:[x.number,x.title,x.clientName,x.plannedStart?new Date(x.plannedStart).toLocaleDateString('fr-FR'):'À programmer'].filter(Boolean).join(' · ')
  }));
 }
@@ -19,7 +20,7 @@ export function mountTargetPicker(select,targets){
  const tabs=document.createElement('div');tabs.className='actions';tabs.setAttribute('aria-label','Destination du matériel');
  tabs.innerHTML='<button type="button" data-target-kind="project">Chantiers</button><button type="button" data-target-kind="intervention">Interventions</button>';
  select.before(tabs);
- function draw(){select.innerHTML='<option value="">Choisir '+(kind==='intervention'?'une intervention':'un chantier')+'</option>'+targets.filter(p=>(p.kind||'project')===kind).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');select.value=selected;tabs.querySelectorAll('button').forEach(b=>{b.className=b.dataset.targetKind===kind?'':'secondary';b.setAttribute('aria-pressed',String(b.dataset.targetKind===kind));});}
+ function draw(){select.innerHTML='<option value="">Choisir '+(kind==='intervention'?'une intervention':'un chantier')+'</option>'+targets.filter(p=>(p.kind||'project')===kind&&(p.id===selected||(p.selectable!==false&&((p.kind||'project')!=='project'||activeProject(p))))).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');select.value=selected;tabs.querySelectorAll('button').forEach(b=>{b.className=b.dataset.targetKind===kind?'':'secondary';b.setAttribute('aria-pressed',String(b.dataset.targetKind===kind));});}
  tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(kind!==b.dataset.targetKind){kind=b.dataset.targetKind;selected='';draw();select.dispatchEvent(new select.ownerDocument.defaultView.Event('input',{bubbles:true}));}});
  draw();
 }

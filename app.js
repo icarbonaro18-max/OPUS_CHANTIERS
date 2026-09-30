@@ -1,4 +1,6 @@
 import {PrivateCalendar} from './lib/private-calendar.js';
+import {installAddressSuggestions} from './lib/address-suggestions.js';
+installAddressSuggestions();
 import {layoutDocumentViewer} from './lib/document-viewer-layout.js';
 import {showProjectScreen} from './lib/project-navigation.js';
 import {verifyPlannedProject} from './lib/planning-confirmation.js';
