@@ -162,3 +162,6 @@
 
 /* Rendez-vous personnels : affichage uniquement depuis le calendrier privé. */
 #calendarPage .hourEvent.private:not(.privateSiteMeeting),#calendarPage .monthEvent.private:not(.privateSiteMeeting),#calendarPage .eventCard.private:not(.privateSiteMeeting){background:#17543d;border-left:4px solid #0d3929;color:#fff;}
+
+.orderPickupBadge{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 5px;margin-left:5px;border-radius:50%;background:#bb283b;color:#fff;font-size:12px;font-weight:700;vertical-align:middle}
+.pickupViews{flex-wrap:wrap}.pickupViews p{flex-basis:100%;font-size:12px}.pickupReceipt{color:#246b45;font-size:12px}.row[hidden]{display:none!important}

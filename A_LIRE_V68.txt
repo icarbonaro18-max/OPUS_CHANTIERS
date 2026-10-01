@@ -1,0 +1,16 @@
+OPUS CHANTIERS — V3.4.68 — Commandes à récupérer et archives
+
+Installation : mise à jour cumulative compatible V53 et versions suivantes. Copiez les fichiers à la racine du projet, remplacez les fichiers existants et déployez comme habituellement. Actualisez l’application. Version attendue : 3.4.68.
+
+Le bouton Bons de commande, sur les cartes des chantiers et des interventions, affiche un rond rouge indiquant les bons à récupérer. Dans le chantier, le même compteur apparaît sur l’onglet Bons de commande.
+Cliquez pour consulter les bons en attente. Sur une intervention, le bouton ouvre directement la rubrique matériel.
+Après retrait effectif, le technicien clique sur Commande récupérée. Une confirmation est enregistrée dans Microsoft 365 avec son nom et la date. Le compteur diminue et le bon passe dans Archives · récupérées.
+Les PDF restent conservés à leur emplacement d’origine : les liens existants fonctionnent toujours. L’archivage correspond au classement dans la vue des commandes récupérées, sans déplacer ni supprimer les fichiers.
+Le suivi est commun aux appareils. Actualisez l’application après de nouveaux bons, ou utilisez Actualiser dans les commandes. Le bouton Actualiser les retraits d’une intervention recharge les confirmations ; l’actualisation générale recharge aussi les nouveaux bons.
+En cas d’échec réseau, aucune commande n’est annoncée récupérée. Un suivi impossible à lire est signalé « à actualiser », sans afficher un faux zéro.
+
+Au premier démarrage, les anciens bons sans confirmation de retrait apparaissent à récupérer. Classez une première fois ceux qui ont déjà été retirés. Un document distinct est compté comme un bon ; les anciennes pièces et versions séparées devront être classées individuellement.
+Les confirmations sont enregistrées séparément des rapports dans _OPUS_SYSTEM/RETRAITS_COMMANDES. Cela évite d’écraser un rapport en cours ou le retrait d’une autre commande.
+
+Validation : compilation et 234 tests réussis, dont le suivi partagé, le classement dans les archives, la conservation des documents et du rapport en cours, ainsi que l’échec d’enregistrement.
+Le ZIP contient le code de mise à jour, pas les données Microsoft 365.
