@@ -1,0 +1,12 @@
+OPUS CHANTIERS — V3.4.69 — Coordonnées des clients
+
+Correctif cumulatif compatible V53 et versions suivantes. Remplacez les fichiers du projet puis effectuez votre déploiement habituel. Actualisez l’application et vérifiez la version 3.4.69.
+
+Défaut identifié : les formulaires Nouveau client des interventions et visites enregistraient téléphone et e-mail au niveau du client. La fiche de modification et la liste des clients n’affichaient pas ces deux champs, mais seulement les contacts des sites, qui peuvent être différents.
+
+Les coordonnées du client sont maintenant visibles dans Bureau > Clients & sites > Consulter / modifier les clients. Le formulaire Modifier affiche Téléphone du client et E-mail du client et permet leur correction.
+Le choix d’un client habituel dans une intervention ou visite affiche également ses coordonnées. La recherche accepte le téléphone et l’e-mail.
+Les contacts des sites restent séparés. La fermeture du formulaire sans enregistrement ne modifie plus le client en mémoire. Un échec de sauvegarde affiche une erreur et conserve la liste précédente.
+
+Ce correctif affiche les valeurs déjà enregistrées. Il ne reconstitue pas des coordonnées qui n’auraient jamais été sauvegardées. Aucun accès aux données réelles Microsoft 365 de la cliente n’a été réalisé pendant la préparation.
+Validation : syntaxe JavaScript contrôlée et 3 tests ciblés réussis. La suite complète n’a pas été relancée : les dépendances de test ne sont plus disponibles dans l’environnement de préparation.
