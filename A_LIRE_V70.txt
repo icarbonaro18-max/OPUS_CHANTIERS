@@ -1,0 +1,11 @@
+OPUS CHANTIERS — V3.4.70 — Coordonnées client dans le résumé de visite
+
+Le résumé simplifié d’une visite ou d’une intervention affichait uniquement le contact sur place. Les coordonnées saisies dans Nouveau client étaient enregistrées dans la fiche client liée, mais absentes de ce résumé.
+Le résumé affiche désormais aussi Coordonnées du client, avec téléphone et e-mail cliquables, en utilisant uniquement le client lié par son identifiant. Le contact sur place reste distinct.
+Cette correction s’applique aux visites déjà enregistrées si la fiche client liée contient les coordonnées. Elle ne modifie ni ne reconstitue les données Microsoft 365.
+
+Après installation, actualisez OPUS puis ouvrez Visites / Devis > la visite concernée. Le bloc de coordonnées apparaît dans son résumé en haut.
+La V69 est incluse : les champs restent également accessibles depuis Bureau > Clients & sites > Modifier.
+
+Copiez les fichiers de ce ZIP cumulatif à la racine du projet, remplacez les fichiers existants puis effectuez votre déploiement habituel. Version attendue : 3.4.70.
+Validation : syntaxe JavaScript contrôlée et 3 tests ciblés sur les coordonnées réussis. La suite complète et l’affichage dans le navigateur n’ont pas été vérifiés dans cet environnement.
