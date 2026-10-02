@@ -1,0 +1,9 @@
+OPUS CHANTIERS — V71 — Rendez-vous à toute heure
+
+La grille Jour/Semaine affiche désormais 7 h à 22 h au minimum.
+Le bouton 24 h affiche tous les créneaux de minuit à minuit.
+Les rendez-vous plus matinaux ou tardifs déjà enregistrés étendent aussi automatiquement la grille normale.
+Dans ⋯ > Rendez-vous libre privé, saisir les dates et heures de début et de fin souhaitées (par exemple 19 h–20 h). Pour un rendez-vous après minuit, choisir le lendemain comme date de fin.
+
+Installation : copier le contenu de ce correctif cumulatif à la racine du projet, remplacer les fichiers, puis publier comme pour les précédentes mises à jour. Vérifier Version 3.4.71 après actualisation.
+Les correctifs V67 à V70 sont inclus. Ce ZIP est un correctif, pas une archive complète.
