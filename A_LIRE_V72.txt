@@ -1,0 +1,10 @@
+OPUS CHANTIERS — V72 — Disponibilité du gérant et agenda automatique
+
+CARBONARO Ignazio / Ignazio Carbonaro peut être affecté aux rendez-vous à toute heure sans cocher Horaires exceptionnels. Ses heures saisies sont conservées, y compris après les horaires salariés et pendant une fermeture générale. Les absences explicitement enregistrées et les contrôles de chevauchement restent pris en compte.
+La règle concerne uniquement sa fiche (nom complet ou adresse professionnelle connue), sans modifier ses droits ni ceux des salariés.
+
+Le bouton 24 h ajouté en V71 a été retiré. La grille Jour/Semaine s'étend automatiquement selon les rendez-vous, par exemple jusqu'à 20 h pour une visite de 19 h 30 à 20 h. Sans rendez-vous en dehors de ces horaires, elle reste de 7 h à 18 h.
+
+Installation : décompresser, copier les fichiers à la racine du projet en remplaçant les versions précédentes et publier selon la procédure habituelle. Actualiser l'application et vérifier Version 3.4.72.
+Correctif cumulatif incluant V67 à V71, avec le comportement V71 remplacé comme demandé. Ce fichier n'est pas une archive complète.
+Validation : tests ciblés des heures du gérant, maintien des horaires salariés, fermetures et extension automatique de la grille. Pas de vérification sur les données Microsoft 365 réelles.
