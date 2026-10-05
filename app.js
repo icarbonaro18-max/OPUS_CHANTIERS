@@ -1,3 +1,4 @@
+import {WarmCache} from './lib/warm-cache.js';
 import {loadPickupStates,pickupCount,pickupBadge,queuePickupRead} from './lib/order-pickups.js';
 import {PrivateCalendar} from './lib/private-calendar.js';
 import {installAddressSuggestions} from './lib/address-suggestions.js';
@@ -15,11 +16,14 @@ import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,Cloud
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
+const projectPickupCache=new Map();
+let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false;
 const pendingReplies=new Map();let modalCleanup=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
+$('modal').addEventListener('submit',e=>{if(opsUI?.cacheMode){e.preventDefault();e.stopImmediatePropagation();toast('Données mémorisées en consultation. Attendez l’actualisation avant de modifier.');}},true);
 function status(text,good=false){$('connection').textContent=text;$('connection').style.color=good?'#137344':'';}
 function bind(id,fn){const e=$(id);if(e)e.onclick=()=>Promise.resolve().then(fn).catch(err);}
 const dateTime=s=>s?new Date(s).toLocaleString('fr-FR'):'—';
@@ -35,34 +39,76 @@ function readFields(data,list=fields){const result=clone(data);for(const[k]of li
 async function authInit(){
  if(!config.clientId)return;
  const M=await import('./vendor/msal.js').catch(()=>{throw new Error('Le module Microsoft doit être installé par le déploiement GitHub Actions. Voir le guide inclus dans le ZIP.');});
- msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('./auth.html',location.href).href,postLogoutRedirectUri:new URL('./',location.href).href},cache:{cacheLocation:'sessionStorage'}});
+ msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('./auth.html',location.href).href,postLogoutRedirectUri:new URL('./',location.href).href},cache:{cacheLocation:'localStorage'}});
  await msal.initialize();const response=await msal.handleRedirectPromise();
  if(response?.account)msal.setActiveAccount(response.account);
- const account=msal.getActiveAccount()||msal.getAllAccounts()[0];
+ const accounts=msal.getAllAccounts(),account=msal.getActiveAccount()||(accounts.length===1?accounts[0]:null);
  if(account){msal.setActiveAccount(account);await connectCloud(account);}
 }
 async function token(){try{return (await msal.acquireTokenSilent({scopes:config.scopes,account:msal.getActiveAccount()})).accessToken;}
  catch(e){status('Reconnexion nécessaire');$('login').textContent='Renouveler la connexion';throw new Error('Connexion Microsoft expirée ou autorisation manquante. Utilisez votre nom en haut, puis « Reconnecter ». Les saisies locales sont conservées.');}}
-let privateCalendarSession=null;
+let privateCalendarSession=null,privateCalendarLoading=null;
+function cachedPrivateCalendar(snapshot){
+ const calendar=new PrivateCalendar(new Graph(async()=>{throw Error('Reconnectez-vous pour actualiser vos rendez-vous privés.');}),user.id);
+ calendar.rows=structuredClone(snapshot.rows);calendar.personId=snapshot.personId;calendar.ready=true;calendar.cacheMode=true;return calendar;
+}
+
 async function connectPrivateCalendar(interactive=false){
  if(!isAdmin())throw Error('Accès réservé à votre compte administrateur.');
+ if(navigator.onLine===false){if(opsUI?.privateCalendar?.ready)return opsUI.privateCalendar;throw Error('Rendez-vous privés non mémorisés sur cet appareil.');}
+ if(privateCalendarLoading)return privateCalendarLoading;
+ privateCalendarLoading=loadPrivateCalendar(interactive).finally(()=>{privateCalendarLoading=null;});return privateCalendarLoading;
+}
+async function loadPrivateCalendar(interactive){
  const account=msal.getActiveAccount(),scopes=['Files.ReadWrite.AppFolder'];
  async function privateToken(){return (await msal.acquireTokenSilent({scopes,account})).accessToken;}
  try{await privateToken();}catch(e){if(!interactive)throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
- if(!privateCalendarSession||privateCalendarSession.ownerId!==user.id)privateCalendarSession=new PrivateCalendar(new Graph(privateToken),user.id);
- await privateCalendarSession.load();return privateCalendarSession;
+ const next=new PrivateCalendar(new Graph(privateToken),user.id);
+ await next.load();privateCalendarSession=next;
+ next.onChange=async()=>{try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
+ if(opsUI){opsUI.privateCalendar=next;if(opsUI.section==='calendar'&&!$('modal').open)await opsUI.renderCalendar();}
+ return next;
 }
 async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
 async function connectCloud(account){
- appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);
- status('Connexion à la bibliothèque…');g=new Graph(token);await g.connect(config);user=await g.request('/me?$select=id,displayName,mail,userPrincipalName');journal=new Journal(g);await activate();
+ appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);warmCache=new WarmCache(store,appAccount,config);
+ cacheSnapshot=await warmCache.read();g=new Graph(token);journal=new Journal(g);
+ if(cacheSnapshot){
+  user=cacheSnapshot.user;g.site=cacheSnapshot.site;g.drive=cacheSnapshot.drive;g.readOnlyCache=true;catalog=cacheSnapshot.catalog;
+  await activate({cached:cacheSnapshot});void resumeCloud();return;
+ }
+ status('Connexion à la bibliothèque…');
+ const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);user=profile;cloudReady=true;await activate();
 }
-async function activate(){
+function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').after(el);}el.textContent=text;el.hidden=!text;}
+function cachedNotice(){
+ const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
+ syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Consultation uniquement.');
+ status(navigator.onLine?'Données mémorisées · actualisation…':'Hors ligne · consultation');
+}
+async function rememberWarm(){if(!warmCache||opsUI?.cacheMode||opsUI?.dataLoadError||!cloudReady)return;
+ try{await warmCache.write({user:{id:user.id,displayName:user.displayName,mail:user.mail,userPrincipalName:user.userPrincipalName},site:{id:g.site?.id},drive:{id:g.drive?.id},catalog,operations:opsUI.data});cacheSnapshot=await warmCache.read();}catch{syncNotice('Connecté · La copie hors ligne n’a pas pu être mise à jour sur cet appareil.');}
+}
+async function resumeCloud(){
+ if(resumeBusy)return resumeBusy;
+ if(!navigator.onLine){if(cacheSnapshot)cachedNotice();return;}
+ resumeBusy=(async()=>{try{
+  if(!cloudReady){const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
+   if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez-vous.');
+   user=profile;cloudReady=true;
+  }
+  if($('modal').open||live||!$('viewer').hidden){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
+  await refresh();
+  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){await opsUI.syncPersonnel();personnelSynced=true;}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
+ }catch(e){if(cacheSnapshot)cachedNotice();syncNotice('Consultation des données mémorisées · Actualisation impossible : '+e.message);}
+ finally{resumeBusy=null;}})();return resumeBusy;
+}
+async function activate({cached=null}={}){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,connectPrivateCalendar,getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
-  await opsUI.init();
+  opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
+  await opsUI.init({cached:cached?.operations});personnelSynced=!cached;
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
   if(opsUI)opsUI.dataLoadError=e;
@@ -71,15 +117,41 @@ async function activate(){
   $('officeNav').hidden=!isAdmin();
   toast('Les visites et interventions n’ont pas pu être chargées. Les onglets restent accessibles pour réessayer.');
  }
- await updatePending();await refresh();await restoreRoute();if(opsUI)await opsUI.restoreSection();clearInterval(pollId);
- pollId=setInterval(async()=>{if(!navigator.onLine || document.hidden)return;try{await flush();if(live || $('modal').open || !$('viewer').hidden)return;if(!selected)await refresh();else if(tab==='documents')await documents(false);else if(tab==='attestations')await attestations();}catch(e){status('Hors ligne / à vérifier');}},Math.max(30,config.pollSeconds||45)*1000);
- await flush();
+ await updatePending();
+ if(cached){
+  cachedNotice();
+  const personal=isAdmin()?await warmCache.privateRead(user.id):null;
+  if(personal){opsUI.privateCalendar=cachedPrivateCalendar(personal);}
+  renderProjects();if(opsUI)await opsUI.restoreSection();
+ }else{await refresh({skipOps:true});await restoreRoute();if(opsUI)await opsUI.restoreSection();}
+ clearInterval(pollId);
+ pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden||$('modal').open||live||!$('viewer').hidden)return;
+  try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
+ },Math.max(30,config.pollSeconds||45)*1000);
+ if(!cached)void flush().catch(err);
 }
-async function refresh(){status('Actualisation…');const wasDataLoadError=!!opsUI?.dataLoadError;
- try{catalog=await g.projects();await store.set('catalog',catalog);status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);$('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;}
- catch(e){const cache=await store.get('catalog');if(cache){catalog=cache;status('Hors ligne — liste mémorisée');$('lastRefresh').textContent='Dernière liste conservée sur cet appareil. Les documents non ouverts nécessitent le réseau.';}else throw e;}
- if(opsUI&&navigator.onLine){try{await opsUI.reload();await syncProjectStages();}catch(e){status('Données à recharger');toast(e.message);}}
- renderProjects();if(opsUI&&(wasDataLoadError||opsUI.dataLoadError)&&opsUI.section!=='projects'&&!$('modal').open)await opsUI.show(opsUI.section);if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
+async function refresh(options={}){
+ if(refreshBusy)return refreshBusy;
+ refreshBusy=refreshNow(options).finally(()=>{refreshBusy=null;});return refreshBusy;
+}
+async function refreshNow({skipOps=false}={}){
+ if(!DEMO&&!cloudReady){return;}
+ if(navigator.onLine===false&&!DEMO){if(cacheSnapshot)cachedNotice();return;}
+ status('Actualisation…');
+ try{
+  const [nextCatalog,applied]=await Promise.all([g.projects(),opsUI&&!skipOps?opsUI.reload({background:true}):Promise.resolve(true)]);
+  if($('modal').open||live||applied===false){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
+  catalog=nextCatalog;g.readOnlyCache=false;await store.set('catalog',catalog);
+  status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
+  $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
+  await rememberWarm();renderProjects();
+  if(opsUI&&!$('modal').open){if(opsUI.section==='calendar')await opsUI.renderCalendar();else if(opsUI.section==='interventions')await opsUI.renderInterventions();else if(opsUI.section==='visits')await opsUI.renderVisits();}
+  if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
+  if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages().catch(e=>console.warn('Classement différé',e.message));
+ }catch(e){
+  if(cacheSnapshot){if(opsUI){opsUI.cacheMode=true;opsUI.dataLoadError=null;}g.readOnlyCache=true;cachedNotice();syncNotice('Données mémorisées · Actualisation impossible : '+e.message);}
+  else{status('Actualisation à réessayer');throw e;}
+ }
 }
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
@@ -89,13 +161,13 @@ function renderProjects(){
  const q=norm($('search').value);let ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));if(opsUI)ps=opsUI.sortProjects(ps);
  $('projectCount').textContent=ps.length+' chantier(s)';
  $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard ${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'projectUrgent':''} ${opsUI?.projectIsToday(p.id)&&!['04','99'].includes(p.category)?'projectToday':''}"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span>${opsUI?opsUI.projectEventChip(p.id):''}${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'<span class="chip warn">À finaliser / échéance à vérifier</span>':''}<span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
- document.querySelectorAll('[data-open-project]').forEach(b=>{b.onclick=()=>openProject(b.dataset.openProject).catch(err);const p=ps.find(p=>p.id===b.dataset.openProject);const actions=document.createElement('div');actions.className='projectQuickActions';actions.innerHTML='<button data-quick="finish">Rapport de fin d’intervention</button><button data-quick="follow">Suivi de chantier</button><button data-quick="orders">Commandes fournisseurs</button>';b.before(actions);mountCompleteProject(opsUI,p,actions);const orderButton=actions.querySelector('[data-quick=orders]');orderButton.textContent='Bons de commande · …';queuePickupRead(async()=>{if(!orderButton.isConnected)return;const data=await loadOrders(g,p.id);const states=await loadPickupStates(g,[...data.supplier,...data.depot]);if(orderButton.isConnected)orderButton.innerHTML='Bons de commande '+pickupBadge(pickupCount([...data.supplier,...data.depot],states));}).catch(()=>{if(orderButton.isConnected)orderButton.textContent='Bons de commande · à actualiser';});actions.querySelectorAll('[data-quick]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;try{if(btn.dataset.quick==='orders'){modal('Commandes · '+p.name,'<div id="quickOrderPanel"></div>');const root=$('quickOrderPanel');await renderOrders({g,user,project:p,root,openDocument,isAdmin,toast,onCounts:data=>{btn.innerHTML='Bons de commande '+(data.pending===null?'· à actualiser':pickupBadge(data.pending));showOrderCounts(p.id,data);},isCurrent:()=>root.isConnected});}else{const data=await opsUI.c.projectMeta(p.id);await opsUI.openProjectReports(p,data,{kind:btn.dataset.quick==='finish'?'chantier':'journee'});}}catch(e){err(e);}finally{btn.disabled=false;}});});
+ document.querySelectorAll('[data-open-project]').forEach(b=>{b.onclick=()=>openProject(b.dataset.openProject).catch(err);const p=ps.find(p=>p.id===b.dataset.openProject);const actions=document.createElement('div');actions.className='projectQuickActions';actions.innerHTML='<button data-quick="finish">Rapport de fin d’intervention</button><button data-quick="follow">Suivi de chantier</button><button data-quick="orders">Commandes fournisseurs</button>';b.before(actions);mountCompleteProject(opsUI,p,actions);const orderButton=actions.querySelector('[data-quick=orders]');orderButton.textContent=opsUI?.cacheMode?'Bons de commande · connexion nécessaire':'Bons de commande · …';queuePickupRead(async()=>{if(!orderButton.isConnected||opsUI?.cacheMode||navigator.onLine===false)return;const previous=projectPickupCache.get(p.id);if(previous&&Date.now()-previous.at<60000){orderButton.innerHTML=previous.html;return;}const data=await loadOrders(g,p.id);const states=await loadPickupStates(g,[...data.supplier,...data.depot]);const html='Bons de commande '+pickupBadge(pickupCount([...data.supplier,...data.depot],states));projectPickupCache.set(p.id,{at:Date.now(),html});if(orderButton.isConnected)orderButton.innerHTML=html;}).catch(()=>{if(orderButton.isConnected)orderButton.textContent='Bons de commande · à actualiser';});actions.querySelectorAll('[data-quick]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;try{if(btn.dataset.quick==='orders'){modal('Commandes · '+p.name,'<div id="quickOrderPanel"></div>');const root=$('quickOrderPanel');await renderOrders({g,user,project:p,root,openDocument,isAdmin,toast,onCounts:data=>{projectPickupCache.delete(p.id);btn.innerHTML='Bons de commande '+(data.pending===null?'· à actualiser':pickupBadge(data.pending));showOrderCounts(p.id,data);},isCurrent:()=>root.isConnected});}else{const data=await opsUI.c.projectMeta(p.id);await opsUI.openProjectReports(p,data,{kind:btn.dataset.quick==='finish'?'chantier':'journee'});}}catch(e){err(e);}finally{btn.disabled=false;}});});
  const loose=catalog.loose.filter(p=>category==='all'||p.category===category);
  $('looseFiles').innerHTML=loose.length?`<div class="panel" style="margin-top:24px"><h2>Documents à classer dans un chantier</h2><p class="muted">Ces fichiers ont été déposés directement dans une rubrique, sans dossier chantier.</p>${loose.map(f=>`<div class="row"><div><button type="button" class="documentLink" data-loose="${esc(f.id)}">${esc(f.name)}</button><p>${esc(catLabel(f.category))}</p></div></div>`).join('')}</div>`:'';
  document.querySelectorAll('[data-loose]').forEach(b=>b.onclick=()=>openDocument(loose.find(f=>f.id===b.dataset.loose)).catch(err));
 }
 function showDashboard(){showProjectScreen(opsUI,false);$('projectAside').hidden=false;$('dashboard').hidden=false;$('projectPage').hidden=true;for(const id of ['interventionsPage','visitsPage','calendarPage','officePage'])$(id).hidden=true;$('allProjects').classList.toggle('active',category==='all');setRoute();renderProjects();}
-$('allProjects').onclick=()=>{category='all';selected=null;showDashboard();};$('backProjects').onclick=()=>{selected=null;showDashboard();};$('search').oninput=renderProjects;bind('refresh',async()=>{await flush();await refresh();if(selected)await setTab(tab);});
+$('allProjects').onclick=()=>{category='all';selected=null;showDashboard();};$('backProjects').onclick=()=>{selected=null;showDashboard();};$('search').oninput=renderProjects;bind('refresh',async()=>{if(!DEMO)await resumeCloud();else await refresh();if(selected&&!opsUI?.cacheMode)await setTab(tab);});
 async function openProject(id){
  const p=catalog.projects.find(x=>x.id===id);if(!p)throw Error('Chantier introuvable. Actualisez la liste des chantiers.');status('Ouverture du chantier…');
  selected=p;docStack=[{id:p.id,name:'Documents du chantier'}];
@@ -152,7 +224,7 @@ async function queueSave(projectId,kind,recordId,payload,parents){
  await updatePending();if(live && kind==='attestations')$('saveStatus').textContent='Sauvegardé sur la tablette · envoi en attente';flush().catch(err);
 }
 async function updatePending(){if(!store)return;const all=await store.all('draft:');$('pendingCount').textContent=all.length;}
-async function flush(){if(flushBusy||!store||!g||(!navigator.onLine&&!DEMO))return;flushBusy=true;let failed=false;clearTimeout(flushRetry);
+async function flush(){if(flushBusy||!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;flushBusy=true;let failed=false;clearTimeout(flushRetry);
  try{
   for(const entry of await store.all('draft:')){
    const d=entry.value;inflight=d;
@@ -168,7 +240,8 @@ async function flush(){if(flushBusy||!store||!g||(!navigator.onLine&&!DEMO))retu
   }
  }finally{inflight=null;flushBusy=false;await updatePending();if((await store.all('draft:')).length)flushRetry=setTimeout(()=>flush().catch(err),failed?30000:1200);}
 }
-window.addEventListener('online',()=>flush().catch(err));window.addEventListener('offline',()=>{status('Hors ligne');if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
+window.addEventListener('online',()=>{if(user){if(DEMO)void flush().catch(err);else void resumeCloud();}});
+$('modal').addEventListener('close',()=>{if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
 bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush();$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
 async function chooseRevision(p,kind,id,loaded,onChoose,history=false){
  const list=history?loaded.files.map(parseRevision).filter(Boolean).sort((a,b)=>(b.createdDateTime||'').localeCompare(a.createdDateTime||'')):loaded.heads;
@@ -302,12 +375,13 @@ bind('settings',setup);bind('login',login);
 async function logoutCurrent(){setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
 bind('userBtn',async()=>{const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
  config=await(await fetch('./config.json',{cache:'no-store'})).json();try{const local=JSON.parse(localStorage.getItem('opus-cloud-config-v3')||'null');if(local?.clientId)config={...config,...local};}catch{}
  modules=await(await fetch('./lib/modules.json')).json();
  if(DEMO){$('demoBar').hidden=false;const {DemoGraph}=await import('./lib/demo.js');user={id:'demo',displayName:'Technicien · démonstration',mail:'compte de démonstration'};appAccount='demo';store=new LocalStore('demo-ui');g=await new DemoGraph().init();journal=new Journal(g);await activate();return;}
  if(!config.clientId){$('setupHint').textContent='La connexion à Microsoft 365 doit encore être autorisée une fois par le bureau. Le compte Roberto et la bibliothèque existants restent inchangés.';}
  else try{await authInit();}catch(e){$('setupHint').textContent=e.message;err(e);}
- if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+
 }
 init().catch(err);
 

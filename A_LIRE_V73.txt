@@ -1,0 +1,29 @@
+OPUS CHANTIERS — V73 — Ouverture rapide et consultation hors connexion
+
+CE QUI CHANGE
+- Après une première synchronisation réussie, l'application ouvre la dernière copie locale du planning, des clients, visites et interventions, et de la liste des chantiers.
+- Actualisation automatique en arrière-plan, au retour du réseau et par le bouton Actualiser. Le bandeau indique que les données sont mémorisées et peuvent ne pas être à jour.
+- La dernière rubrique consultée s'ouvre sans attendre la connexion à la bibliothèque Microsoft.
+- Les rendez-vous privés sont mémorisés séparément pour le compte administrateur qui les a chargés. Leur lecture ne bloque plus le planning partagé.
+- Les fichiers de l'interface viennent de la version installée sur l'appareil ; les nouveaux fichiers sont installés ensemble à la mise à jour.
+- Suppression d'une double lecture du planning au démarrage. Lecture parallèle des rubriques chantier. Réduction des lectures répétées des compteurs de commandes.
+- La session Microsoft peut être conservée entre deux ouvertures du même navigateur. Aucun mot de passe ni jeton n'est copié dans les instantanés de données OPUS ; Microsoft gère sa propre session.
+
+MISE EN SERVICE
+1. Décompresser ce correctif cumulatif et remplacer les fichiers correspondants à la racine du projet, puis publier par la procédure habituelle.
+2. Fermer les onglets et fenêtres OPUS déjà ouverts, puis rouvrir. Vérifier Version 3.4.73. Si une ancienne version est encore affichée, actualiser puis fermer et rouvrir toutes les fenêtres OPUS pour permettre l'activation de la mise à jour.
+3. Se connecter une première fois avec Internet et attendre la fin de l'actualisation. Ouvrir le calendrier pour mémoriser également les rendez-vous privés si autorisés.
+4. Les prochaines ouvertures pourront consulter cette copie depuis le même appareil, navigateur et compte Microsoft. Un nouvel appareil, une déconnexion complète ou la suppression des données du navigateur peut nécessiter une nouvelle connexion en ligne.
+
+ENREGISTREMENT ET LIMITES
+La copie hors ligne est destinée à la consultation. Les modifications des plannings, des fiches et des rendez-vous privés nécessitent la reconnexion et l'actualisation préalable. Il n'y a pas de synchronisation automatique de modifications concurrentes de ces listes depuis plusieurs appareils hors ligne.
+Les brouillons et envois différés déjà pris en charge par les formulaires existants sont conservés. Ne pas effacer les données du navigateur tant qu'un envoi est en attente.
+Les documents PDF et photos non déjà disponibles localement nécessitent toujours Internet. Cette version ne télécharge pas toute la bibliothèque Microsoft.
+Une actualisation ne remplace pas les données d'un formulaire ouvert. Elle est reprise après fermeture de la fenêtre ou lors de l'actualisation suivante.
+Le premier chargement et le renouvellement de l'authentification dépendent toujours du réseau et de Microsoft. Aucun délai fixe de connexion n'est garanti.
+
+VALIDATION
+Construction de l'application et 252 tests automatisés réussis, dont démarrage avec connexion Microsoft volontairement suspendue, mise à jour après réponse, séparation comptes/bibliothèques, blocage des écritures sur copie ancienne, conservation d'un formulaire ouvert, confidentialité des rendez-vous privés et réponse immédiate depuis le cache de l'interface.
+Tests effectués avec données simulées ; aucune modification de vos données Microsoft 365 ni déploiement effectués ici.
+
+Inclus : les correctifs précédents jusqu'à V72. Ce ZIP est un correctif cumulatif, pas une archive complète de l'application.
