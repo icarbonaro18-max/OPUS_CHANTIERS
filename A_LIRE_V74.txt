@@ -1,0 +1,10 @@
+OPUS CHANTIERS — V74 — Réceptions effectuées
+
+Dans Visites / Devis, un nouvel onglet Réceptions effectuées regroupe les réceptions dont le statut est terminé.
+Après Réception effectuée — enregistrer, la fenêtre se ferme et cet onglet s'affiche. La fiche disparaît des visites à réaliser et des visites terminées. Les réceptions déjà terminées sont automatiquement classées, sans ressaisie ni modification des données.
+Les observations, réserves, documents joints et liens vers le dossier sont conservés. Cette modification classe la réception ; elle ne clôture ni ne déplace automatiquement le chantier lié.
+En cas d'échec d'enregistrement, la fenêtre reste ouverte et la réception conserve son statut précédent.
+
+Installer le contenu à la racine du projet en remplaçant les fichiers, puis publier comme d'habitude. Fermer les fenêtres OPUS, rouvrir et vérifier Version 3.4.74.
+Correctif cumulatif incluant V73 ; ce ZIP n'est pas une archive complète.
+Validation : construction réussie et 8 tests ciblés réussis (classement existant, filtres, validation, observations, documents et échec de sauvegarde). Aucune modification des données Microsoft 365 effectuée ici.
