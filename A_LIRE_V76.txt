@@ -1,0 +1,14 @@
+OPUS V76 — Compléter les coordonnées client
+
+MISE À JOUR CUMULATIVE : contient les correctifs précédents V75.
+Remplacer/ajouter les fichiers du ZIP à la racine du dépôt GitHub de l’application, puis attendre le déploiement Vercel. Ce ZIP n’est pas une archive complète de l’application. Aucune modification n’a été déployée depuis cette conversation.
+
+Visites et interventions : bouton rouge Compléter fiche si des coordonnées nécessaires manquent. Le formulaire est accessible au technicien dans la fiche ouverte, sans remplacer le rapport en cours.
+Client particulier : nom, prénom, adresse, téléphone et e-mail. Société/syndic/institution : raison sociale, adresse, téléphone et e-mail (pas de prénom obligatoire).
+Contact différent : cocher la case et compléter nom, adresse du rendez-vous, téléphone et e-mail. Les contacts existants différents sont détectés à partir de leur nom ; vérifier la case pour les anciennes fiches.
+Les anciennes identités non structurées sont conservées telles quelles dans le champ nom, sans découpage automatique : vérifier le nom et ajouter le prénom si nécessaire.
+Les champs manquants ou e-mails mal formés sont signalés en rouge. Enregistrement partiel possible ; l’alerte reste jusqu’à complétude. Cette alerte ne bloque pas la réalisation d’une visite.
+Les coordonnées client sont sauvegardées dans la base clients ; les informations du contact différent restent liées à la visite/intervention. Photos, notes, horaires et autres métadonnées sont conservés.
+Connexion nécessaire pour enregistrer, comme dans V75. En cas d’échec, le formulaire conserve la saisie et affiche un message. Si seule la sauvegarde de la fiche échoue après celle du client, le message le précise et permet de réessayer.
+
+Validation : build réussi ; suite générale 261 tests réussis, 2 échecs de mocks corrigés, puis tests ciblés de régression réussis. Pas de validation sur un iPhone physique ni de modification des données Microsoft réelles.

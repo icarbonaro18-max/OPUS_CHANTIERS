@@ -167,3 +167,9 @@
 .pickupViews{flex-wrap:wrap}.pickupViews p{flex-basis:100%;font-size:12px}.pickupReceipt{color:#246b45;font-size:12px}.row[hidden]{display:none!important}
 
 #syncNotice{padding:8px 14px;background:#fff4d4;color:#644c00;font-size:13px;border-bottom:1px solid #e5d59c}#syncNotice[hidden]{display:none}
+
+/* V76: completion without replacing the open report */
+.completeClientAlert{color:#a31724!important;background:#fff0f1!important;border:1px solid #bb2432!important;border-radius:8px;padding:10px;font-weight:700;cursor:pointer}
+.clientCompletion{margin:12px 0;padding:12px;border:1px solid #d6dce3;border-radius:10px}
+.clientCompletion summary{cursor:pointer}.clientCompletion input[type=checkbox]{width:auto}
+.missingCoordinate label{color:#a31724}.missingCoordinate input{border:2px solid #bb2432;background:#fff7f7}.missingLabel{font-weight:700}
