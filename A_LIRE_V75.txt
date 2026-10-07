@@ -1,0 +1,19 @@
+OPUS CHANTIERS — V75 — Stabilité mobile et relance conservant les brouillons
+
+La capture Safari « Un problème récurrent est survenu » indique un échec d'affichage ; elle ne permet pas d'établir sa cause exacte. Aucun plantage sur cet iPhone n'a été reproduit ici.
+Cette version corrige des sources identifiées de surconsommation mémoire :
+- La recherche des envois en attente ne lit plus toute la base locale (autres comptes, photos et copies de démarrage compris). Elle lit uniquement les clés de brouillons du compte concerné.
+- La copie de démarrage est allégée : les médias intégrés en base64 (photos, signatures, pièces jointes) sont exclus de cette copie de consultation. Les rapports Microsoft et les brouillons originaux ne sont pas modifiés.
+- Une nouvelle clé de copie locale évite de relire une ancienne copie potentiellement trop volumineuse. La première ouverture de V75 nécessite Internet pour créer la nouvelle copie légère.
+- L'installation des fichiers hors ligne se fait par petits lots pour limiter les transferts simultanés.
+
+INSTALLATION ET RELANCE
+1. Depuis un ordinateur si l'iPhone ne peut plus ouvrir OPUS, décompresser ce correctif cumulatif et remplacer les fichiers dans le projet GitHub. Attendre la fin de la publication Vercel.
+2. Fermer les autres fenêtres et onglets OPUS sur l'iPhone.
+3. Après publication seulement, ouvrir https://opus-chantiers.vercel.app/reparer.html avec Internet.
+4. Appuyer sur « Relancer sans effacer mes brouillons ». Cette page renouvelle seulement les caches de fichiers d'interface OPUS et son service worker principal. Elle ne touche pas à IndexedDB, aux brouillons, aux données Microsoft ni aux autres applications.
+5. Vérifier Version 3.4.75 après ouverture et laisser l'actualisation se terminer.
+
+Ne pas utiliser « Effacer toutes les données du site » tant que des envois sont en attente. Si le problème persiste, relever le moment du plantage (avant/après connexion ou ouverture du calendrier) et la version affichée pour poursuivre le diagnostic.
+Validation : construction réussie, 255 tests existants réussis, puis les 4 nouveaux tests mémoire/relance réussis après correction du fichier de test. Tests simulés, pas de validation sur l'iPhone ni sur les données Microsoft réelles.
+Ce ZIP est un correctif cumulatif jusqu'à V75, pas une application complète. Aucun déploiement effectué depuis cette conversation.

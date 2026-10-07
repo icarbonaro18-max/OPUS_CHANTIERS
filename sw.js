@@ -1,13 +1,15 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.4.74-prive-recurrence-1';
+const CACHE=PREFIX+'3.4.75-prive-recurrence-1';
 const SCOPE=new URL(self.registration.scope);
 let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
 self.addEventListener('install',e=>e.waitUntil((async()=>{
  const r=await fetch(new URL('precache.json',SCOPE),{cache:'no-store'});
  if(r.ok)ASSETS=await r.json();
- const cache=await caches.open(CACHE);await cache.addAll(ASSETS.map(p=>new Request(new URL(p,SCOPE),{cache:'reload'})));
+ const cache=await caches.open(CACHE);
+ // Bound concurrent downloads and temporary buffers on mobile browsers.
+ for(let i=0;i<ASSETS.length;i+=6)await cache.addAll(ASSETS.slice(i,i+6).map(p=>new Request(new URL(p,SCOPE),{cache:'reload'})));
  // No automatic skipWaiting: an existing form must not change version mid-edit.
 })()));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{

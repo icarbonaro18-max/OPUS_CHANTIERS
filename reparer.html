@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relancer OPUS Chantiers</title>
+<style>body{font:17px system-ui,sans-serif;background:#f1f5f8;color:#17324d;margin:0;padding:24px}main{max-width:540px;margin:8vh auto;background:white;border-radius:16px;padding:24px}h1{font-size:25px}p{line-height:1.5}button{background:#083e70;color:white;padding:14px 18px;border:0;border-radius:9px;font:inherit;width:100%}#status{font-size:15px}</style></head>
+<body><main><h1>Relancer OPUS Chantiers</h1><p>Cette relance renouvelle uniquement les fichiers de l’interface. Vos brouillons, envois en attente et données Microsoft sont conservés.</p><p>Fermez d’abord les autres fenêtres OPUS. Gardez une connexion Internet pendant la relance.</p><button id="restart" type="button">Relancer sans effacer mes brouillons</button><p id="status" role="status"></p></main>
+<script>
+const button=document.getElementById('restart'),status=document.getElementById('status');
+button.onclick=async()=>{
+ button.disabled=true;status.textContent='Renouvellement de l’interface…';
+ try{
+  const base=new URL('./',location.href),script=new URL('sw.js',base).href;
+  if('serviceWorker' in navigator){
+   const registrations=await navigator.serviceWorker.getRegistrations();
+   for(const r of registrations)if(r.scope===base.href&&[r.active,r.waiting,r.installing].some(w=>w?.scriptURL===script))await r.unregister();
+  }
+  if('caches' in window){const prefix='opus-chantiers-shell:'+base.href+':';for(const name of await caches.keys())if(name.startsWith(prefix))await caches.delete(name);}
+  status.textContent='Interface renouvelée. Ouverture de l’application…';
+  location.replace(new URL('./?relance='+Date.now(),base).href);
+ }catch(e){status.textContent='Relance interrompue : '+e.message+'. Réessayez avec Internet.';button.disabled=false;}
+};
+</script></body></html>

@@ -83,7 +83,7 @@ async function connectCloud(account){
 function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').after(el);}el.textContent=text;el.hidden=!text;}
 function cachedNotice(){
  const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
- syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Consultation uniquement.');
+ syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Consultation uniquement. Photos et signatures disponibles en ligne.');
  status(navigator.onLine?'Données mémorisées · actualisation…':'Hors ligne · consultation');
 }
 async function rememberWarm(){if(!warmCache||opsUI?.cacheMode||opsUI?.dataLoadError||!cloudReady)return;

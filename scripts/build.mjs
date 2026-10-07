@@ -12,10 +12,10 @@ await cp('node_modules/pdfjs-dist/wasm','vendor/wasm',{recursive:true});
 await copyFile('node_modules/pdfjs-dist/LICENSE','vendor/LICENSE-PDFJS.txt');
 for(const source of ['node_modules/@azure/msal-browser/LICENSE','node_modules/@azure/msal-browser/LICENSE.txt']){try{await copyFile(source,'vendor/LICENSE-MSAL.txt');break;}catch{}}
 await rm('_site',{recursive:true,force:true});await mkdir('_site',{recursive:true});
-for(const p of ['index.html','style.css','app.js','config.json','sw.js','manifest.webmanifest','auth.html','commandes','planning','lib','assets','vendor','modules','icon-512.png','icon-192.png','apple-touch-icon.png','favicon-64.png'])await cp(p,'_site/'+p,{recursive:true});
+for(const p of ['index.html','style.css','app.js','config.json','sw.js','manifest.webmanifest','reparer.html','auth.html','commandes','planning','lib','assets','vendor','modules','icon-512.png','icon-192.png','apple-touch-icon.png','favicon-64.png'])await cp(p,'_site/'+p,{recursive:true});
 await writeFile('_site/.nojekyll','');
 console.log('Build OPUS terminé : _site');
 
 async function walk(dir){let out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=dir+'/'+e.name;if(e.isDirectory())out.push(...await walk(p));else out.push(p);}return out;}
-const paths=(await walk('_site')).map(p=>'./'+p.slice('_site/'.length)).filter(p=>!['./auth.html','./commandes/outlook-auth.html','./.nojekyll','./sw.js'].includes(p));
+const paths=(await walk('_site')).map(p=>'./'+p.slice('_site/'.length)).filter(p=>!['./reparer.html','./auth.html','./commandes/outlook-auth.html','./.nojekyll','./sw.js'].includes(p));
 await writeFile('_site/precache.json',JSON.stringify(paths));
