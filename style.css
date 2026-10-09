@@ -173,3 +173,10 @@
 .clientCompletion{margin:12px 0;padding:12px;border:1px solid #d6dce3;border-radius:10px}
 .clientCompletion summary{cursor:pointer}.clientCompletion input[type=checkbox]{width:auto}
 .missingCoordinate label{color:#a31724}.missingCoordinate input{border:2px solid #bb2432;background:#fff7f7}.missingLabel{font-weight:700}
+
+/* V77: freshness and local drafts */
+#syncNotice{position:sticky;top:0;z-index:25;background:#fff1d2;color:#683e00;padding:10px 14px;font-weight:600}#syncNotice button{margin-left:8px}
+#recoveryNotice{padding:8px}.reportLocalNotice{padding:10px;background:#eef5ff;border-radius:8px;margin-bottom:12px}.reportLocalNotice p{margin:0 0 8px}
+.calendarAddress{padding:12px;background:#edf4fa;border:1px solid #b6ccdf;border-radius:8px;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere}
+
+.usedOrderMaterials{margin:10px 0;padding:10px;background:#eef5fa;border-radius:8px}.usedOrderMaterials input[data-used-qty]{min-width:65px;max-width:100px}.usedOrderMaterials input[type=checkbox]{width:22px;height:22px}.usedOrderMaterials td{vertical-align:top;padding:8px}

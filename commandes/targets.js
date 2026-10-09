@@ -1,3 +1,4 @@
+import {saveOrderMaterials} from '../lib/order-materials.js';
 import {activeSuggestion,activeProject,newestFirst} from '../lib/active-suggestions.js';
 import {isIndependentIntervention} from '../lib/work-records.js';
 import {safeName} from '../lib/cloud.js';
@@ -36,11 +37,12 @@ export async function orderFolder(g,target,group,supplier=''){
  return dest;
 }
 export async function linkOrder(g,target,item,details){
+ if(Array.isArray(details.items)){try{await saveOrderMaterials(g,target,item,details);}catch(e){throw Error('PDF transféré, mais liste de matériel non enregistrée : '+e.message);}}
  if(target.kind!=='intervention')return;
  const {rows,file}=await readInterventions(g),x=rows.find(x=>x.id===target.linkId&&isIndependentIntervention(x));
  if(!x||!file?.eTag)throw Error('PDF transféré, mais intervention non liée. Actualisez et réessayez.');
  const old=(x.materialOrders||[]).find(o=>details.recordId&&o.orderRecordId===details.recordId);
- const row={...old,id:old?.id||crypto.randomUUID(),orderRecordId:details.recordId||'',fileId:item.id,name:item.name,title:details.title||'',supplier:details.supplier||'',source:details.source||'fournisseur',pickup:details.pickup||'',notes:details.notes||'',createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),history:old?[...(old.history||[]),{...old,history:undefined}]:[]};
+ const row={...old,id:old?.id||crypto.randomUUID(),orderRecordId:details.recordId||'',fileId:item.id,name:item.name,title:details.title||'',supplier:details.supplier||'',source:details.source||'fournisseur',pickup:details.pickup||'',notes:details.notes||'',...(Array.isArray(details.items)?{items:details.items.map(i=>({reference:i.reference,description:i.description,quantity:i.quantity,unit:i.unit}))}:{}),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),history:old?[...(old.history||[]),{...old,history:undefined}]:[]};
  x.materialOrders=old?x.materialOrders.map(o=>o.id===old.id?row:o):[...(x.materialOrders||[]),row];
  try{await g.request(g.base(file.id)+'/content',{method:'PUT',headers:{'Content-Type':'application/json','If-Match':file.eTag},body:new Blob([JSON.stringify(rows)],{type:'application/json'})});}
  catch(e){throw Error('PDF transféré, mais liaison à l’intervention non enregistrée. Actualisez avant de réessayer : '+e.message);}

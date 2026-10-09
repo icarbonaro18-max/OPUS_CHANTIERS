@@ -1,0 +1,34 @@
+OPUS CHANTIERS V77 — Connexion, planning et rapports
+
+INSTALLATION
+Mise à jour cumulative à appliquer sur votre dépôt GitHub existant. Décompresser et remplacer/ajouter les fichiers à la racine du dépôt, puis attendre la publication Vercel. Ce fichier est un correctif cumulatif, pas une archive complète de l’application.
+Après le déploiement, fermer complètement OPUS sur chaque tablette/téléphone, puis rouvrir une fois pour charger la V77. Vérifier la version affichée. Aucune mise à jour n’a été déployée par cette conversation.
+Ne pas effacer les données du navigateur pour mettre à jour : les brouillons y sont conservés.
+
+CAUSES IDENTIFIÉES ET CORRECTIONS
+1. Reprise de veille : le planning principal ne déclenchait pas de vérification immédiate sur focus/pageshow/retour à l’écran. Ajout de ces déclencheurs, dédoublonnés. La page de planning lecteur bénéficie aussi du retour de veille et d’une actualisation toutes les 45 secondes lorsqu’elle est visible.
+2. Données anciennes : une fiche pouvait s’ouvrir sur une copie légère hors ligne, puis refuser l’envoi. Un rapport de visite/intervention attend désormais des données vérifiées avant ouverture. Si une fenêtre de saisie est ouverte, le planning signale que sa mise à jour est différée ; la saisie n’est pas remplacée.
+3. Brouillons : les visites et les détails n’avaient pas de sauvegarde automatique systématique. Le texte est mémorisé localement dès la saisie ; le contenu du rapport et les photos traitées sont conservés dans une copie locale différée. Le message distingue conservation locale et envoi Microsoft confirmé.
+La saisie supplémentaire effectuée pendant un envoi lent reste dans un nouveau brouillon ; la confirmation de l’envoi précédent ne l’efface pas.
+4. Reconnexion : un bouton est disponible depuis le rapport et le bandeau. La copie locale est attendue avant redirection Microsoft. La reprise d’un rapport non envoyé est proposée après connexion. Les brouillons sont séparés par compte. Les dates prévues et le statut du serveur ne sont pas remplacés par un ancien brouillon.
+5. Échecs de sauvegarde : une visite ne reste plus artificiellement terminée après un échec d’enregistrement. Les listes portant un ETag Microsoft utilisent une écriture conditionnelle ; si un autre appareil a enregistré entre-temps, l’utilisateur est invité à actualiser et reprendre son brouillon.
+6. Temps de chargement : une seule initialisation simultanée du dossier partagé et réutilisation des métadonnées de téléchargement déjà reçues ; erreurs de session non répétées inutilement par le client Graph.
+7. Adresse calendrier : résolution depuis le lieu du rendez-vous, la fiche liée et le site client sélectionné. Pour les chantiers, consultation de la fiche et, lorsque possible, lecture de la feuille PDF pour compléter les coordonnées manquantes. L’adresse de facturation n’est pas substituée à l’adresse du lieu. Aperçu dédié des rendez-vous privés et rendez-vous de chantier, avec lien d’itinéraire.
+
+VALIDATION EFFECTUÉE
+Construction npm réussie. Suite générale : 271 tests réussis, 0 échec. Le test du parcours de reconnexion a ensuite été complété et exécuté avec succès : la sauvegarde locale précède la redirection ; une erreur de stockage empêche la redirection.
+Parcours simulés avec les vrais formulaires de l’application : visite, échec de sauvegarde, reprise du texte et des photos, détails de visite, maintien du rapport parent ; séparation des comptes ; conflits d’écriture ; déclencheurs de reprise de veille ; adresses et protection contre l’injection HTML. La suite existante couvre aussi de nombreux parcours du planning, des rapports, des commandes, des droits et des exports.
+Aucune donnée Microsoft réelle n’a été modifiée et aucune connexion réelle n’a été effectuée.
+
+LIMITES DU CONTRÔLE TABLETTE
+Les tests de formulaires et de cycle de vie sont des simulations DOM, pas des essais sur une tablette physique. Le lancement de Chromium dans cet environnement a échoué sur une restriction système de création de socket ; WebKit était également indisponible faute de dépendances installables. Aucun rendu tactile, Safari iPad/iPhone ou Chrome Android réel n’a donc été certifié. L’absence de tout problème ne peut pas être garantie.
+
+CONTRÔLE SUR TABLETTE APRÈS INSTALLATION — AVEC UNE FICHE DE TEST
+1. Ouvrir le planning. Depuis un autre compte autorisé, modifier un rendez-vous de test. Mettre la tablette en veille puis la réveiller : vérifier que l’actualisation se déclenche et que le nouveau rendez-vous apparaît, ou qu’un message d’échec explicite s’affiche.
+2. Ouvrir une visite, saisir un texte reconnaissable et une photo de test. Attendre « Brouillon conservé sur cet appareil ». Couper le réseau : l’envoi ne doit pas être annoncé comme réussi.
+3. Rétablir le réseau. Utiliser « Actualiser / reconnecter sans perdre ma saisie », puis accepter la reprise du brouillon. Vérifier texte, horaires et photo. Enregistrer et vérifier la présence du rapport depuis un second appareil.
+4. Refaire une saisie dans une tâche de visite, interrompre la session puis reprendre : le résumé parent et le détail doivent être conservés.
+5. Toucher un rendez-vous chantier, intervention, visite et un rendez-vous privé : contrôler l’adresse et le lien d’itinéraire.
+6. Vérifier les actions habituelles : consulter les commandes, ouvrir un PDF, changer de semaine et de technicien. Les données privées doivent rester visibles uniquement avec le compte administrateur.
+
+Les brouillons ne sont pas envoyés automatiquement depuis une ancienne copie hors ligne. Après reprise, les relire puis confirmer leur enregistrement dans Microsoft 365. Une photo encore en cours de traitement au moment d’une fermeture brutale du système ne peut pas être garantie ; attendre la confirmation locale affichée.

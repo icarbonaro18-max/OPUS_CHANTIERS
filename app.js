@@ -1,3 +1,5 @@
+import {ReportRecovery} from './lib/report-recovery.js';
+import {installResumeSync} from './lib/resume-sync.js';
 import {WarmCache} from './lib/warm-cache.js';
 import {loadPickupStates,pickupCount,pickupBadge,queuePickupRead} from './lib/order-pickups.js';
 import {PrivateCalendar} from './lib/private-calendar.js';
@@ -16,14 +18,15 @@ import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,Cloud
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
-const projectPickupCache=new Map();
+const projectPickupCache=new Map();const previewMetaCache=new Map();
+let reportRecovery=null,lastSyncAt=0;
 let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false;
 const pendingReplies=new Map();let modalCleanup=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
-function modal(title,html){if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
+function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
-$('modal').addEventListener('submit',e=>{if(opsUI?.cacheMode){e.preventDefault();e.stopImmediatePropagation();toast('Données mémorisées en consultation. Attendez l’actualisation avant de modifier.');}},true);
+$('modal').addEventListener('submit',e=>{if((opsUI?.cacheMode||opsUI?.needsRefresh)&&!e.target.classList.contains('localReportForm')){e.preventDefault();e.stopImmediatePropagation();void opsUI?.activeReportRecovery?.flush(true).catch(err);toast('Actualisation nécessaire avant l’envoi. Votre rapport reste ouvert ; utilisez « Actualiser / reconnecter sans perdre ma saisie ».');}},true);
 function status(text,good=false){$('connection').textContent=text;$('connection').style.color=good?'#137344':'';}
 function bind(id,fn){const e=$(id);if(e)e.onclick=()=>Promise.resolve().then(fn).catch(err);}
 const dateTime=s=>s?new Date(s).toLocaleString('fr-FR'):'—';
@@ -46,7 +49,7 @@ async function authInit(){
  if(account){msal.setActiveAccount(account);await connectCloud(account);}
 }
 async function token(){try{return (await msal.acquireTokenSilent({scopes:config.scopes,account:msal.getActiveAccount()})).accessToken;}
- catch(e){status('Reconnexion nécessaire');$('login').textContent='Renouveler la connexion';throw new Error('Connexion Microsoft expirée ou autorisation manquante. Utilisez votre nom en haut, puis « Reconnecter ». Les saisies locales sont conservées.');}}
+ catch(e){if(opsUI)opsUI.needsRefresh=true;status('Reconnexion nécessaire');$('login').textContent='Renouveler la connexion';syncNotice('Connexion Microsoft à renouveler · Les données affichées peuvent être anciennes.');throw new CloudError('Connexion Microsoft expirée ou autorisation manquante. Utilisez votre nom en haut, puis « Reconnecter ». Les saisies locales sont conservées.',401);}}
 let privateCalendarSession=null,privateCalendarLoading=null;
 function cachedPrivateCalendar(snapshot){
  const calendar=new PrivateCalendar(new Graph(async()=>{throw Error('Reconnectez-vous pour actualiser vos rendez-vous privés.');}),user.id);
@@ -69,10 +72,10 @@ async function loadPrivateCalendar(interactive){
  if(opsUI){opsUI.privateCalendar=next;if(opsUI.section==='calendar'&&!$('modal').open)await opsUI.renderCalendar();}
  return next;
 }
-async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
+async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await opsUI?.activeReportRecovery?.flush(true);await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
 async function connectCloud(account){
  appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);warmCache=new WarmCache(store,appAccount,config);
- cacheSnapshot=await warmCache.read();g=new Graph(token);journal=new Journal(g);
+ reportRecovery=new ReportRecovery(store,localStorage,config.clientId+':'+appAccount);cacheSnapshot=await warmCache.read();g=new Graph(token);journal=new Journal(g);
  if(cacheSnapshot){
   user=cacheSnapshot.user;g.site=cacheSnapshot.site;g.drive=cacheSnapshot.drive;g.readOnlyCache=true;catalog=cacheSnapshot.catalog;
   await activate({cached:cacheSnapshot});void resumeCloud();return;
@@ -80,7 +83,7 @@ async function connectCloud(account){
  status('Connexion à la bibliothèque…');
  const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);user=profile;cloudReady=true;await activate();
 }
-function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').after(el);}el.textContent=text;el.hidden=!text;}
+function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}el.textContent=text;el.hidden=!text;if(text&&user&&!DEMO){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);}}
 function cachedNotice(){
  const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
  syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Consultation uniquement. Photos et signatures disponibles en ligne.');
@@ -97,17 +100,55 @@ async function resumeCloud(){
    if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez-vous.');
    user=profile;cloudReady=true;
   }
-  if($('modal').open||live||!$('viewer').hidden){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
+  if($('modal').open||live||!$('viewer').hidden){syncNotice('Planning à vérifier · Fermez la fiche pour actualiser. La saisie en cours reste ouverte.');return;}
   await refresh();
   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){await opsUI.syncPersonnel();personnelSynced=true;}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
  }catch(e){if(cacheSnapshot)cachedNotice();syncNotice('Consultation des données mémorisées · Actualisation impossible : '+e.message);}
  finally{resumeBusy=null;}})();return resumeBusy;
 }
+
+async function previewProjectMeta(id){
+ const cached=previewMetaCache.get(id);if(cached&&Date.now()-cached.at<60000)return cached.data;
+ let result;try{result=await journal.load(id,'fiche',null);await store.set('meta:'+id,result);}catch(e){result=await store.get('meta:'+id);if(!result)throw e;}
+ const project=catalog.projects.find(p=>p.id===id);let data=result.data||(project?metaDefaults(project):{});
+ if(project&&!data.adresse&&navigator.onLine!==false){try{data=await autoFillCoordinates(g,project,clone(data))||data;}catch{}}
+ previewMetaCache.set(id,{at:Date.now(),data});return data;
+}
+async function ensureReportReady(){
+ if(DEMO)return true;
+ if(!opsUI?.cacheMode&&!opsUI?.needsRefresh&&!opsUI?.dataLoadError&&Date.now()-lastSyncAt<60000)return true;
+ await opsUI?.activeReportRecovery?.flush(true);
+ if($('modal').open)$('modal').close();
+ if(opsUI)opsUI.needsRefresh=true;syncNotice('Vérification des données avant ouverture du rapport…');await resumeCloud();
+ if(opsUI?.cacheMode||opsUI?.needsRefresh||opsUI?.dataLoadError||!cloudReady){toast('Rapport non ouvert : connexion ou actualisation nécessaire. Les brouillons sont conservés sur cet appareil.');return false;}
+ return true;
+}
+function offerRecoveredReport(){
+ let box=$('recoveryNotice');if(!box){box=document.createElement('div');box.id='recoveryNotice';$('mainNav').before(box);}
+ const last=reportRecovery?.last();box.replaceChildren();box.hidden=!last;if(!last)return;
+ const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Reprendre mon rapport non envoyé';b.onclick=async()=>{try{if(!await ensureReportReady())return;const row=opsUI.data[last.kind]?.find(x=>x.id===last.id);if(!row){toast('La fiche de ce brouillon n’est plus disponible. Le brouillon reste conservé sur cet appareil.');return;}await openRecoveredTarget(last);}catch(e){err(e);}};box.append(b);
+}
+async function openRecoveredTarget(target){
+ if(target.kind==='visits'){await opsUI.openVisit(target.id);if(target.detail)await opsUI.editVisitTask(target.id,target.index??null);}
+ else{await opsUI.openIntervention(target.id);if(target.detail)await opsUI.editInterventionItem(target.id,target.index??null);}
+}
+async function reconnectReport(){
+ await opsUI?.activeReportRecovery?.flush(true);
+ if(navigator.onLine===false)throw Error('Pas de réseau. Gardez votre brouillon et réessayez dès le retour de la connexion.');
+ // Keep the dialog intact while testing the session. Persist before any redirect.
+ try{await token();}catch{
+  await msal.loginRedirect({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName});return;
+ }
+ const current=reportRecovery?.last();if($('modal').open)$('modal').close();await resumeCloud();offerRecoveredReport();
+ if(current&&!opsUI?.cacheMode&&!opsUI?.needsRefresh){await openRecoveredTarget(current);}
+}
+installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.needsRefresh=true;syncNotice('Planning à vérifier · Actualisation au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async()=>{if(user&&!DEMO)await resumeCloud();},onError:err});
+
 async function activate({cached=null}={}){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,saveReportDraft:x=>store.set('report-recovery:'+x.id,x),loadReportDraft:id=>store.get('report-recovery:'+id),clearReportDraft:id=>store.remove('report-recovery:'+id)});
+  opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
   await opsUI.init({cached:cached?.operations});personnelSynced=!cached;
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
@@ -128,7 +169,7 @@ async function activate({cached=null}={}){
  pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden||$('modal').open||live||!$('viewer').hidden)return;
   try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
  },Math.max(30,config.pollSeconds||45)*1000);
- if(!cached)void flush().catch(err);
+ if(!cached)void flush().catch(err);offerRecoveredReport();
 }
 async function refresh(options={}){
  if(refreshBusy)return refreshBusy;
@@ -142,7 +183,7 @@ async function refreshNow({skipOps=false}={}){
   const [nextCatalog,applied]=await Promise.all([g.projects(),opsUI&&!skipOps?opsUI.reload({background:true}):Promise.resolve(true)]);
   if($('modal').open||live||applied===false){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;await store.set('catalog',catalog);
-  status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
+  lastSyncAt=Date.now();if(opsUI)opsUI.needsRefresh=false;status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
   $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
   await rememberWarm();renderProjects();
   if(opsUI&&!$('modal').open){if(opsUI.section==='calendar')await opsUI.renderCalendar();else if(opsUI.section==='interventions')await opsUI.renderInterventions();else if(opsUI.section==='visits')await opsUI.renderVisits();}
@@ -241,7 +282,7 @@ async function flush(){if(flushBusy||!store||!g||g.readOnlyCache||(!navigator.on
  }finally{inflight=null;flushBusy=false;await updatePending();if((await store.all('draft:')).length)flushRetry=setTimeout(()=>flush().catch(err),failed?30000:1200);}
 }
 window.addEventListener('online',()=>{if(user){if(DEMO)void flush().catch(err);else void resumeCloud();}});
-$('modal').addEventListener('close',()=>{if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
+$('modal').addEventListener('close',()=>{const active=opsUI?.activeReportRecovery;if(active?.form?.isConnected)void active.flush().then(offerRecoveredReport).catch(err);else offerRecoveredReport();if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
 bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush();$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
 async function chooseRevision(p,kind,id,loaded,onChoose,history=false){
  const list=history?loaded.files.map(parseRevision).filter(Boolean).sort((a,b)=>(b.createdDateTime||'').localeCompare(a.createdDateTime||'')):loaded.heads;
@@ -372,13 +413,13 @@ function setup(){modal('Connexion Microsoft 365 · configuration unique',`<div c
  $('configForm').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('opus-cloud-config-v3',JSON.stringify(read()));location.href=new URL('./',location.href).href;}catch(e){err(e);}};bind('exportConfig',()=>download(new Blob([JSON.stringify(read(),null,2)],{type:'application/json'}),'config.json'));
 }
 bind('settings',setup);bind('login',login);
-async function logoutCurrent(){setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
-bind('userBtn',async()=>{const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
+async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
+bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
  config=await(await fetch('./config.json',{cache:'no-store'})).json();try{const local=JSON.parse(localStorage.getItem('opus-cloud-config-v3')||'null');if(local?.clientId)config={...config,...local};}catch{}
  modules=await(await fetch('./lib/modules.json')).json();
- if(DEMO){$('demoBar').hidden=false;const {DemoGraph}=await import('./lib/demo.js');user={id:'demo',displayName:'Technicien · démonstration',mail:'compte de démonstration'};appAccount='demo';store=new LocalStore('demo-ui');g=await new DemoGraph().init();journal=new Journal(g);await activate();return;}
+ if(DEMO){$('demoBar').hidden=false;const {DemoGraph}=await import('./lib/demo.js');user={id:'demo',displayName:'Technicien · démonstration',mail:'compte de démonstration'};appAccount='demo';store=new LocalStore('demo-ui');reportRecovery=new ReportRecovery(store,localStorage,'demo-ui');g=await new DemoGraph().init();journal=new Journal(g);await activate();return;}
  if(!config.clientId){$('setupHint').textContent='La connexion à Microsoft 365 doit encore être autorisée une fois par le bureau. Le compte Roberto et la bibliothèque existants restent inchangés.';}
  else try{await authInit();}catch(e){$('setupHint').textContent=e.message;err(e);}
 

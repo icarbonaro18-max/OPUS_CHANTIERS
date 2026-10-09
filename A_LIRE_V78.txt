@@ -1,0 +1,21 @@
+OPUS CHANTIERS — V3.4.78
+Matériel des bons de commande et comptes rendus explicatifs avec photos
+
+INSTALLATION
+Ce ZIP est une mise à jour cumulative incluant la V77. Décompressez son contenu à la racine du dépôt existant, en conservant les autres fichiers, puis publiez via votre procédure GitHub / Vercel habituelle. Aucun déploiement n'a été effectué par cette livraison. Après déploiement, fermez puis rouvrez l'application. Ne supprimez pas les données du navigateur : elles peuvent contenir des brouillons non transmis.
+
+MATÉRIEL UTILISÉ
+À l'ouverture du rapport, les lignes disponibles des bons fournisseurs et des bons du dépôt associés à l'affaire sont proposées automatiquement. Le technicien ajuste les quantités et confirme celles réellement utilisées. Une commande passée ou récupérée n'est pas une preuve de consommation.
+Les lignes confirmées sont ajoutées à la saisie existante, sans effacer le texte libre. Une même ligne ne peut pas être ajoutée deux fois au même rapport. Les déclarations faites avec cette fonction dans les autres rapports du chantier sont prises en compte. Les anciennes saisies libres ne sont pas déduites automatiquement et ce calcul ne remplace pas un inventaire.
+Le bouton « Corriger les quantités reprises des bons » permet de reprendre les choix : seules les lignes importées restées identiques sont retirées ; les lignes modifiées manuellement restent conservées et doivent être relues avant nouvelle confirmation.
+Les nouveaux bons archivés conservent leurs lignes structurées, sans prix, dans un fichier lié au document. Les anciens PDF textuels générés par OPUS peuvent être relus automatiquement. Les scans et autres formats de fournisseurs ne sont pas garantis : les documents non exploitables sont signalés et le matériel reste saisissable manuellement.
+
+RAPPORT POUR LE CLIENT
+Le technicien saisit ses faits, même brièvement, puis clique sur la génération du compte rendu. La rédaction explique les travaux et les termes techniques à un client non spécialiste. Les notes d'origine restent conservées.
+La génération tient compte des photos générales, des points d'intervention et des photos avant / pendant / après ; les photos de visite sont également prises en compte. Les images sont réduites et analysées par lots de six pour limiter la charge sur tablette. Cette analyse peut prendre plus de temps qu'une rédaction sans photos.
+Les observations visuelles sont distinguées des travaux déclarés. Une photo ne permet pas d'affirmer des essais, mesures, conformité ou remise en service non documentés. Les ambiguïtés doivent être vérifiées par le technicien. Il relit et valide le texte avant export client.
+Les notes, le matériel déclaré et les photos sont transmis au service IA lors du clic de génération. L'authentification et la configuration IA existantes restent nécessaires. Si les notes ou photos changent pendant la génération, la proposition devenue obsolète n'est pas validée.
+
+VÉRIFICATIONS
+Construction de l'application et 280 tests automatisés réussis. Couverture notamment de la récupération et confirmation du matériel, de la lecture d'un vrai PDF OPUS multipage, des lots de photos, de l'invalidation d'une génération obsolète et du contrôle des demandes d'analyse d'images.
+Pas de test sur tablette physique ni d'appel réel au service IA avec des données client. La qualité des réponses réelles et le fonctionnement sur les appareils de l'entreprise restent à vérifier après déploiement. Aucune donnée Microsoft réelle n'a été modifiée.

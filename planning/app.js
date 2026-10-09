@@ -21,3 +21,9 @@ $('logout').onclick=()=>{++sequence;busy=false;$('from').disabled=false;key='';e
 const fragment=new URLSearchParams(location.hash.slice(1));if(fragment.has('code')){key=fragment.get('code');history.replaceState(null,'',location.pathname);load();}
 // No mailbox, personnel file, access code or calendar data in persistent storage.
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+// Refresh immediately after a sleeping tablet becomes visible again.
+let lastAutoRefresh=0;
+const resumePlanning=()=>{if(!key||document.hidden||Date.now()-lastAutoRefresh<1500)return;lastAutoRefresh=Date.now();void load();};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&key)$('status').textContent='Planning à vérifier au retour de veille…';else resumePlanning();});
+window.addEventListener('focus',resumePlanning);window.addEventListener('pageshow',resumePlanning);window.addEventListener('online',resumePlanning);
+setInterval(()=>{if(!document.hidden&&key)void load();},45000);
