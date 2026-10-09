@@ -95,7 +95,7 @@ async function rememberWarm(){if(!warmCache||opsUI?.cacheMode||opsUI?.dataLoadEr
 async function resumeCloud(){
  if(resumeBusy)return resumeBusy;
  if(!navigator.onLine){if(cacheSnapshot)cachedNotice();return;}
- resumeBusy=(async()=>{try{
+ resumeBusy=Promise.resolve().then(async()=>{try{
   if(!cloudReady){const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
    if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez-vous.');
    user=profile;cloudReady=true;
@@ -104,7 +104,7 @@ async function resumeCloud(){
   await refresh();
   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){await opsUI.syncPersonnel();personnelSynced=true;}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
  }catch(e){if(cacheSnapshot)cachedNotice();syncNotice('Consultation des données mémorisées · Actualisation impossible : '+e.message);}
- finally{resumeBusy=null;}})();return resumeBusy;
+ }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
 
 async function previewProjectMeta(id){
@@ -139,7 +139,12 @@ async function reconnectReport(){
  try{await token();}catch{
   await msal.loginRedirect({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName});return;
  }
- const current=reportRecovery?.last();if($('modal').open)$('modal').close();await resumeCloud();offerRecoveredReport();
+ const current=reportRecovery?.last();if($('modal').open)$('modal').close();
+ // An automatic refresh may have deferred before the dialog was closed. Wait
+ // for it to release its lock, then explicitly start a fresh attempt.
+ if(resumeBusy)await resumeBusy;
+ syncNotice('Actualisation du planning et des données en cours…');await resumeCloud();offerRecoveredReport();
+ if(opsUI?.cacheMode||opsUI?.needsRefresh||opsUI?.dataLoadError||!cloudReady)throw Error('Actualisation non terminée. Votre brouillon est conservé. '+(live||!$('viewer').hidden?'Enregistrez puis fermez le formulaire ou le document ouvert avant de réessayer.':'Vérifiez votre connexion puis réessayez.')); 
  if(current&&!opsUI?.cacheMode&&!opsUI?.needsRefresh){await openRecoveredTarget(current);}
 }
 installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.needsRefresh=true;syncNotice('Planning à vérifier · Actualisation au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async()=>{if(user&&!DEMO)await resumeCloud();},onError:err});
