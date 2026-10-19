@@ -1,6 +1,6 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.4.86-prive-recurrence-1';
+const CACHE=PREFIX+'3.4.87-prive-recurrence-1';
 const SCOPE=new URL(self.registration.scope);
 let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
@@ -35,3 +35,11 @@ self.addEventListener('fetch',e=>{
   catch{return new Response('Ressource OPUS non mémorisée. Reconnectez-vous au réseau.',{status:503});}
  })());
 });
+
+// Server-triggered reminders work without an open OPUS tab.
+self.addEventListener('push',event=>event.waitUntil((async()=>{
+ let p={};try{p=event.data?.json()||{};}catch{}
+ const route=String(p.route||'');let safeRoute='';try{const u=new URL(route);if(u.origin==='https://www.google.com'&&u.pathname==='/maps/dir/')safeRoute=u.href;}catch{}
+ await self.registration.showNotification(String(p.title||'OPUS · Rappel').slice(0,160),{body:String(p.body||'Un rendez-vous approche.').slice(0,700),icon:new URL('icon-192.png',SCOPE).href,tag:String(p.tag||'opus-reminder'),data:{route:safeRoute},actions:safeRoute?[{action:'route',title:'Ouvrir l’itinéraire'}]:[]});
+})()));
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const route=event.notification.data?.route;let target=SCOPE.href;if(route){try{const u=new URL(route);if(u.origin==='https://www.google.com'&&u.pathname==='/maps/dir/')target=u.href;}catch{}}await self.clients.openWindow(target);})());});

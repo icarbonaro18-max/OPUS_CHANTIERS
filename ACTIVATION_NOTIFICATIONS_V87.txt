@@ -1,0 +1,129 @@
+OPUS V3.4.87 — RAPPELS ET SMS DE PLANNING
+
+MISE À JOUR SUR V86
+Importer les fichiers en conservant leurs dossiers. Les dépendances serveur
+sont dans package.json/package-lock.json ; Vercel les installe à la construction.
+Aucun envoi n’est actif par défaut. Aucun service payant n’a été souscrit.
+Cette livraison prépare le programme ; l’activation ci-dessous reste nécessaire.
+
+FONCTIONNEMENT
+Calendrier > Notifications / SMS.
+- Rappels web : 60, 30 et 15 minutes avant chaque début de rendez-vous.
+- Notification avec adresse et ouverture Google Maps (pas de suivi GPS).
+- Autorisation et inscription nécessaires sur chaque appareil.
+- Sur iPhone/iPad, installer OPUS sur l’écran d’accueil (iOS/iPadOS 16.4+).
+- Un compte Microsoft par personne ; e-mail exact dans sa fiche personnel.
+- SMS à 18:00 par défaut, heure de Paris, réglable entre 16:00 et 21:00.
+- Un numéro international par salarié, 06/07 convertis en +33.
+- Le SMS annonce les affectations du lendemain ; le vendredi inclut lundi.
+- Les jours consécutifs d’un même chantier sont regroupés en une période.
+  Vendredi -> lundi peut appartenir à la même période. Les journées avec
+  plusieurs affectations restent distinctes pour ne pas masquer un déplacement.
+- Aucun nouvel SMS quotidien si la période a déjà été annoncée et reste identique.
+- Modification de dates, horaires, adresse, affectation ou annulation : information
+  supplémentaire entre l’heure choisie et 22:00. Après 22:00 : au prochain créneau
+  d’envoi ; pour une modification urgente, contacter directement le salarié.
+- Aucune adresse supposée : un SMS sans adresse chantier est bloqué.
+- Une longue période / un texte long peut compter plusieurs segments SMS facturés.
+- Les rendez-vous privés ne partent jamais dans les SMS des salariés.
+
+1. LECTURE MICROSOFT PAR LE SERVEUR
+Reprendre ACTIVATION_PLANNING_V15.txt : application Microsoft distincte,
+autorisation d’application Sites.Selected + rôle READ sur OPUSCHANTIERS.
+Aucun besoin d’accès général à tous les fichiers ni d’accès en écriture.
+Variables Vercel Production :
+PLANNING_TENANT_ID
+PLANNING_CLIENT_ID
+PLANNING_CLIENT_SECRET
+PLANNING_DRIVE_ID
+Si ces variables sont déjà configurées pour la page planning, les réutiliser.
+OPUS_NOTIFY_ADMINS = identifiant Microsoft (UPN) ou ID exact de l’administrateur,
+plusieurs séparés par virgule. Ne pas mettre les salariés dans cette liste.
+
+2. STOCKAGE DURABLE DES INSCRIPTIONS ET DES ENVOIS
+Créer une base Upstash Redis (région UE conseillée), puis configurer côté serveur :
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
+Ces valeurs ne doivent jamais être placées dans config.json ou dans GitHub.
+Le stockage conserve les numéros choisis, inscriptions push, périodes annoncées
+et reçus techniques. Les 200 derniers événements restent visibles au bureau.
+Le stockage est nécessaire pour éviter les doublons entre exécutions serveur.
+
+3. SMS
+Créer/configurer Twilio Programmable Messaging avec un Messaging Service
+et un expéditeur autorisé pour les SMS vers les numéros français.
+Vérifier la facturation, le solde, les permissions géographiques et les restrictions
+éventuelles d’un compte d’essai directement auprès de Twilio.
+Variables serveur :
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_MESSAGING_SERVICE_SID
+Les frais SMS et les éventuels frais d’expéditeur sont facturés par le fournisseur.
+Ne transmettre aucun secret dans la discussion.
+
+4. NOTIFICATIONS WEB
+Après npm ci, générer UNE PAIRE de clés dans votre terminal :
+npx web-push generate-vapid-keys --json
+Stocker les valeurs dans Vercel :
+VAPID_PUBLIC_KEY = publicKey
+VAPID_PRIVATE_KEY = privateKey (secret)
+VAPID_SUBJECT = mailto:adresse-professionnelle-du-responsable
+Conserver ces clés. Changer de paire impose de réinscrire les appareils.
+Navigateurs admis : services push Apple, Firefox et Google FCM.
+Les appareils non compatibles sont refusés explicitement.
+
+5. DÉCLENCHEMENT AUTOMATIQUE, APPAREILS FERMÉS
+Configurer CRON_SECRET : secret aléatoire long (32 octets minimum).
+Il protège GET /api/notification-cron via Authorization: Bearer <CRON_SECRET>.
+Le déclencheur doit appeler cet endpoint chaque minute. Le fuseau métier reste
+Europe/Paris (changement été/hiver géré), quelle que soit l’heure UTC du serveur.
+
+Option Vercel : utiliser un plan autorisant un cron chaque minute (Pro ou adapté).
+Le plan Hobby une fois par jour ne convient pas aux rappels à 15/30/60 minutes.
+Après choix du plan et variables configurées, dans le dossier du projet :
+node scripts/enable-notification-cron.mjs
+Envoyer le vercel.json ainsi mis à jour et redéployer.
+Le ZIP ne contient pas de cron déjà activé, pour ne pas bloquer le déploiement
+sur un plan Hobby ni lancer d’envoi sans configuration.
+Autre possibilité : un ordonnanceur externe chaque minute appelant le même
+endpoint avec le secret en en-tête. Ne jamais placer le secret dans l’URL.
+
+6. ACTIVATION ET CONTRÔLE RÉEL
+- Laisser les envois désactivés pendant la configuration.
+- Vérifier que « Dernier passage automatique » se met à jour chaque minute.
+- Saisir les numéros, cocher les destinataires, enregistrer, consulter l’aperçu SMS.
+- Inscrire chaque téléphone/tablette et cliquer « Tester une notification ».
+- Activer d’abord un seul destinataire de test contrôlé par le bureau.
+- Prévoir un rendez-vous de test et vérifier les trois rappels, appareil verrouillé.
+- Vérifier un SMS, une période de plusieurs jours, une modification et une annulation.
+- Après validation, activer les autres destinataires.
+La livraison a été testée avec services simulés ; aucun SMS ou push réel envoyé.
+
+AGENDA PRIVÉ
+Cliquer « Activer / synchroniser mes rappels privés » depuis votre compte admin.
+Seuls titre, dates, récurrence et adresse sont copiés dans le service de rappels.
+Les notes et photos restent dans Microsoft. La copie n’est accessible qu’au serveur
+et au propriétaire ; elle n’est pas exposée aux salariés par les API OPUS.
+Les modifications dans OPUS synchronisent cette copie ; un échec affiche un message
+et nécessite de réessayer. Toute modification hors OPUS nécessite une actualisation.
+Par précaution, les rappels privés expirent après 7 jours sans synchronisation :
+rouvrir et actualiser l’agenda privé au moins chaque semaine.
+Utiliser un appareil personnel ; désactiver les notifications avant de le céder.
+
+LIMITES ET SUPERVISION
+Un envoi accepté par le fournisseur n’est pas une preuve de réception.
+Les modes silencieux/concentration, la connexion et les réglages système peuvent
+retarder l’affichage. Les rappels ne sont pas une alarme de sécurité garantie.
+En cas de délai réseau après soumission SMS, pas de renvoi automatique : le
+fournisseur peut avoir accepté le premier SMS. Vérifier dans Twilio avant toute
+relance manuelle, afin d’éviter doublons et surcoûts.
+Les rappels manqués depuis plus de cinq minutes ne sont pas rattrapés en rafale.
+Le service lit le planning cloud enregistré, pas les modifications non sauvegardées.
+Aucune géolocalisation en arrière-plan ni alerte calculée selon le trafic dans V87.
+
+Documentation :
+https://vercel.com/docs/cron-jobs/manage-cron-jobs
+https://vercel.com/docs/cron-jobs/usage-and-pricing
+https://upstash.com/docs/redis/features/restapi
+https://www.twilio.com/docs/messaging/api/message-resource
+https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/

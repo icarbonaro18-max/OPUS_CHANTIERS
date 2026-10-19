@@ -1,0 +1,3 @@
+import {run,equal} from '../server/notifications.js';
+export function createHandler({env=process.env,runner=run}={}){return async(req,res)=>{res.setHeader('Cache-Control','no-store');if(req.method!=='GET')return res.status(405).json({error:'Méthode interdite.'});if(!equal(req.headers.authorization,'Bearer '+(env.CRON_SECRET||''))||!env.CRON_SECRET)return res.status(401).json({error:'Accès refusé.'});try{return res.status(200).json(await runner(env));}catch{return res.status(503).json({error:'Traitement non confirmé. Consulter le journal des notifications.'});}};}
+export default createHandler();

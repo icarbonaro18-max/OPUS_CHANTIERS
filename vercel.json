@@ -13,6 +13,12 @@
     },
     "api/planning-reader.js": {
       "maxDuration": 60
+    },
+    "api/notifications.js": {
+      "maxDuration": 60
+    },
+    "api/notification-cron.js": {
+      "maxDuration": 60
     }
   }
 }

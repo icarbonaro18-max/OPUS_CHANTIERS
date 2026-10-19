@@ -1,3 +1,4 @@
+import {syncPrivateNotifications} from './lib/notifications-ui.js';
 import {ReportRecovery} from './lib/report-recovery.js';
 import {installResumeSync} from './lib/resume-sync.js';
 import {WarmCache} from './lib/warm-cache.js';
@@ -68,7 +69,7 @@ async function loadPrivateCalendar(interactive){
  try{await privateToken();}catch(e){if(!interactive)throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
  const next=new PrivateCalendar(new Graph(privateToken),user.id);
  await next.load();privateCalendarSession=next;
- next.onChange=async()=>{try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
+ next.onChange=async()=>{await syncPrivateNotifications(opsUI,next);try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
  if(opsUI){opsUI.privateCalendar=next;if(opsUI.section==='calendar'&&!$('modal').open)await opsUI.renderCalendar();}
  return next;
 }
