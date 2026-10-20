@@ -1,0 +1,18 @@
+OPUS COMMANDES V88 — CORRECTIF IMPORTS LONGS
+20 octobre 2026
+
+Installation sur la version V87 actuelle :
+1. Décompresser ce ZIP.
+2. Envoyer les fichiers à la racine du dépôt GitHub existant, en conservant les dossiers api/, commandes/ et tests/. Remplacer les versions précédentes.
+3. Attendre la réussite du déploiement Vercel.
+4. Fermer puis rouvrir OPUS Commandes et recharger la page. Le titre doit afficher V88.
+5. Importer à nouveau l’e-mail Rexel ou recoller son contenu, puis cliquer sur Lire la commande.
+6. Vérifier les 30 lignes et leurs quantités, le numéro de commande, le chantier et le lieu avant validation et export PDF.
+
+Correction : les liens de suivi Outlook/Rexel sont raccourcis localement et côté serveur, sans supprimer les descriptions, références ni quantités. L’ancienne limite de 50 000 caractères produisait un message trompeur concernant les pages et les mégaoctets. Le texte nettoyé peut désormais atteindre 180 000 caractères.
+Les images/PDF peuvent contenir jusqu’à 30 pages (20 Mo par fichier ; 45 Mo cumulés après conversion). Les envois sont répartis automatiquement en lots de 4 pages maximum et moins de 3 Mo. Les articles sont réunis dans un seul bon, jusqu’à 300 lignes. Aucun résumé ne remplace les lignes de matériel.
+En cas d’échec d’un lot, aucun résultat partiel ne remplace le bon : les sources et la fiche précédente restent affichées. Les doublons éventuels entre un e-mail et un PDF sont signalés et conservés pour vérification. Importez de préférence une seule version de chaque liste de matériel.
+Aucune nouvelle clé ni aucun abonnement nécessaire pour cette correction. Les lectures IA utilisent la configuration existante ; plusieurs lots peuvent entraîner plusieurs appels facturés selon votre compte.
+
+Validation : construction réussie ; 20 tests réussis (imports, autorisations, Outlook, PDF multipage, matériel et rattachement). E-mail fourni : 74 125 caractères avant nettoyage, 23 228 après ; 30 références et 30 quantités conservées à l’identique. Les tests du service IA sont simulés. Aucun appel réel à votre IA, aucune modification de vos données Microsoft et aucun déploiement n’ont été effectués depuis cet environnement.
+Ce ZIP contient les fichiers modifiés uniquement, à appliquer sur V87. Les autres fonctions et données de l’application ne sont pas remplacées.
