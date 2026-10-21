@@ -68,3 +68,13 @@ test('image assets stored separately, once, and referenced by item ID',async()=>
  assert.ok(a.photos[0].$opusAsset.id);assert.equal(a.photos[0].$opusAsset.id,a.photos[1].$opusAsset.id);assert.equal(a.signature.$opusAsset.id,a.photos[0].$opusAsset.id);
  assert.equal([...g.items.values()].filter(i=>i.file).length,1);
 });
+test('parallel Graph reads share one pending token acquisition',async()=>{
+ let calls=0,release;const ready=new Promise(r=>release=r);
+ const graph=new Graph(async()=>{calls++;await ready;return 'test-token';},async()=>new Response(JSON.stringify({id:'ok'})));
+ const requests=[graph.request('/me'),graph.request('/me'),graph.request('/me')];
+ await Promise.resolve();await Promise.resolve();assert.equal(calls,1);release();await Promise.all(requests);
+});
+test('a timed out Graph request does not start two more long retries',async()=>{
+ let calls=0;const graph=new Graph(async()=>'test-token',async()=>{calls++;throw Object.assign(Error('timeout'),{name:'TimeoutError'});});
+ await assert.rejects(graph.request('/me'),/timeout/);assert.equal(calls,1);
+});

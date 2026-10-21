@@ -35,3 +35,13 @@ test('typing while a slow send is in progress retains the newer unsent draft',as
  bindReportRecovery(ui,record,true);const input=document.getElementById('vSummary');input.value='Sent version';input.dispatchEvent(new window.Event('input',{bubbles:true}));ui.activeReportRecovery.beginSave();input.value='More notes while network is slow';input.dispatchEvent(new window.Event('input',{bubbles:true}));await ui.activeReportRecovery.saved();
  assert.equal((await recovery.load('r')).summary,'More notes while network is slow');assert.equal(recovery.last().id,'r');ui.activeReportRecovery.stop();dom.window.close();delete global.document;delete global.window;
 });
+test('explicit local save works without any cloud call and retains photos',async()=>{
+ const dom=new JSDOM('<form id="finishVisit"><textarea id="vSummary"></textarea></form>',{url:'https://opus.example'});global.document=dom.window.document;global.window=dom.window;
+ const recovery=new ReportRecovery(memory(),dom.window.localStorage,'offline'),record={id:'offline',photos:[{dataUrl:'data:image/jpeg;base64,abc'}]};
+ const ui={c:{reportRecovery:recovery,reconnectReport:()=>assert.fail('Local save must not reconnect')},captureReportDraft(x){x.summary=document.getElementById('vSummary').value;}};
+ bindReportRecovery(ui,record,true);document.getElementById('vSummary').value='Rapport sans réseau';
+ await document.querySelector('[data-local-save]').onclick();
+ assert.equal((await recovery.load('offline')).summary,'Rapport sans réseau');assert.equal((await recovery.load('offline')).photos.length,1);
+ assert.match(document.querySelector('[role=status]').textContent,/non envoyé au bureau/);
+ ui.activeReportRecovery.stop();dom.window.close();delete global.document;delete global.window;
+});
