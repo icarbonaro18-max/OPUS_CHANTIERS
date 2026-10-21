@@ -1,0 +1,10 @@
+OPUS CHANTIERS — Archive complète V3.4.66 — 30 septembre 2026
+
+Cette archive contient l’ensemble du code de l’application à jour, les ressources, les modules, les bibliothèques navigateur, les tests et les fichiers de construction/déploiement. Il ne s’agit pas d’un correctif partiel.
+
+Dernières évolutions incluses : annulation d’intervention, agenda privé et association au planning personnel, rendez-vous hebdomadaires, planning compact avec panneau coulissant, rendez-vous de chantier privés rouges et autres rendez-vous privés vert foncé.
+
+Pour reconstruire : installer les dépendances avec npm ci, puis lancer npm run build. Le dossier _site est généré. Pour les tests : npm test.
+Les fichiers générés _site et les dépendances node_modules ne sont pas dupliqués dans cette archive.
+
+Les données métier (clients, chantiers, documents et rendez-vous) restent dans Microsoft 365 et ne sont pas incluses dans ce ZIP. Les réglages propres à l’hébergement et les secrets doivent être conservés séparément.

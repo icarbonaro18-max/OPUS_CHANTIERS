@@ -1,0 +1,26 @@
+OPUS CHANTIERS — APPLICATION COMPLÈTE V3.4.86
+Archive constituée le 15 octobre 2026.
+
+Dernière version disponible dans les archives de cette conversation : V86.
+Cette archive regroupe le programme complet et ses correctifs jusqu’à V86.
+Elle ne confirme pas la version actuellement déployée sur Vercel.
+
+Le dossier OPUS_CHANTIERS contient le code, les fonctions API, les ressources,
+les dépendances navigateur intégrées, les configurations de construction,
+les guides et les tests disponibles dans les archives sources.
+Les dépendances de développement se réinstallent avec npm ci.
+Construction : npm run build. Tests disponibles : npm test.
+Les ZIP de correctifs n’archivaient pas tous les tests ajoutés localement ;
+la suite conservée ici ne comprend donc pas tous les tests historiques.
+
+Pour restaurer : importer le contenu du dossier OPUS_CHANTIERS à la racine
+du dépôt GitHub, en conservant les sous-dossiers, puis déployer sur Vercel.
+Ne pas importer le dossier parent comme un sous-dossier du projet existant.
+
+PÉRIMÈTRE DE LA SAUVEGARDE
+Les données clients, rapports, photos, commandes et planning stockées dans
+Microsoft SharePoint / OneDrive ne sont pas incluses dans cette archive.
+Les secrets et variables d’environnement Vercel ainsi que les autorisations
+Microsoft ne sont pas inclus : conserver leur configuration séparément.
+L’accès au planning par code nécessite toujours son activation Microsoft/Vercel
+(voir ACTIVATION_PLANNING_V15.txt). Il n’a pas été activé par cette archive.

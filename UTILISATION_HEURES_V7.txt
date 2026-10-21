@@ -1,0 +1,12 @@
+OPUS V7 — CLARIFICATION DU SUIVI DES HEURES
+
+Les libellés du suivi concernent exclusivement des heures, sans prix.
+« Heures vendues / prévues au devis » : total de main-d’œuvre prévu pour toute l’équipe, à saisir par l’administrateur (ex. 72 h).
+« Heures affectées au calendrier » : somme de chaque durée planifiée, pause déduite, multipliée par le nombre de salariés affectés. Ce nombre n’est pas lu sur le devis.
+« Heures réalisées » : heures déclarées selon les rapports et pointages.
+Le détail des créneaux est accessible dans Suivi du chantier : dates, salariés, pauses, heures par salarié, total. Il permet de repérer des journées en trop, une mauvaise pause, des affectations ou des doublons. Cette mise à jour ne supprime ni ne corrige automatiquement vos rendez-vous.
+Les heures restantes sont calculées à partir des heures prévues au devis moins les heures réalisées.
+
+Les champs « Informations du chantier » sont encore distincts de la feuille déposée dans Documents. La reprise automatique du document n’est pas implémentée dans cette version ; un exemplaire de votre feuille réelle est nécessaire pour adapter cette fonction.
+
+Importez le contenu du ZIP de mise à jour en conservant les dossiers. Après le déploiement, sauvegardez les formulaires et fermez puis rouvrez toutes les fenêtres de l’application. Aucun changement OpenAI.

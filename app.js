@@ -27,7 +27,7 @@ function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTi
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
-$('modal').addEventListener('submit',e=>{if((opsUI?.cacheMode||opsUI?.needsRefresh)&&!e.target.classList.contains('localReportForm')){e.preventDefault();e.stopImmediatePropagation();void opsUI?.activeReportRecovery?.flush(true).catch(err);toast('Actualisation nécessaire avant l’envoi. Votre rapport reste ouvert ; utilisez « Actualiser / reconnecter sans perdre ma saisie ».');}},true);
+$('modal').addEventListener('submit',e=>{if((opsUI?.cacheMode||opsUI?.needsRefresh)&&!e.target.classList.contains('localReportForm')){e.preventDefault();e.stopImmediatePropagation();const recovery=opsUI?.activeReportRecovery;if(recovery)void recovery.flush(true).then(()=>toast('Brouillon enregistré sur cet appareil. Envoi au bureau en attente de reconnexion.')).catch(err);else toast('Connexion nécessaire pour envoyer cette modification.');}},true);
 function status(text,good=false){$('connection').textContent=text;$('connection').style.color=good?'#137344':'';}
 function bind(id,fn){const e=$(id);if(e)e.onclick=()=>Promise.resolve().then(fn).catch(err);}
 const dateTime=s=>s?new Date(s).toLocaleString('fr-FR'):'—';
@@ -137,16 +137,26 @@ async function reconnectReport(){
  await opsUI?.activeReportRecovery?.flush(true);
  if(navigator.onLine===false)throw Error('Pas de réseau. Gardez votre brouillon et réessayez dès le retour de la connexion.');
  // Keep the dialog intact while testing the session. Persist before any redirect.
- try{await token();}catch{
+ try{await (g.accessToken?g.accessToken():token());}catch(e){
+  if(e.code==='token_timeout')throw e;
   await msal.loginRedirect({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName});return;
  }
- const current=reportRecovery?.last();if($('modal').open)$('modal').close();
- // An automatic refresh may have deferred before the dialog was closed. Wait
- // for it to release its lock, then explicitly start a fresh attempt.
+ const current=reportRecovery?.last();
  if(resumeBusy)await resumeBusy;
- syncNotice('Actualisation du planning et des données en cours…');await resumeCloud();offerRecoveredReport();
- if(opsUI?.cacheMode||opsUI?.needsRefresh||opsUI?.dataLoadError||!cloudReady)throw Error('Actualisation non terminée. Votre brouillon est conservé. '+(live||!$('viewer').hidden?'Enregistrez puis fermez le formulaire ou le document ouvert avant de réessayer.':'Vérifiez votre connexion puis réessayez.')); 
- if(current&&!opsUI?.cacheMode&&!opsUI?.needsRefresh){await openRecoveredTarget(current);}
+ if(refreshBusy)await refreshBusy;
+ syncNotice('Reconnexion du rapport en cours…');
+ // Refresh only operational records; listing every project is not a prerequisite.
+ // Keep the form mounted on failure and never bypass repository conflict checks.
+ if(!cloudReady){
+  const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
+  if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez-vous.');
+  user=profile;cloudReady=true;
+ }
+ await opsUI.reload({background:false});
+ g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;
+ lastSyncAt=Date.now();status('Microsoft 365 connecté',true);syncNotice('');
+ if(current)await openRecoveredTarget(current);
+ offerRecoveredReport();
 }
 installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.refreshPending=true;if(!$('modal').open)syncNotice('Vérification du planning au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async()=>{if(user&&!DEMO)await resumeCloud();},onError:err});
 
@@ -186,11 +196,13 @@ async function refreshNow({skipOps=false}={}){
  if(navigator.onLine===false&&!DEMO){if(cacheSnapshot)cachedNotice();return;}
  status('Actualisation…');
  try{
-  const [nextCatalog,applied]=await Promise.all([g.projects(),opsUI&&!skipOps?opsUI.reload({background:true}):Promise.resolve(true)]);
+  const [catalogResult,applied]=await Promise.all([g.projects().then(value=>({value}),error=>({error})),opsUI&&!skipOps?opsUI.reload({background:true}):Promise.resolve(true)]);
+  const nextCatalog=catalogResult.value||catalog;
   if($('modal').open||live||applied===false){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;await store.set('catalog',catalog);
   lastSyncAt=Date.now();if(opsUI){opsUI.needsRefresh=false;opsUI.refreshPending=false;}status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
   $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
+  if(catalogResult.error)syncNotice('Planning actualisé · Liste des chantiers à réessayer.');
   await rememberWarm();renderProjects();
   if(opsUI&&!$('modal').open){if(opsUI.section==='calendar')await opsUI.renderCalendar();else if(opsUI.section==='interventions')await opsUI.renderInterventions();else if(opsUI.section==='visits')await opsUI.renderVisits();}
   if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}

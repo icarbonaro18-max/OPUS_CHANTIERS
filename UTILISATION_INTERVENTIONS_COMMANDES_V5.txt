@@ -1,0 +1,24 @@
+OPUS CHANTIERS — MISE À JOUR V5
+
+INTERVENTIONS ET PLANNING
+Enregistrez la date et l’heure prévues avec les techniciens affectés : la fiche alimente automatiquement le planning. Si la fin prévue est vide, une durée d’une heure est proposée ; corrigez cette estimation avant de sauvegarder. Les indisponibilités continuent à être contrôlées.
+Les heures prévues restent distinctes des heures réellement effectuées.
+Sur place, le technicien appuie sur « Je commence maintenant » pour enregistrer son arrivée réelle. Il peut aussi renseigner l’heure manuellement.
+À la fin, relisez et validez le rapport français. « Terminer et enregistrer dans OPUS », « Télécharger le PDF » et « Enregistrer PDF dans OPUS » ouvrent la confirmation de départ. L’heure proposée est modifiable. Les horaires et le rapport sont sauvegardés, puis le PDF est archivé dans OPUS. Un téléchargement demandé se fait après cet archivage.
+Si l’archivage échoue, un message indique explicitement que le PDF n’est pas archivé : réessayez « Enregistrer PDF dans OPUS ». Ne considérez pas le dossier comme transmis sur la seule présence d’un fichier téléchargé auparavant.
+Le pointage de cette version porte sur une même journée ; pour plusieurs journées, utilisez un compte rendu par journée.
+
+BONS DE COMMANDE ET DÉPÔT DE BUC
+Dans un chantier, le nouvel onglet « Bons de commande » affiche les compteurs Fournisseurs et Dépôt de Buc.
+Les fichiers existants dans 03_COMMANDES restent disponibles. Les pièces fournisseurs peuvent être des PDF, Excel ou autres documents acceptés. L’administrateur peut ajouter les pièces jointes et préciser le fournisseur.
+Les nouvelles pièces fournisseurs sont rangées dans 03_COMMANDES/FOURNISSEURS, éventuellement dans un sous-dossier fournisseur. Les listes du dépôt sont rangées dans 03_COMMANDES/DEPOT_BUC.
+Les dossiers sont créés lors du premier ajout. Le technicien consulte les pièces depuis les deux onglets.
+Les compteurs désignent le nombre de pièces jointes, pas une confirmation de disponibilité du matériel.
+
+INSTALLATION
+Le ZIP complet contient toute l’application. Le ZIP « FICHIERS_A_IMPORTER » contient les fichiers modifiés cumulés, y compris les mises à jour précédentes. Décompressez puis importez les fichiers et dossiers en conservant leur arborescence à la racine du dépôt GitHub.
+Aucun changement de clé API ou de modèle OpenAI n’est requis pour cette mise à jour.
+Après le déploiement Vercel prêt, enregistrez les formulaires ouverts, fermez toutes les fenêtres de l’application et rouvrez https://opus-chantiers.vercel.app.
+
+VÉRIFICATIONS
+65 tests automatisés réussis, dont planning automatique sans doublons, séparation des horaires, confirmation de départ, échec d’archivage et pièces jointes du dépôt. Les échanges Microsoft sont simulés dans les tests : vérifiez un dossier test avec votre connexion Microsoft après installation.

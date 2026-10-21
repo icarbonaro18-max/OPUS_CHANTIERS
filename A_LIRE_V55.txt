@@ -1,0 +1,11 @@
+OPUS V55 — Lecteur de documents mobile
+
+Extraire ce ZIP et importer les fichiers et dossiers à la racine du dépôt GitHub OPUS_CHANTIERS. Ne pas importer le ZIP lui-même, ne supprimer aucun autre fichier. Ce correctif inclut V54, ainsi que le style du lecteur V51.
+Attendre la réussite du déploiement Vercel. Enregistrer vos formulaires puis fermer et rouvrir l’application pour activer la nouvelle version.
+
+Le nom du PDF reste sur une ligne avec points de suspension. La barre de navigation et le zoom occupent des lignes séparées. La disposition est appliquée par le lecteur à chaque ouverture, même si une ancienne feuille de style est encore chargée.
+Les corrections V54 (consignes calendrier, navigation vers le dossier, contraste, onglet vert) sont incluses.
+
+Validation : construction et 208 tests réussis. Un test vérifie la disposition avec les anciennes règles CSS. Aucun essai sur iPhone ou tablette physique effectué ici.
+Après déploiement : ouvrir un bon de commande à nom long, vérifier que la page est visible, puis tester page suivante, zoom et retour.
+Aucune donnée client Microsoft 365 modifiée. Cette livraison n’est pas encore déployée.

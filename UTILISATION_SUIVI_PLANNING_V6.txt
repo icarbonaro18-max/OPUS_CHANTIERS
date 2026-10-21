@@ -1,0 +1,40 @@
+OPUS CHANTIERS — V6
+
+1. PARAMÉTRER LE SUIVI D’UNE AFFAIRE
+Ouvrez Chantier > Vue d’ensemble > Suivi du chantier avec votre compte administrateur.
+Renseignez le budget d’heures (ex. 170), le seuil d’alerte (40 par défaut), la date limite, les consignes et, seulement si applicable, les pénalités.
+Validez « Commandes complètes ou aucun matériel à commander » lorsque toutes les commandes nécessaires sont passées. Un fichier fournisseur seul ne prouve pas que les commandes sont complètes.
+Enregistrez. La prévision initiale est conservée. Chaque révision du budget ou de la date doit avoir un motif, conservé dans l’historique du bureau.
+Le budget d’heures du devis est à renseigner : il n’est pas extrait automatiquement du PDF.
+
+2. HEURES ET ALERTES
+Le réalisé utilise les heures réelles déclarées avec l’équipe affectée, pauses déduites : 7 heures pour 2 salariés = 14 heures.
+Le planifié reste distinct du réalisé. Sans pointage réel complet, aucune heure réelle n’est inventée. Pour des présences différentes, renseignez des rapports / pointages distincts avec les bonnes équipes.
+Les rapports liés aux événements ne sont pas ajoutés deux fois. Un pointage du planning chevauchant un rapport de chantier avec le même salarié est signalé à vérifier et écarté du total pour éviter un double comptage. Les pointages sans équipe sont signalés également.
+Alerte en rouge lorsque le reste atteint le seuil, à sept jours de l’échéance, ou après dépassement. Les chantiers concernés remontent dans la liste. Le budget et l’échéance sont contrôlés séparément.
+
+3. CLASSEMENT
+À préparer -> En cours : suivi activé, commandes validées et créneau planifié.
+En cours -> À contrôler : bouton « Signaler les travaux finis » pour toute l’affaire. Terminer un simple passage ne termine pas le chantier.
+À contrôler -> Terminé : l’administrateur valide le contrôle et confirme avoir vérifié toutes les attestations nécessaires dans le dossier. L’application ne certifie pas leur conformité technique.
+Terminé -> Archivé : bouton administrateur d’archivage.
+Le dossier est déplacé dans la rubrique correspondante, pas dupliqué. Le classement est synchronisé à l’enregistrement et à l’actualisation de l’application connectée, pas par un service fonctionnant lorsque l’application est fermée.
+Au budget atteint, rien n’est terminé automatiquement. L’administrateur choisit de signaler la fin ou de continuer, avec motif, nouvelles heures et/ou nouvelle date. Les équipes voient les consignes et prévisions actualisées ; l’historique de gestion reste masqué dans leur interface.
+
+4. PLANNING SUR PLUSIEURS JOURS ET ÉQUIPES
+Calendrier > Planifier > choisir le chantier.
+Renseignez la date de début et « Jusqu’au » inclus, les horaires et la pause quotidiens, puis choisissez l’équipe.
+Le samedi et dimanche sont exclus d’une période sauf option cochée. Une journée unique de week-end peut être choisie directement.
+« Autre période / autre équipe » ajoute des dates, horaires, pause et techniciens indépendants. Vous pouvez ainsi programmer plusieurs équipes sur une même affaire.
+Toutes les journées sont vérifiées contre les absences, fermetures et autres affectations avant l’enregistrement. Une erreur bloque tout le lot ; corrigez la période ou l’équipe.
+Un créneau par jour et par équipe est créé. Chaque journée peut ensuite être modifiée ou supprimée séparément. Les périodes multiples concernent les chantiers ; une visite ou intervention ponctuelle conserve son créneau individuel.
+
+5. ABSENCES
+Les pastilles de congé / maladie et les compteurs de disponibilités sont visibles uniquement dans le calendrier administrateur. Les techniciens gardent un planning allégé. Les absences restent enregistrées pour les contrôles d’affectation et les récapitulatifs. Les fermetures d’entreprise restent visibles pour tous.
+
+INSTALLATION
+ZIP complet : copie de toute l’application.
+ZIP FICHIERS_A_IMPORTER : mise à jour cumulative, comprenant les tests actualisés. Décompressez et importez les fichiers et dossiers à la racine du dépôt GitHub en gardant l’arborescence.
+Aucun changement de clé API ou modèle OpenAI.
+Après le déploiement Vercel prêt, sauvegardez les formulaires en cours, fermez toutes les fenêtres de l’application puis rouvrez https://opus-chantiers.vercel.app.
+Les tests utilisent des échanges Microsoft simulés. Après installation, vérifiez un chantier test avec votre connexion Microsoft pour confirmer les déplacements et la synchronisation.

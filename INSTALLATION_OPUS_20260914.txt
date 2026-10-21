@@ -1,0 +1,75 @@
+OPUS CHANTIERS — MISE À JOUR DU 14 SEPTEMBRE 2026
+Planning, absences, visites et dictée français / italien
+
+INSTALLATION
+1. Décompresser OPUS_MISE_A_JOUR_20260914.zip.
+2. Ouvrir GitHub > icarbonaro18-max / OPUS_CHANTIERS > branche main.
+3. Ajouter un fichier > Importer des fichiers. Glisser le CONTENU du dossier A_COPIER_DANS_GITHUB : les dossiers api, lib, assets et les fichiers style.css, sw.js, vercel.json. Ne pas importer le ZIP ni le dossier parent lui-même.
+4. Valider l’import. Attendre que le nouveau déploiement Vercel soit Ready / Prêt.
+5. Enregistrer les saisies en cours, puis fermer les onglets et l’application OPUS sur les appareils. Rouvrir https://opus-chantiers.vercel.app (adresse habituelle, pas une adresse temporaire de déploiement).
+6. Si l’ancienne interface reste affichée, recharger la page. Ne pas effacer les données de Microsoft 365.
+
+DICTÉE AUTOMATIQUE : UNE AUTORISATION DE MODÈLE À AJOUTER
+Sur platform.openai.com, choisir le projet auquel appartient la clé utilisée par OPUS.
+Paramètres du projet > Limites > Modèles autorisés > Modifier.
+Conserver gpt-4.1-mini et ajouter gpt-4o-mini-transcribe, puis sauvegarder.
+Ne pas remplacer la valeur OPENAI_MODEL : gpt-4.1-mini continue à rédiger les rapports.
+La clé OPENAI_API_KEY et OPUS_AI_ALLOWED_USERS sont réutilisées.
+Le nouveau service /api/transcribe est fourni dans ce ZIP et déployé par Vercel.
+L’audio est transcrit avec gpt-4o-mini-transcribe par défaut (OPENAI_TRANSCRIBE_MODEL facultatif permet un autre modèle audio compatible).
+La dictée automatique nécessite Internet, microphone autorisé et compte Microsoft déjà autorisé pour l’IA. Elle consomme des crédits API audio. La correction du texte et le compte rendu restent distincts.
+Si le modèle audio est refusé, le texte saisi et la correction « Français propre » restent utilisables. Un lien permet de récupérer l’audio en cas d’échec de transcription.
+
+ABSENCES
+Calendrier > Équipe & ressources > Modifier un salarié.
+Ajouter une absence, choisir Congés payés / Maladie / Congé sans solde / Autre absence, renseigner les dates incluses, enregistrer.
+Cette version gère les journées entières. Les fractions de journée ne sont pas prises en charge.
+Les ressources sont grisées pour l’affectation. Une indisponibilité ajoutée après planification ne supprime aucun rendez-vous : une alerte invite à le replanifier.
+Le libellé détaillé des absences est affiché à l’administrateur ; le planning terrain affiche « Indisponible ». Ne saisir aucun diagnostic médical.
+Les rôles d’interface suivent le fonctionnement actuel d’OPUS. L’accès aux fichiers Microsoft dépend toujours des permissions de votre espace Microsoft 365 ; ce n’est pas un coffre RH séparé.
+
+FERMETURES
+Calendrier > Fermetures entreprise (administrateur).
+Créer par exemple Noël ou Congés d’été, avec début et fin inclus.
+Les jours sont rouges en semaine et en mois. Une nouvelle affectation à ces dates est bloquée. Les anciens rendez-vous restent visibles pour replanification.
+Une fermeture ne transforme pas automatiquement les jours en congés payés : renseigner les situations individuelles et faire valider le traitement par la paie.
+
+RÉCAPITULATIF POUR MAÏDA
+Bureau OPUS > Paie / heures > choisir le mois > Exporter le récapitulatif paie.
+Le fichier CSV s’ouvre dans Excel. Il détaille par salarié et par date : heures réalisées déclarées, heures planifiées, absences, école, fermetures et anomalies à vérifier.
+Les heures planifiées et les horaires d’école ne sont pas considérés comme des heures réalisées validées.
+L’horaire théorique concerné par une absence n’est ni un décompte de jours de congés ni une retenue salariale. Aucun calcul automatique des majorations ou indemnités.
+Les salariés désactivés ayant des données sur le mois restent dans l’export.
+Aucun envoi automatique à la comptable. Vérifier les éléments avant de les transmettre.
+
+VISITES AVANT DEVIS
+1. Compléter les tâches / pièces (métrés, besoins, observations), notes et photos.
+2. En mode « Automatique FR / IT », cliquer Dicter, parler puis Terminer la dictée (maximum 2 minutes par prise). Le français et l’italien peuvent être mélangés.
+3. Le bouton « Français propre » reformule le champ concerné.
+4. Le bouton « Créer le compte rendu de visite en français » rassemble toutes les notes écrites et les tâches. Les photos ne sont pas analysées par l’IA.
+5. Relire, corriger, cocher la validation, enregistrer le brouillon ou terminer et enregistrer la visite.
+6. Télécharger le PDF ou Enregistrer PDF dans OPUS. Le PDF validé comporte le logo et le compte rendu avec les photos en annexes.
+Les notes terrain restent conservées. Si elles changent, le compte rendu doit être régénéré et relu.
+Le dossier Microsoft VISITES_AVANT_DEVIS reste utilisé.
+
+DÉPANNAGE SANS DEVIS PRÉALABLE DANS L’APPLICATION
+Créer une intervention > type « Dépannage / diagnostic, facturation après intervention ».
+Indiquer la demande, le client, la date et l’équipe ; ajouter si utile la référence de l’accord tarifaire communiqué au client.
+Cette sélection sert au suivi interne et ne constitue pas à elle seule un accord du client.
+Le technicien ouvre la fiche depuis le calendrier, complète les constats, travaux réellement effectués, matériel, photos et horaires réels.
+« Enregistrer le brouillon » conserve le statut. « Terminer et enregistrer le rapport » passe l’intervention dans les éléments à facturer.
+Le bureau établit la facture dans son outil habituel puis indique la référence via « Marquer facturé ».
+La modification d’un rapport facturé ne remet plus automatiquement l’intervention à facturer.
+
+CONTENU ET COMPATIBILITÉ
+Mise à jour fondée sur la version GitHub main a8364ea contrôlée le 14/09/2026.
+Les PDF avec logo sont conservés. Le module Dossiers Enedis précédemment livré est inclus pour préserver son accès.
+Aucun fichier de données clients, aucune clé API et aucune configuration personnelle ne sont inclus.
+Ne pas installer après cette mise à jour un ancien ZIP contenant lib/ops-ui.js : cela pourrait rétablir une ancienne version.
+Les absences sont enregistrées avec les personnes dans _OPUS_SYSTEM/people.json ; les fermetures dans _OPUS_SYSTEM/closures.json. Les interventions et visites restent dans leur stockage Microsoft actuel.
+
+VÉRIFICATIONS EFFECTUÉES
+48 tests automatisés locaux réussis : logique, formulaires simulés, authentification du service audio, conservation des notes et export mensuel. Compilation npm réussie. PDF exemple généré et inspecté visuellement.
+Non vérifiés sur vos comptes : écriture Microsoft réelle, microphone iPhone/Samsung, réponse audio OpenAI réelle, déploiement Vercel. Faire un essai avec une visite fictive après installation.
+
+Documentation audio : https://developers.openai.com/api/docs/guides/speech-to-text

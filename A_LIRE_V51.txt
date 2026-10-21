@@ -1,0 +1,17 @@
+OPUS V51 — Affichage des documents sur tablette et téléphone
+
+Correction du nom de fichier qui s'affichait lettre par lettre et rendait
+la barre de commandes trop haute. Le titre reste sur une seule ligne,
+les commandes sont sur des lignes séparées et la zone document garde
+au moins 60 % de la hauteur du lecteur. Fond clair, défilement du document
+et commandes de zoom conservés. Aucune modification du contenu des PDF.
+
+Installation : décompresser, puis importer style.css et sw.js à la racine
+du dépôt GitHub OPUS_CHANTIERS, en remplaçant les fichiers de même nom.
+Attendre le déploiement réussi, puis fermer et rouvrir l'application.
+Ce correctif ne remplace pas le ZIP V50 du planning : il s'applique après.
+Ne pas supprimer les autres fichiers du dépôt.
+
+Validation : construction et suite de tests locales réussies.
+La vérification sur votre tablette et la mise en ligne restent à effectuer.
+Aucune donnée Microsoft, aucun document et aucun rendez-vous n'est modifié.
