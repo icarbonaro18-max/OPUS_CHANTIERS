@@ -1,3 +1,4 @@
+import {acquireSessionToken,requiresInteractiveAuth} from './lib/auth-session.js';
 import {syncPrivateNotifications} from './lib/notifications-ui.js';
 import {ReportRecovery} from './lib/report-recovery.js';
 import {installResumeSync} from './lib/resume-sync.js';
@@ -17,6 +18,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const APP_VERSION='3.4.90-session';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
@@ -27,7 +29,13 @@ function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTi
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
-$('modal').addEventListener('submit',e=>{if((opsUI?.cacheMode||opsUI?.needsRefresh)&&!e.target.classList.contains('localReportForm')){e.preventDefault();e.stopImmediatePropagation();const recovery=opsUI?.activeReportRecovery;if(recovery)void recovery.flush(true).then(()=>toast('Brouillon enregistré sur cet appareil. Envoi au bureau en attente de reconnexion.')).catch(err);else toast('Connexion nécessaire pour envoyer cette modification.');}},true);
+$('modal').addEventListener('submit',e=>{
+ if(!(opsUI?.cacheMode||opsUI?.needsRefresh)||e.target.classList.contains('localReportForm')||e.target.id==='appointmentOnly')return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const recovery=opsUI?.activeReportRecovery;
+ if(recovery?.form===e.target&&recovery.form.isConnected)void recovery.flush(true).then(()=>toast('Brouillon du rapport conservé sur cet appareil · non envoyé au bureau.')).catch(err);
+ else toast('Modification non envoyée. Votre saisie reste dans cette fenêtre : actualisez la connexion avant de réessayer.');
+},true);
 function status(text,good=false){$('connection').textContent=text;$('connection').style.color=good?'#137344':'';}
 function bind(id,fn){const e=$(id);if(e)e.onclick=()=>Promise.resolve().then(fn).catch(err);}
 const dateTime=s=>s?new Date(s).toLocaleString('fr-FR'):'—';
@@ -49,8 +57,16 @@ async function authInit(){
  const accounts=msal.getAllAccounts(),account=msal.getActiveAccount()||(accounts.length===1?accounts[0]:null);
  if(account){msal.setActiveAccount(account);await connectCloud(account);}
 }
-async function token(){try{return (await msal.acquireTokenSilent({scopes:config.scopes,account:msal.getActiveAccount()})).accessToken;}
- catch(e){if(opsUI)opsUI.needsRefresh=true;status('Reconnexion nécessaire');$('login').textContent='Renouveler la connexion';syncNotice('Connexion Microsoft à renouveler · Les données affichées peuvent être anciennes.');throw new CloudError('Connexion Microsoft expirée ou autorisation manquante. Utilisez votre nom en haut, puis « Reconnecter ». Les saisies locales sont conservées.',401);}}
+async function token(options={}){
+ try{return await acquireSessionToken(msal,config.scopes,options);}
+ catch(e){
+  if(requiresInteractiveAuth(e)){
+   status('Validation Microsoft nécessaire');$('login').textContent='Renouveler la connexion';
+   syncNotice('Microsoft demande une validation de connexion. Votre fiche reste ouverte et votre brouillon est conservé.');
+  }
+  throw e;
+ }
+}
 let privateCalendarSession=null,privateCalendarLoading=null;
 function cachedPrivateCalendar(snapshot){
  const calendar=new PrivateCalendar(new Graph(async()=>{throw Error('Reconnectez-vous pour actualiser vos rendez-vous privés.');}),user.id);
@@ -65,8 +81,8 @@ async function connectPrivateCalendar(interactive=false){
 }
 async function loadPrivateCalendar(interactive){
  const account=msal.getActiveAccount(),scopes=['Files.ReadWrite.AppFolder'];
- async function privateToken(){return (await msal.acquireTokenSilent({scopes,account})).accessToken;}
- try{await privateToken();}catch(e){if(!interactive)throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
+ async function privateToken(options={}){return acquireSessionToken(msal,scopes,{...options,account});}
+ try{await privateToken();}catch(e){if(!interactive||!requiresInteractiveAuth(e))throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
  const next=new PrivateCalendar(new Graph(privateToken),user.id);
  await next.load();privateCalendarSession=next;
  next.onChange=async()=>{await syncPrivateNotifications(opsUI,next);try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
@@ -101,10 +117,16 @@ async function resumeCloud(){
    if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez-vous.');
    user=profile;cloudReady=true;
   }
-  if($('modal').open||live||!$('viewer').hidden){if(opsUI?.needsRefresh||opsUI?.cacheMode)syncNotice('Connexion ou données à vérifier · Votre saisie reste conservée.');else syncNotice('Le planning sera actualisé après fermeture de la fiche. Vous pouvez continuer votre rapport et l’enregistrer.');return;}
+  if($('modal').open||live||!$('viewer').hidden){
+   // Renew only the session while editing: never replace a form's backing records.
+   if(g.accessToken)await g.accessToken();
+   if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Données à vérifier avant envoi · Votre saisie reste dans cette fenêtre.');
+   else{status('Microsoft 365 connecté',true);syncNotice('');await flush();}
+   return;
+  }
   await refresh();
   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){await opsUI.syncPersonnel();personnelSynced=true;}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
- }catch(e){if(cacheSnapshot)cachedNotice();syncNotice('Consultation des données mémorisées · Actualisation impossible : '+e.message);}
+ }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
  }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
 
@@ -117,10 +139,10 @@ async function previewProjectMeta(id){
 }
 async function ensureReportReady(){
  if(DEMO)return true;
- if(!opsUI?.cacheMode&&!opsUI?.needsRefresh&&!opsUI?.refreshPending&&!opsUI?.dataLoadError&&Date.now()-lastSyncAt<60000)return true;
+ if(opsUI?.hasLoadedRemote&&!opsUI.cacheMode&&!opsUI.needsRefresh&&!opsUI.dataLoadError&&cloudReady&&!g.readOnlyCache)return true;
  await opsUI?.activeReportRecovery?.flush(true);
  if($('modal').open)$('modal').close();
- if(opsUI)opsUI.needsRefresh=true;syncNotice('Vérification des données avant ouverture du rapport…');await resumeCloud();
+ syncNotice('Vérification des données avant ouverture du rapport…');await resumeCloud();
  if(opsUI?.cacheMode||opsUI?.needsRefresh||opsUI?.dataLoadError||!cloudReady){toast('Rapport non ouvert : connexion ou actualisation nécessaire. Les brouillons sont conservés sur cet appareil.');return false;}
  return true;
 }
@@ -138,10 +160,23 @@ async function reconnectReport(){
  if(navigator.onLine===false)throw Error('Pas de réseau. Gardez votre brouillon et réessayez dès le retour de la connexion.');
  // Keep the dialog intact while testing the session. Persist before any redirect.
  try{await (g.accessToken?g.accessToken():token());}catch(e){
-  if(e.code==='token_timeout')throw e;
-  await msal.loginRedirect({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName});return;
+  if(!requiresInteractiveAuth(e))throw e;
+  // Keep the active form mounted even when Microsoft genuinely requires interaction.
+  const response=await msal.acquireTokenPopup({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName,...(e.claims?{claims:e.claims}:{})});
+  if(response.account?.homeAccountId!==appAccount)throw Error('Reconnectez le même compte Microsoft pour conserver cette fiche.');
+  msal.setActiveAccount(response.account);
  }
- const current=reportRecovery?.last();
+ const active=opsUI?.activeReportRecovery;
+ const current=active?.form?.isConnected&&$('modal').open?active.target:null;
+ if($('modal').open&&opsUI?.hasLoadedRemote&&!opsUI.cacheMode&&!opsUI.needsRefresh&&!opsUI.dataLoadError&&cloudReady&&!g.readOnlyCache){
+  status('Microsoft 365 connecté',true);syncNotice('');return;
+ }
+ const appointment=$('appointmentOnly');
+ if($('modal').open&&!current){
+  if(appointment){await prepareAppointmentWrite();return;}
+  if(opsUI?.cacheMode||opsUI?.needsRefresh)throw Error('Connexion vérifiée. Fermez cette fenêtre avant d’actualiser les données ; aucune modification n’a été envoyée.');
+  status('Microsoft 365 connecté',true);syncNotice('');return;
+ }
  if(resumeBusy)await resumeBusy;
  if(refreshBusy)await refreshBusy;
  syncNotice('Reconnexion du rapport en cours…');
@@ -155,8 +190,24 @@ async function reconnectReport(){
  await opsUI.reload({background:false});
  g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;
  lastSyncAt=Date.now();status('Microsoft 365 connecté',true);syncNotice('');
- if(current)await openRecoveredTarget(current);
+ if(current&&active.form.isConnected&&$('modal').open){await active.flush(true);await openRecoveredTarget(current);}
  offerRecoveredReport();
+}
+async function prepareAppointmentWrite(){
+ if(DEMO)return;
+ if(navigator.onLine===false)throw Error('Pas de réseau. Le rendez-vous n’est pas envoyé ; gardez cette fenêtre ouverte et réessayez au retour de la connexion.');
+ if(resumeBusy)await resumeBusy;
+ if(refreshBusy)await refreshBusy;
+ if(!cloudReady){
+  const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
+  if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez le compte initial.');
+  user=profile;cloudReady=true;
+ }
+ if(opsUI.cacheMode||opsUI.needsRefresh||opsUI.dataLoadError||g.readOnlyCache){
+  await opsUI.reload({background:false});
+  g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;lastSyncAt=Date.now();
+ }
+ status('Microsoft 365 connecté',true);syncNotice('');
 }
 installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.refreshPending=true;if(!$('modal').open)syncNotice('Vérification du planning au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async()=>{if(user&&!DEMO)await resumeCloud();},onError:err});
 
@@ -164,7 +215,7 @@ async function activate({cached=null}={}){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
-  opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
+  opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,prepareAppointmentWrite,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
   await opsUI.init({cached:cached?.operations});personnelSynced=!cached;
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
@@ -182,7 +233,7 @@ async function activate({cached=null}={}){
   renderProjects();if(opsUI)await opsUI.restoreSection();
  }else{await refresh({skipOps:true});await restoreRoute();if(opsUI)await opsUI.restoreSection();}
  clearInterval(pollId);
- pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden||$('modal').open||live||!$('viewer').hidden)return;
+ pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden)return;
   try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
  },Math.max(30,config.pollSeconds||45)*1000);
  if(!cached)void flush().catch(err);offerRecoveredReport();
@@ -196,7 +247,7 @@ async function refreshNow({skipOps=false}={}){
  if(navigator.onLine===false&&!DEMO){if(cacheSnapshot)cachedNotice();return;}
  status('Actualisation…');
  try{
-  const [catalogResult,applied]=await Promise.all([g.projects().then(value=>({value}),error=>({error})),opsUI&&!skipOps?opsUI.reload({background:true}):Promise.resolve(true)]);
+  const [catalogResult,applied]=await Promise.all([g.projects().then(value=>({value}),error=>({error})),opsUI&&!skipOps?opsUI.reload({background:true}).then(applied=>{if(applied){g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;lastSyncAt=Date.now();}return applied;}):Promise.resolve(true)]);
   const nextCatalog=catalogResult.value||catalog;
   if($('modal').open||live||applied===false){syncNotice('Actualisation en attente de la fermeture de la fenêtre en cours.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;await store.set('catalog',catalog);
@@ -208,7 +259,8 @@ async function refreshNow({skipOps=false}={}){
   if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
   if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages().catch(e=>console.warn('Classement différé',e.message));
  }catch(e){
-  if(cacheSnapshot){if(opsUI){opsUI.cacheMode=true;opsUI.dataLoadError=null;}g.readOnlyCache=true;cachedNotice();syncNotice('Données mémorisées · Actualisation impossible : '+e.message);}
+  if(opsUI?.hasLoadedRemote){status('Actualisation différée');syncNotice('Dernières données conservées · Actualisation à réessayer : '+e.message);}
+  else if(cacheSnapshot){g.readOnlyCache=true;cachedNotice();syncNotice('Données mémorisées · Actualisation impossible : '+e.message);}
   else{status('Actualisation à réessayer');throw e;}
  }
 }
@@ -299,7 +351,7 @@ async function flush(){if(flushBusy||!store||!g||g.readOnlyCache||(!navigator.on
   }
  }finally{inflight=null;flushBusy=false;await updatePending();if((await store.all('draft:')).length)flushRetry=setTimeout(()=>flush().catch(err),failed?30000:1200);}
 }
-window.addEventListener('online',()=>{if(user){if(DEMO)void flush().catch(err);else void resumeCloud();}});
+window.addEventListener('online',()=>{if(user&&DEMO)void flush().catch(err);});
 $('modal').addEventListener('close',()=>{const active=opsUI?.activeReportRecovery;if(active?.form?.isConnected)void active.flush().then(offerRecoveredReport).catch(err);else offerRecoveredReport();if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
 bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush();$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
 async function chooseRevision(p,kind,id,loaded,onChoose,history=false){
@@ -432,7 +484,7 @@ function setup(){modal('Connexion Microsoft 365 · configuration unique',`<div c
 }
 bind('settings',setup);bind('login',login);
 async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
-bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
+bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
  config=await(await fetch('./config.json',{cache:'no-store'})).json();try{const local=JSON.parse(localStorage.getItem('opus-cloud-config-v3')||'null');if(local?.clientId)config={...config,...local};}catch{}

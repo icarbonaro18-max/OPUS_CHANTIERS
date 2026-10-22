@@ -9,37 +9,14 @@
 <body>
   <p id="status">Connexion Microsoft en cours…</p>
   <script type="module">
-    const status = document.getElementById('status');
-    try {
-      const configResponse = await fetch('./config.json', { cache: 'no-store' });
-      if (!configResponse.ok) throw new Error('Configuration OPUS introuvable.');
-      const config = await configResponse.json();
-      const M = await import('./vendor/msal.js');
-
-      const msal = new M.PublicClientApplication({
-        auth: {
-          clientId: config.clientId,
-          authority: `https://login.microsoftonline.com/${config.tenant}`,
-          redirectUri: new URL('./auth.html', location.href).href,
-          postLogoutRedirectUri: new URL('./', location.href).href,
-          ...(sessionStorage.getItem('opus-auth-return') === '/commandes/' ? { navigateToLoginRequestUrl: false } : {})
-        },
-        cache: { cacheLocation: 'sessionStorage' }
-      });
-
-      await msal.initialize();
-      const response = await msal.handleRedirectPromise();
-      if (response?.account) msal.setActiveAccount(response.account);
-
-      // Une fois la réponse Microsoft traitée et mise en cache par MSAL,
-      // retour à l'application principale. Celle-ci retrouve alors le compte.
-      const returnPath = sessionStorage.getItem('opus-auth-return');
-      sessionStorage.removeItem('opus-auth-return');
-      location.replace(returnPath === '/commandes/' ? new URL('/commandes/', location.href).href : new URL('./', location.href).href);
-    } catch (error) {
-      console.error(error);
-      status.textContent = `La connexion n’a pas abouti : ${error?.message || error}. Revenez à OPUS CHANTIERS et réessayez.`;
-    }
+    import {broadcastResponseToMainFrame} from './vendor/msal-bridge.js';
+    // MSAL 5: the bridge returns silent/popup responses to their requesting
+    // window and redirects interactive responses to the original app page.
+    // Do not initialize MSAL, load the app, or navigate this page ourselves.
+    broadcastResponseToMainFrame().catch(error=>{
+      console.error('Réponse Microsoft non transmise',error);
+      document.getElementById('status').textContent='La connexion n’a pas abouti. Revenez à OPUS CHANTIERS et réessayez.';
+    });
   </script>
 </body>
 </html>
