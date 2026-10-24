@@ -180,3 +180,7 @@
 .calendarAddress{padding:12px;background:#edf4fa;border:1px solid #b6ccdf;border-radius:8px;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .usedOrderMaterials{margin:10px 0;padding:10px;background:#eef5fa;border-radius:8px}.usedOrderMaterials input[data-used-qty]{min-width:65px;max-width:100px}.usedOrderMaterials input[type=checkbox]{width:22px;height:22px}.usedOrderMaterials td{vertical-align:top;padding:8px}
+
+/* Shared, unlinked team appointments. */
+.hourEvent.free,.monthEvent.free,.eventCard.free{background:#e0f3f1;color:#115b60;border-left:4px solid #17828a;}
+#freeEventForm fieldset{margin:16px 0;border:1px solid #cbd9e6;border-radius:8px;padding:12px;}

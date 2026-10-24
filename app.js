@@ -18,7 +18,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.90-session';
+const APP_VERSION='3.4.91-rdv-equipe';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
@@ -30,7 +30,7 @@ function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.mes
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
 $('modal').addEventListener('submit',e=>{
- if(!(opsUI?.cacheMode||opsUI?.needsRefresh)||e.target.classList.contains('localReportForm')||e.target.id==='appointmentOnly')return;
+ if(!(opsUI?.cacheMode||opsUI?.needsRefresh)||e.target.classList.contains('localReportForm')||['appointmentOnly','freeEventForm'].includes(e.target.id))return;
  e.preventDefault();e.stopImmediatePropagation();
  const recovery=opsUI?.activeReportRecovery;
  if(recovery?.form===e.target&&recovery.form.isConnected)void recovery.flush(true).then(()=>toast('Brouillon du rapport conservé sur cet appareil · non envoyé au bureau.')).catch(err);
@@ -171,7 +171,7 @@ async function reconnectReport(){
  if($('modal').open&&opsUI?.hasLoadedRemote&&!opsUI.cacheMode&&!opsUI.needsRefresh&&!opsUI.dataLoadError&&cloudReady&&!g.readOnlyCache){
   status('Microsoft 365 connecté',true);syncNotice('');return;
  }
- const appointment=$('appointmentOnly');
+ const appointment=$('appointmentOnly')||$('freeEventForm');
  if($('modal').open&&!current){
   if(appointment){await prepareAppointmentWrite();return;}
   if(opsUI?.cacheMode||opsUI?.needsRefresh)throw Error('Connexion vérifiée. Fermez cette fenêtre avant d’actualiser les données ; aucune modification n’a été envoyée.');
