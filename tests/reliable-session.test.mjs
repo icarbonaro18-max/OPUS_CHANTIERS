@@ -11,7 +11,7 @@ test('draft recovery separates accounts and preserves latest schedule/status',as
 test('input persists text immediately; full draft survives failure; confirmed save clears queued copies',async()=>{
  const dom=new JSDOM('<form id="finishVisit"><textarea id="vSummary"></textarea></form>',{url:'https://opus.example'});global.document=dom.window.document;global.window=dom.window;
  const recovery=new ReportRecovery(memory(),dom.window.localStorage,'a'),record={id:'r',photos:[]};let release;const photos=new Promise(r=>release=r);const ui={c:{reportRecovery:recovery},pendingPhotos:photos,captureReportDraft(x){x.summary=document.getElementById('vSummary').value;}};
- bindReportRecovery(ui,record,true);const input=document.getElementById('vSummary');input.value='Compte rendu tablette';input.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(recovery.text('r').values[0].value,'Compte rendu tablette');
+ bindReportRecovery(ui,record,true);assert.deepEqual(ui.activeReportRecovery.target,{id:'r',kind:'visits'});const input=document.getElementById('vSummary');input.value='Compte rendu tablette';input.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(recovery.text('r').values[0].value,'Compte rendu tablette');
  const saving=ui.activeReportRecovery.flush(),clearing=ui.activeReportRecovery.saved();release();await saving;await clearing;assert.equal(await recovery.load('r'),undefined);assert.equal(recovery.last(),null);
  ui.activeReportRecovery.stop();dom.window.close();delete global.document;delete global.window;
 });
@@ -20,6 +20,17 @@ test('wake triggers refresh once, preserves form and marks stale even offline',a
  Object.defineProperty(dom.window.document,'hidden',{get:()=>hidden});const done=new Promise(r=>release=r);
  const stop=installResumeSync({window:dom.window,document:dom.window.document,markStale:()=>stale++,checkpoint:()=>checkpoints++,refresh:async()=>{refresh++;await done;},now:()=>time});
  hidden=true;dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'));assert.equal(checkpoints,1);hidden=false;dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'));dom.window.dispatchEvent(new dom.window.Event('focus'));await Promise.resolve();assert.equal(refresh,1);assert.equal(stale,2);assert.equal(dom.window.document.querySelector('textarea').value,'unsaved');release();stop();dom.window.close();
+});
+test('focus does not mark a working form stale; online retries after an in-flight failure',async()=>{
+ const dom=new JSDOM('<textarea>rapport en cours</textarea>');let stale=0,refresh=0,time=0,release;
+ Object.defineProperty(dom.window.document,'hidden',{get:()=>false});const first=new Promise(r=>release=r);
+ const stop=installResumeSync({window:dom.window,document:dom.window.document,markStale:()=>stale++,checkpoint:()=>{},refresh:async()=>{refresh++;if(refresh===1)await first;},now:()=>time});
+ dom.window.dispatchEvent(new dom.window.Event('focus'));await Promise.resolve();assert.equal(refresh,1);assert.equal(stale,0);
+ dom.window.dispatchEvent(new dom.window.Event('online'));dom.window.dispatchEvent(new dom.window.Event('online'));assert.equal(refresh,1);
+ release();await new Promise(r=>setImmediate(r));assert.equal(refresh,2);assert.equal(dom.window.document.querySelector('textarea').value,'rapport en cours');
+ // Recovery must not be suppressed by the ordinary focus debounce interval.
+ dom.window.dispatchEvent(new dom.window.Event('online'));await new Promise(r=>setImmediate(r));assert.equal(refresh,3);assert.equal(stale,1);
+ stop();time=5000;dom.window.dispatchEvent(new dom.window.Event('online'));dom.window.dispatchEvent(new dom.window.Event('focus'));await Promise.resolve();assert.equal(refresh,3);dom.window.close();
 });
 test('preview addresses use actual site, never billing, and escape text in map links',async()=>{
  const ui={data:{clients:[{id:'c',billingAddress:'Billing',sites:[{id:'s',address:'12 rue du Site'}]}]}};assert.equal(appointmentAddress(ui,{}, {clientId:'c',siteId:'s'}),'12 rue du Site');assert.equal(appointmentAddress(ui,{}, {clientId:'c'}),'');

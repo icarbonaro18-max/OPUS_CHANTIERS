@@ -78,3 +78,40 @@ test('a timed out Graph request does not start two more long retries',async()=>{
  let calls=0;const graph=new Graph(async()=>'test-token',async()=>{calls++;throw Object.assign(Error('timeout'),{name:'TimeoutError'});});
  await assert.rejects(graph.request('/me'),/timeout/);assert.equal(calls,1);
 });
+
+test('a hung token acquisition times out and a later request can renew',async()=>{
+ let calls=0;const graph=new Graph(async()=>{calls++;return calls===1?new Promise(()=>{}):'new-token';},async()=>new Response('{}'));
+ graph.tokenTimeoutMs=10;
+ await assert.rejects(graph.request('/me'),e=>e.code==='token_timeout');
+ await graph.request('/me');assert.equal(calls,2);
+});
+test('a late timed-out token cannot clear a newer pending acquisition',async()=>{
+ let calls=0,finishOld,finishNew;
+ const graph=new Graph(()=>{calls++;return new Promise(resolve=>{if(calls===1)finishOld=resolve;else finishNew=resolve;});});graph.tokenTimeoutMs=10;
+ await assert.rejects(graph.accessToken(),e=>e.code==='token_timeout');graph.tokenTimeoutMs=1000;
+ const newer=graph.accessToken();await Promise.resolve();finishOld('old');await Promise.resolve();await Promise.resolve();
+ const shared=graph.accessToken();finishNew('new');assert.equal(await newer,'new');assert.equal(await shared,'new');assert.equal(calls,2);
+});
+test('an explicit Graph 401 silently renews once and replays rejected write with same ETag',async()=>{
+ const tokens=[],sent=[];const graph=new Graph(async options=>{tokens.push(options);return options.forceRefresh?'fresh':'expired';},async(url,options)=>{
+  sent.push(options);return options.headers.Authorization==='Bearer expired'?new Response('{"error":{"code":"InvalidAuthenticationToken"}}',{status:401}):new Response('{"id":"saved"}');
+ });
+ const r=await graph.request('/record',{method:'PUT',headers:{'If-Match':'v1'},body:{note:'keep'}});
+ assert.equal(r.id,'saved');assert.deepEqual(tokens,[{forceRefresh:false},{forceRefresh:true}]);assert.equal(sent.length,2);assert.equal(sent[1].headers['If-Match'],'v1');assert.equal(sent[1].body,sent[0].body);
+});
+test('repeated 401 stops after one renewal; a forbidden operation does not renew',async()=>{
+ let requests=0,tokens=0;const graph=new Graph(async()=>{tokens++;return 't';},async()=>{requests++;return new Response('{}',{status:401});});
+ await assert.rejects(graph.request('/me'),e=>e.code==='auth_required');assert.equal(requests,2);assert.equal(tokens,2);
+ requests=0;tokens=0;graph.fetcher=async()=>{requests++;return new Response('{}',{status:403});};
+ await assert.rejects(graph.request('/me'),e=>e.status===403&&e.code!=='auth_required');assert.equal(requests,1);assert.equal(tokens,1);
+});
+test('uncertain write failure is not replayed after network drop or server error',async()=>{
+ for(const failure of [()=>{throw new TypeError('lost response');},()=>new Response('{}',{status:503})]){
+  let calls=0;const graph=new Graph(async()=>'t',async()=>{calls++;return failure();});
+  await assert.rejects(graph.request('/children',{method:'POST',body:{name:'one folder'}}));assert.equal(calls,1);
+ }
+});
+test('token failures are not treated as retryable HTTP transport failures',async()=>{
+ let calls=0,fetches=0;const graph=new Graph(async()=>{calls++;throw Object.assign(Error('temporarily unavailable'),{code:'token_unavailable',status:0});},async()=>{fetches++;return new Response('{}');});
+ await assert.rejects(graph.request('/me'),e=>e.code==='token_unavailable');assert.equal(calls,1);assert.equal(fetches,0);
+});
