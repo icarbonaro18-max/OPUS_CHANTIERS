@@ -18,7 +18,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.91-rdv-equipe';
+const APP_VERSION='3.4.92-brahim';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
@@ -125,7 +125,7 @@ async function resumeCloud(){
    return;
   }
   await refresh();
-  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){await opsUI.syncPersonnel();personnelSynced=true;}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
+  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){personnelSynced=await opsUI.syncPersonnel();}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
  }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
  }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
@@ -216,7 +216,7 @@ async function activate({cached=null}={}){
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
   opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,prepareAppointmentWrite,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
-  await opsUI.init({cached:cached?.operations});personnelSynced=!cached;
+  await opsUI.init({cached:cached?.operations});personnelSynced=opsUI.personnelSyncComplete===true;
  }catch(e){
   console.error('Module planning/interventions indisponible',e);
   if(opsUI)opsUI.dataLoadError=e;
