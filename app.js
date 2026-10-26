@@ -1,3 +1,4 @@
+import {loadAppConfig,deviceConfigOverrides} from './lib/app-config.js';
 import {acquireSessionToken,requiresInteractiveAuth} from './lib/auth-session.js';
 import {syncPrivateNotifications} from './lib/notifications-ui.js';
 import {ReportRecovery} from './lib/report-recovery.js';
@@ -18,7 +19,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.92-brahim';
+const APP_VERSION='3.4.93-personnel';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
@@ -125,7 +126,7 @@ async function resumeCloud(){
    return;
   }
   await refresh();
-  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){if(!personnelSynced&&!$('modal').open){personnelSynced=await opsUI.syncPersonnel();}await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
+  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
  }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
  }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
@@ -254,6 +255,8 @@ async function refreshNow({skipOps=false}={}){
   lastSyncAt=Date.now();if(opsUI){opsUI.needsRefresh=false;opsUI.refreshPending=false;}status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
   $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
   if(catalogResult.error)syncNotice('Planning actualisé · Liste des chantiers à réessayer.');
+  // Apply personnel updates before caching and drawing the refreshed calendar.
+  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError&&!personnelSynced&&!$('modal').open)personnelSynced=await opsUI.syncPersonnel();
   await rememberWarm();renderProjects();
   if(opsUI&&!$('modal').open){if(opsUI.section==='calendar')await opsUI.renderCalendar();else if(opsUI.section==='interventions')await opsUI.renderInterventions();else if(opsUI.section==='visits')await opsUI.renderVisits();}
   if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
@@ -480,14 +483,15 @@ $('closeViewer').onclick=()=>{$('viewer').hidden=true;if(viewerBlob?.url)URL.rev
 function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000);}
 function setup(){modal('Connexion Microsoft 365 · configuration unique',`<div class="hint">Ne changez ni les comptes utilisateurs ni les réglages OneDrive. Cette page configure seulement l’application OPUS CHANTIERS.</div><form id="configForm"><div class="formGrid"><div class="wide"><label>ID d’application (client) Microsoft Entra</label><input id="clientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${esc(config.clientId)}" required></div><div class="wide"><label>Annuaire (tenant ID ou domaine initial)</label><input id="tenant" value="${esc(config.tenant)}" required></div><div class="wide"><label>Site partagé existant</label><input value="https://${esc(config.siteHost)}${esc(config.sitePath)}" readonly></div><div class="wide"><label>Service IA sécurisé (facultatif)</label><input id="aiEndpoint" value="${esc(config.aiEndpoint||'')}" placeholder="https://…/api/opus-ai"><p class="muted">Ne mettez jamais de clé API ici. Seulement l’adresse du service sécurisé OPUS.</p></div></div><p class="muted">Autorisation : <strong>Sites.Selected</strong> déléguée + accès « write » au seul site OPUS CHANTIERS. Aucune clé secrète, aucun mot de passe à saisir ici.</p><div class="actionRow"><button type="submit">Enregistrer sur cet appareil</button><button type="button" id="exportConfig" class="secondary">Exporter config.json</button></div><p class="muted">Pour tous les appareils, le bureau publiera ce fichier de configuration avec l’application. Les deux identifiants ne sont pas des mots de passe.</p></form><details><summary>Adresse de redirection à déclarer dans Entra</summary><pre class="codebox">${esc(new URL('./auth.html',location.href).href)}</pre><p>Type : application monopage (SPA). Le guide de déploiement et d’autorisation du site se trouve dans le ZIP.</p></details>`);
  const read=()=>{const id=$('clientId').value.trim(),tenant=$('tenant').value.trim();if(!/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id))throw Error('Saisissez l’ID client fourni par Microsoft Entra.');if(!/^[a-z0-9.-]+$/i.test(tenant)||tenant==='common'||tenant==='consumers')throw Error('Indiquez l’annuaire professionnel OPUS ELEC.');return {...config,clientId:id,tenant,aiEndpoint:$('aiEndpoint')?.value.trim()||''};};
- $('configForm').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('opus-cloud-config-v3',JSON.stringify(read()));location.href=new URL('./',location.href).href;}catch(e){err(e);}};bind('exportConfig',()=>download(new Blob([JSON.stringify(read(),null,2)],{type:'application/json'}),'config.json'));
+ $('configForm').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('opus-cloud-config-v3',JSON.stringify(deviceConfigOverrides(read())));location.href=new URL('./',location.href).href;}catch(e){err(e);}};bind('exportConfig',()=>download(new Blob([JSON.stringify(read(),null,2)],{type:'application/json'}),'config.json'));
 }
 bind('settings',setup);bind('login',login);
 async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
 bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
- config=await(await fetch('./config.json',{cache:'no-store'})).json();try{const local=JSON.parse(localStorage.getItem('opus-cloud-config-v3')||'null');if(local?.clientId)config={...config,...local};}catch{}
+ let settingsStorage;try{settingsStorage=localStorage;}catch{}
+ config=loadAppConfig(await(await fetch('./config.json',{cache:'no-store'})).json(),settingsStorage);
  modules=await(await fetch('./lib/modules.json')).json();
  if(DEMO){$('demoBar').hidden=false;const {DemoGraph}=await import('./lib/demo.js');user={id:'demo',displayName:'Technicien · démonstration',mail:'compte de démonstration'};appAccount='demo';store=new LocalStore('demo-ui');reportRecovery=new ReportRecovery(store,localStorage,'demo-ui');g=await new DemoGraph().init();journal=new Journal(g);await activate();return;}
  if(!config.clientId){$('setupHint').textContent='La connexion à Microsoft 365 doit encore être autorisée une fois par le bureau. Le compte Roberto et la bibliothèque existants restent inchangés.';}
