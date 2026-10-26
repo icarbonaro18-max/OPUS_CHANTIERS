@@ -14,9 +14,10 @@ function ui(role='admin',selected=''){
 }
 const dom=html=>JSDOM.fragment(html);
 const statuses=(u,date)=>[...dom(schoolCalendarBadges(u,date)).querySelectorAll('[data-school-status]')].map(el=>[el.dataset.schoolPerson,el.dataset.schoolStatus,el.textContent]);
-test('company label respects recorded leave, inactive staff and company closure',()=>{
+test('company days remain unlabelled for all apprentices, including leave and closures',()=>{
  const u=ui('admin','brahim'),p=u.data.people[0];
- assert.equal(statuses(u,'2026-10-29')[0][1],'company');
+ for(const selected of ['', 'brahim', 'alban']){u.calendarPersonId=selected;assert.equal(schoolCalendarBadges(u,'2026-10-29'),'');}
+ u.calendarPersonId='brahim';
  p.absences=[{start:'2026-10-29',end:'2026-10-30'}];assert.equal(schoolCalendarBadges(u,'2026-10-29'),'');
  p.absences=[];u.data.closures=[{start:'2026-10-29',end:'2026-10-30'}];assert.equal(schoolCalendarBadges(u,'2026-10-29'),'');
  u.data.closures=[];p.active=false;assert.equal(schoolCalendarBadges(u,'2026-10-29'),'');
@@ -27,19 +28,17 @@ test('admin and manager see school badges; technicians and private agenda never 
  assert.equal(schoolCalendarBadges(ui('admin','__private__'),'2026-10-26'),'');
  assert.equal(schoolCalendarBadges({data:{people:[brahim]}},'2026-10-26'),'');
 });
-test('general planning shows names with exact school/mobility labels, never company days',()=>{
- assert.deepEqual(statuses(ui(),'2026-10-26'),[['brahim','school','CHATTI Brahim · École · BUT GEII'],['alban','school','PICARD Alban · École']]);
- assert.deepEqual(statuses(ui(),'2026-10-28'),[['brahim','mobility','CHATTI Brahim · Mobilité · BUT GEII']]);
+test('general planning uses the same school label and status for every apprentice',()=>{
+ assert.deepEqual(statuses(ui(),'2026-10-26'),[['brahim','school','CHATTI Brahim · École'],['alban','school','PICARD Alban · École']]);
+ assert.deepEqual(statuses(ui(),'2026-10-28'),[['brahim','school','CHATTI Brahim · École']]);
  assert.equal(schoolCalendarBadges(ui(),'2026-10-29'),'');
  assert.equal(schoolCalendarBadges(ui(),'2026-11-09'),'');
  const u=ui();u.data.people[0].active=false;assert.deepEqual(statuses(u,'2026-10-26'),[['alban','school','PICARD Alban · École']]);
 });
-test('individual planning shows only the selected person and explicit dates, without inferring company gaps',()=>{
+test('individual planning shows only school days with the same label, never company days',()=>{
  const u=ui('manager','brahim');
- assert.deepEqual(statuses(u,'2026-10-26'),[['brahim','school','École · BUT GEII']]);
- assert.deepEqual(statuses(u,'2026-10-27'),[['brahim','school','École · BUT GEII']]);
- assert.deepEqual(statuses(u,'2026-10-28'),[['brahim','mobility','Mobilité · BUT GEII']]);
- for(const date of ['2026-10-29','2026-10-30'])assert.deepEqual(statuses(u,date),[['brahim','company','Entreprise']]);
+ for(const date of ['2026-10-26','2026-10-27','2026-10-28'])assert.deepEqual(statuses(u,date),[['brahim','school','École']]);
+ for(const date of ['2026-10-29','2026-10-30'])assert.equal(schoolCalendarBadges(u,date),'');
  for(const date of ['2026-10-23','2026-10-31','2026-11-02','2026-11-06'])assert.equal(schoolCalendarBadges(u,date),'');
  u.calendarPersonId='alban';assert.deepEqual(statuses(u,'2026-10-26'),[['alban','school','École']]);
  u.calendarPersonId='unknown';assert.equal(schoolCalendarBadges(u,'2026-10-26'),'');
@@ -65,14 +64,15 @@ test('school badge content and attributes are escaped',()=>{
  const u=ui();u.data.people=[{...brahim,id:'a" onclick="bad',name:'<img src=x>',schoolPeriods:[{start:'2026-10-26',end:'2026-10-26',label:'École <script>bad</script>'}]}];
  const fragment=dom(schoolCalendarBadges(u,'2026-10-26'));
  assert.equal(fragment.querySelectorAll('img,script,[onclick]').length,0);
- assert.match(fragment.textContent,/<img src=x> · École <script>bad<\/script>/);
+ assert.equal(fragment.textContent,'<img src=x> · École');
+ assert.equal(fragment.querySelector('[data-school-person]').dataset.schoolPerson,'a" onclick="bad');
 });
 test('month grid and selected-day details share the same school status and access rules',()=>{
  for(const role of ['admin','manager','technician']){
   const u=ui(role,'brahim');u.monthCursor=new Date('2026-10-01T12:00:00');u.data.closures=[];
   const month=dom(OpsUI.prototype.monthGrid.call(u)),details=dom(OpsUI.prototype.hourNotice.call(u,'2026-10-28'));
   if(role==='technician'){assert.equal(month.querySelectorAll('.schoolCalendarBadge').length,0);assert.equal(details.querySelectorAll('.schoolCalendarBadge').length,0);}
-  else{assert.equal(month.querySelectorAll('[data-school-status="school"]').length,2);assert.equal(month.querySelectorAll('[data-school-status="company"]').length,2);assert.equal(details.querySelector('[data-school-status="mobility"]').textContent,'Mobilité · BUT GEII');}
+  else{assert.equal(month.querySelectorAll('[data-school-status="school"]').length,3);assert.equal(month.querySelectorAll('[data-school-status="company"], [data-school-status="mobility"]').length,0);assert.equal(details.querySelector('[data-school-status="school"]').textContent,'École');}
   u.calendarPersonId='__private__';assert.equal(dom(OpsUI.prototype.monthGrid.call(u)).querySelectorAll('.schoolCalendarBadge').length,0);
  }
 });

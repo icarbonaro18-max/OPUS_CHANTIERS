@@ -19,13 +19,15 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.94-personnel';
+const APP_VERSION='3.4.96-baes';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
 let reportRecovery=null,lastSyncAt=0;
-let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false;
+let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false,pendingInitialRoute='';
 const pendingReplies=new Map();let modalCleanup=null;
+const ATTESTATION_SYNC_MS=15*60*1000;
+let flushTask=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
@@ -41,9 +43,9 @@ function status(text,good=false){$('connection').textContent=text;$('connection'
 function bind(id,fn){const e=$(id);if(e)e.onclick=()=>Promise.resolve().then(fn).catch(err);}
 const dateTime=s=>s?new Date(s).toLocaleString('fr-FR'):'—';
 function isAdmin(){const ids=[user?.mail,user?.userPrincipalName].filter(Boolean).map(x=>String(x).toLowerCase());const admins=(config?.adminUsers||[]).map(x=>String(x).toLowerCase());return ids.some(x=>admins.includes(x)||x.startsWith('ignaziocarbonaro@'));}
-function routeState(){const raw=location.hash.replace(/^#/,'');const q=new URLSearchParams(raw);return {projectId:q.get('chantier')||'',tab:q.get('tab')||'overview'};}
-function setRoute(projectId='',tabName='overview'){const u=new URL(location.href);u.search='';u.hash=projectId?`chantier=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(tabName||'overview')}`:'';history.replaceState(null,'',u.pathname+u.hash);}
-async function restoreRoute(){const r=routeState();if(!r.projectId)return;const p=catalog.projects.find(x=>x.id===r.projectId);if(!p){setRoute();return;}await openProject(r.projectId);if(['overview','documents','orders','attestations','tasks'].includes(r.tab)&&r.tab!=='overview')await setTab(r.tab);}
+function routeState(){const raw=location.hash.replace(/^#/,'');const q=new URLSearchParams(raw);return {projectId:q.get('chantier')||'',tab:q.get('tab')||'overview',attestationId:q.get('attestation')||''};}
+function setRoute(projectId='',tabName='overview',attestationId=''){const u=new URL(location.href);u.search='';u.hash=projectId?`chantier=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(tabName||'overview')}${attestationId?'&attestation='+encodeURIComponent(attestationId):''}`:'';history.replaceState(null,'',u.pathname+u.hash);}
+async function restoreRoute(){const r=routeState();if(!r.projectId)return;const p=catalog.projects.find(x=>x.id===r.projectId);if(!p){setRoute();return;}await openProject(r.projectId);if(['overview','documents','orders','attestations','tasks'].includes(r.tab)&&r.tab!=='overview')await setTab(r.tab);if(r.attestationId&&r.tab==='attestations'&&attRecords.some(a=>a.id===r.attestationId))await openAttestation(r.attestationId);}
 const catLabel=c=>CATEGORIES.find(([n])=>n===c)?.[1]||'À classer';
 const metaDefaults=project=>({name:project.name,client:'',adresse:'',devis:(project.name.match(/(?:^|\D)(\d{6})(?!\d)/)||[])[1]||'',chantier:'',contact:'',telephone:'',email:'',responsable:'',notes:'',tasks:[],observations:[],contactVerified:false});
 const fields=[['name','Nom du chantier'],['client','Client / raison sociale'],['devis','Numéro du devis'],['adresse','Adresse du chantier'],['chantier','Nature des travaux'],['contact','Contact sur place'],['telephone','Téléphone'],['email','Adresse e-mail'],['responsable','Responsable OPUS'],['controleur','Organisme de contrôle'],['rapportRef','Référence du rapport'],['notes','Consignes générales']];
@@ -228,11 +230,12 @@ async function activate({cached=null}={}){
  }
  await updatePending();
  if(cached){
+  pendingInitialRoute=routeState().projectId?location.hash:'';
   cachedNotice();
   const personal=isAdmin()?await warmCache.privateRead(user.id):null;
   if(personal){opsUI.privateCalendar=cachedPrivateCalendar(personal);}
-  renderProjects();if(opsUI)await opsUI.restoreSection();
- }else{await refresh({skipOps:true});await restoreRoute();if(opsUI)await opsUI.restoreSection();}
+  renderProjects();if(opsUI&&!pendingInitialRoute)await opsUI.restoreSection();
+ }else{await refresh({skipOps:true});await restoreRoute();if(opsUI&&!routeState().projectId)await opsUI.restoreSection();}
  clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden)return;
   try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
@@ -260,6 +263,12 @@ async function refreshNow({skipOps=false}={}){
   await rememberWarm();renderProjects();
   if(opsUI&&!$('modal').open){if(opsUI.section==='calendar')await opsUI.renderCalendar();else if(opsUI.section==='interventions')await opsUI.renderInterventions();else if(opsUI.section==='visits')await opsUI.renderVisits();}
   if(selected){const p=catalog.projects.find(p=>p.id===selected.id);if(p)selected=p;}
+  // A direct report link must also open after the fast cached start, once the
+  // account and catalogue have been checked. Never replace an open form.
+  if(pendingInitialRoute&&!catalogResult.error){
+   if(location.hash===pendingInitialRoute&&!$('modal').open&&!live)await restoreRoute();
+   pendingInitialRoute='';
+  }
   if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages().catch(e=>console.warn('Classement différé',e.message));
  }catch(e){
   if(opsUI?.hasLoadedRemote){status('Actualisation différée');syncNotice('Dernières données conservées · Actualisation à réessayer : '+e.message);}
@@ -329,34 +338,59 @@ async function createProjectFromVisit(v){
 }
 // Immutable revision outbox: local acknowledgements are explicit; remote acknowledgement only after Graph success.
 function draftKey(p,k,r){return `draft:${p}:${k}:${r||'fiche'}`;}
-async function queueSave(projectId,kind,recordId,payload,parents){
+function serializeLocal(write){return queueChain=queueChain.catch(()=>{}).then(write);}
+async function queueSave(projectId,kind,recordId,payload,parents,{deferRemote=false}={}){
  if(kind==='fiche'&&metaConflict&&selected?.id===projectId)throw Error('Vérifiez les versions concurrentes de la fiche avant de la modifier.');const key=draftKey(projectId,kind,recordId);const snapshot=clone(payload);
- await (queueChain=queueChain.catch(()=>{}).then(async()=>{
-  const old=await store.get(key);const d={projectId,kind,recordId,payload:snapshot,parents:old?.parents||parents||[],revision:uid(),createdAt:new Date().toISOString()};
-  await store.set(key,d);
- }));
- await updatePending();if(live && kind==='attestations')$('saveStatus').textContent='Sauvegardé sur la tablette · envoi en attente';flush().catch(err);
+ const targetStore=store,session=kind==='attestations'&&live?.projectId===projectId&&live.recordId===recordId?live:null;
+ await serializeLocal(async()=>{
+  const old=await targetStore.get(key),base=old?.parents||session?.parents||parents||[];
+  const d={projectId,kind,recordId,payload:snapshot,parents:clone(base),revision:uid(),createdAt:new Date().toISOString(),nextRemoteAt:deferRemote?(old?.nextRemoteAt??Date.now()+ATTESTATION_SYNC_MS):0};
+  await targetStore.set(key,d);
+ });
+ await updatePending();if(live===session&&session)$('saveStatus').textContent=deferRemote?'Sauvegardé sur cet appareil · envoi automatique toutes les 15 min':'Sauvegardé sur cet appareil · envoi en attente';void flush().catch(err);
 }
 async function updatePending(){if(!store)return;const all=await store.all('draft:');$('pendingCount').textContent=all.length;}
-async function flush(){if(flushBusy||!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;flushBusy=true;let failed=false;clearTimeout(flushRetry);
- try{
-  for(const entry of await store.all('draft:')){
-   const d=entry.value;inflight=d;
-   if(live?.recordId===d.recordId)$('saveStatus').textContent='Envoi vers Microsoft 365…';
-   try{
-    const r=await journal.save(d,user);const fresh=await store.get(entry.key);
-    if(fresh?.revision===d.revision)await store.remove(entry.key);
-    else if(fresh){fresh.parents=[d.revision];await store.set(entry.key,fresh);}
-    if(d.kind==='fiche'&&selected?.id===d.projectId)metaParents=[d.revision];
-    if(live?.recordId===d.recordId){live.parents=[d.revision];$('saveStatus').textContent=r.heads.length>1?'Plusieurs versions — contrôle nécessaire':(fresh?.revision!==d.revision?'Nouvelle saisie en attente':`Enregistré ${DEMO?'en démo':'sur Microsoft 365'} à ${new Date().toLocaleTimeString('fr-FR')}`);}
-    if(r.heads.length>1)toast('Deux personnes ont modifié le même document. Les deux versions sont conservées : utilisez « Versions » pour les comparer.');
-   }catch(e){if(live?.recordId===d.recordId)$('saveStatus').textContent='Conservé sur tablette — envoi non confirmé';status('Envois en attente');console.warn('Envoi non confirmé',e.message);failed=true;break;}
+async function flush({force=false}={}){
+ if(flushTask){await flushTask;if(force)return flush({force:true});return;}
+ if(!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;
+ const targetStore=store,targetJournal=journal,targetUser=user;
+ flushBusy=true;clearTimeout(flushRetry);
+ flushTask=(async()=>{let failed=false;
+  try{
+   for(const entry of await targetStore.all('draft:')){
+    const d=await serializeLocal(()=>targetStore.get(entry.key));
+    if(!d||(!force&&Number(d.nextRemoteAt||0)>Date.now()))continue;
+    inflight=d;
+    const sameLive=()=>store===targetStore&&live?.projectId===d.projectId&&live.recordId===d.recordId;
+    if(sameLive())$('saveStatus').textContent='Sauvegarde au bureau en cours · vous pouvez continuer';
+    try{
+     const r=await targetJournal.save(d,targetUser);
+     // Graph runs outside the local queue. Its acknowledgement and a new edit
+     // must share that queue so an older upload never removes newer work.
+     const fresh=await serializeLocal(async()=>{
+      const latest=await targetStore.get(entry.key);
+      if(latest?.revision===d.revision)await targetStore.remove(entry.key);
+      else if(latest){latest.parents=[d.revision];if(latest.nextRemoteAt)latest.nextRemoteAt=Date.now()+ATTESTATION_SYNC_MS;await targetStore.set(entry.key,latest);}
+      if(store===targetStore&&d.kind==='fiche'&&selected?.id===d.projectId)metaParents=[d.revision];
+      if(sameLive())live.parents=[d.revision];
+      return latest;
+     });
+     if(sameLive())$('saveStatus').textContent=r.heads.length>1?'Plusieurs versions — contrôle nécessaire':(fresh?.revision!==d.revision?'Nouvelle saisie sauvegardée sur cet appareil':`Enregistré ${DEMO?'en démo':'sur Microsoft 365'} à ${new Date().toLocaleTimeString('fr-FR')}`);
+     if(r.heads.length>1&&store===targetStore)toast('Deux personnes ont modifié le même document. Les deux versions sont conservées : utilisez « Versions » pour les comparer.');
+    }catch(e){if(sameLive())$('saveStatus').textContent='Conservé sur cet appareil · envoi à réessayer';if(store===targetStore)status('Envois en attente');console.warn('Envoi non confirmé',e.message);failed=true;break;}
+   }
+  }finally{
+   inflight=null;
+   if(store===targetStore){await updatePending();const pending=await targetStore.all('draft:');
+    if(pending.length){const next=Math.min(...pending.map(({value:d})=>Number(d.nextRemoteAt||0)));flushRetry=setTimeout(()=>flush({force:failed&&force}).catch(err),failed?30000:Math.max(1000,next-Date.now()));}
+   }
   }
- }finally{inflight=null;flushBusy=false;await updatePending();if((await store.all('draft:')).length)flushRetry=setTimeout(()=>flush().catch(err),failed?30000:1200);}
+ })();
+ try{await flushTask;}finally{flushTask=null;flushBusy=false;}
 }
 window.addEventListener('online',()=>{if(user&&DEMO)void flush().catch(err);});
 $('modal').addEventListener('close',()=>{const active=opsUI?.activeReportRecovery;if(active?.form?.isConnected)void active.flush().then(offerRecoveredReport).catch(err);else offerRecoveredReport();if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
-bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush();$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
+bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush({force:true});$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
 async function chooseRevision(p,kind,id,loaded,onChoose,history=false){
  const list=history?loaded.files.map(parseRevision).filter(Boolean).sort((a,b)=>(b.createdDateTime||'').localeCompare(a.createdDateTime||'')):loaded.heads;
  modal(history?'Historique des enregistrements':'Versions concurrentes à vérifier',`<p>Les anciennes versions sont conservées. Ouvrez une version pour la contrôler. ${history?'':'Aucun travail n’a été écrasé.'}</p><div id="revisionList">${list.map(r=>`<div class="row"><div><h3>${dateTime(r.createdDateTime)}</h3><p>${esc(r.createdBy?.user?.displayName||'Membre de l’équipe')} · ${r.revision.slice(0,8)}</p></div><button data-revision="${r.revision}" class="secondary">Examiner</button></div>`).join('')||'<p>Aucune version enregistrée.</p>'}</div><div id="revisionDetail"></div>`);
@@ -391,7 +425,7 @@ async function attestations(){
  await store.set('attdirs:'+selected.id,dirs);attRecords=[];
  for(const d of dirs){try{const r=await journal.load(selected.id,'attestations',d.name);if(r.data)attRecords.push({id:d.name,...r.data,heads:r.heads,loaded:r,remote:true});await store.set('att:'+selected.id+':'+d.name,r);}catch(e){const r=await store.get('att:'+selected.id+':'+d.name);if(r?.data)attRecords.push({id:d.name,...r.data,heads:r.heads,loaded:r,remote:true});}}
  for(const{value:d}of await store.all(`draft:${selected.id}:attestations:`)){const idx=attRecords.findIndex(a=>a.id===d.recordId);const v={id:d.recordId,...d.payload,heads:d.parents.map(revision=>({revision})),pending:true,remote:idx>=0};if(idx>=0)attRecords[idx]={...attRecords[idx],...v};else attRecords.push(v);}
- $('tabContent').innerHTML=`<section class="panel"><h2>Attestations de ce chantier</h2><p class="muted">Chaque dossier conserve ses propres formulaires, photos et signatures.</p>${attRecords.map(a=>`<div class="row"><div><h3>${esc(a.ref||a.id)} · ${esc(modules[a.moduleKey]?.title||a.moduleKey)}</h3><p>${esc(a.authorName||'')} · ${dateTime(a.updatedAt)}</p><span class="chip ${a.pending||a.heads.length>1?'warn':''}">${a.heads.length>1?'Versions à vérifier':a.pending?'Envoi en attente':'Enregistrée au chantier'}</span></div><div class="actionRow"><button data-att="${esc(a.id)}">Ouvrir</button>${a.remote?`<button data-history="${esc(a.id)}" class="secondary">Versions</button>`:''}<button data-delete-att="${esc(a.id)}" class="danger">Supprimer</button></div></div>`).join('')||'<p class="muted">Aucune attestation créée pour le moment.</p>'}</section><section class="panel"><h2>Créer une attestation</h2><p class="muted">Tous les formulaires sont disponibles. Ne remplissez que ceux utiles à ce chantier.</p><div class="moduleGrid">${Object.entries(modules).map(([key,m])=>`<article class="moduleCard"><div class="moduleMark" style="background:${m.color}">${esc(m.badge)}</div><h3>${esc(m.title)}</h3><p>${esc(m.subtitle)}</p><button data-new-att="${key}" class="secondary">+ Créer</button></article>`).join('')}</div></section>`;
+ $('tabContent').innerHTML=`<section class="panel"><h2>Attestations de ce chantier</h2><p class="muted">Chaque dossier conserve ses propres formulaires, photos et signatures.</p>${attRecords.map(a=>`<div class="row"><div><h3>${esc(a.ref||a.id)} · ${esc(modules[a.moduleKey]?.title||a.moduleKey)}</h3>${a.context?.siteName?`<p><strong>${esc(a.context.siteName)}</strong><br>${esc(a.state?.adresse||a.context?.adresse||'')}<br>Technicien : ${esc(a.state?.technicien||a.context?.technician||'À renseigner')}</p>`:''}<p>${esc(a.authorName||'')} · ${dateTime(a.updatedAt)}</p><span class="chip ${a.pending||a.heads.length>1?'warn':''}">${a.heads.length>1?'Versions à vérifier':a.pending?'Envoi en attente':'Enregistrée au chantier'}</span></div><div class="actionRow"><button data-att="${esc(a.id)}">Ouvrir</button>${a.remote?`<button data-history="${esc(a.id)}" class="secondary">Versions</button>`:''}<button data-delete-att="${esc(a.id)}" class="danger">Supprimer</button></div></div>`).join('')||'<p class="muted">Aucune attestation créée pour le moment.</p>'}</section><section class="panel"><h2>Créer une attestation</h2><p class="muted">Tous les formulaires sont disponibles. Ne remplissez que ceux utiles à ce chantier.</p><div class="moduleGrid">${Object.entries(modules).map(([key,m])=>`<article class="moduleCard"><div class="moduleMark" style="background:${m.color}">${esc(m.badge)}</div><h3>${esc(m.title)}</h3><p>${esc(m.subtitle)}</p><button data-new-att="${key}" class="secondary">+ Créer</button></article>`).join('')}</div></section>`;
  document.querySelectorAll('[data-new-att]').forEach(b=>b.onclick=()=>openAttestation(null,b.dataset.newAtt).catch(err));
  document.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>openAttestation(b.dataset.att).catch(err));
  document.querySelectorAll('[data-history]').forEach(b=>b.onclick=async()=>{try{const r=await journal.load(selected.id,'attestations',b.dataset.history);await chooseRevision(selected.id,'attestations',b.dataset.history,r,async(data,parents)=>openAttestation(b.dataset.history,null,{data,parents}),true);}catch(e){err(e);}});
@@ -417,30 +451,48 @@ async function openAttestation(id,key,override=null){
   data={moduleKey:key,ref,authorName:user.displayName,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),state:null,context:{...clone(meta),technician:user.displayName,headers:blankHeader(mod,ref)}};
  }
  if(!modules[key])throw Error('Ce formulaire n’existe pas dans cette version.');
- const nonce=uid();live={projectId,recordId:id,moduleKey:key,payload:clone(data),parents,nonce,lastHash:data.state?await sha(JSON.stringify(data.state)):'',ready:false,closing:false};
- $('moduleTitle').textContent=modules[key].title+' · '+data.ref;$('moduleSub').textContent=`${data.context?.client||meta.client||meta.name} · ${data.context?.adresse||meta.adresse||''}`;$('saveStatus').textContent='Ouverture du formulaire…';
+ const nonce=uid();live={projectId,recordId:id,moduleKey:key,payload:clone(data),parents,nonce,lastHash:data.state?await sha(JSON.stringify(data.state)):'',lastCaptureId:0,stateChain:Promise.resolve(),ready:false,closing:false};
+ setRoute(projectId,'attestations',id);
+ $('moduleTitle').textContent=(key==='baes'?'Vérification BAES':modules[key].title)+' · '+(data.context?.siteName||data.ref);$('moduleSub').textContent=`${data.state?.client||data.context?.client||meta.client||meta.name} · ${data.state?.adresse||data.context?.adresse||meta.adresse||''}`;$('saveStatus').textContent='Ouverture du formulaire…';
  $('modulePanel').hidden=false;document.body.style.overflow='hidden';$('moduleFrame').src=`./modules/${key}/index.html?embed=1&session=${nonce}`;
  $('moduleFrame').onload=()=>sendFrameInit();
 }
 function sendFrameInit(){if(!live||live.ready)return;$('moduleFrame').contentWindow?.postMessage({type:'opus-init',nonce:live.nonce,moduleKey:live.moduleKey,payload:live.payload},location.origin);}
 function requestFrame(type){if(!live?.ready)return Promise.reject(Error('Le formulaire se prépare encore.'));const req=uid();return new Promise((res,rej)=>{const t=setTimeout(()=>{pendingReplies.delete(req);rej(Error('Le formulaire n’a pas répondu. Ne fermez pas la tablette ; réessayez.'));},45000);pendingReplies.set(req,{res,rej,t});$('moduleFrame').contentWindow.postMessage({type,requestId:req,nonce:live.nonce},location.origin);});}
+async function processFrameState(current,msg){
+ if(live!==current)return false;
+ const captureId=Number.isSafeInteger(msg.captureId)&&msg.captureId>0?msg.captureId:null;
+ const ack=ok=>{if(captureId!==null&&live===current)$('moduleFrame').contentWindow?.postMessage({type:'opus-state-ack',nonce:current.nonce,captureId,ok},location.origin);};
+ try{
+  if(captureId===null||captureId>current.lastCaptureId){
+   const h=await sha(JSON.stringify(msg.state));if(live!==current)return false;
+   if(h!==current.lastHash){const payload={...current.payload,state:msg.state,updatedAt:new Date().toISOString()};await queueSave(current.projectId,'attestations',current.recordId,payload,current.parents,{deferRemote:true});current.payload=payload;current.lastHash=h;}
+   if(captureId!==null)current.lastCaptureId=captureId;
+  }
+  ack(true);return true;
+ }catch(e){
+  if(live===current)$('saveStatus').textContent='Échec sauvegarde locale — gardez la fiche ouverte';ack(false);
+  console.warn('Sauvegarde locale non confirmée',e.message);
+  if(msg.requestId&&pendingReplies.has(msg.requestId)){const p=pendingReplies.get(msg.requestId);clearTimeout(p.t);p.rej(e);pendingReplies.delete(msg.requestId);}
+  return false;
+ }
+}
 window.addEventListener('message',async e=>{
  if(!live||e.origin!==location.origin||e.source!==$('moduleFrame').contentWindow||e.data?.nonce!==live.nonce)return;
  const msg=e.data;
  if(msg.type==='opus-ready'){sendFrameInit();return;}
  if(msg.type==='opus-initialized'){live.ready=true;$('saveStatus').textContent=live.payload.state?'Attestation chargée':'Nouveau formulaire · à renseigner';return;}
+ if(msg.type==='opus-autosave-error'){$('saveStatus').textContent=msg.message||'Sauvegarde automatique à réessayer';return;}
  if(msg.type==='opus-error'){err(Error(msg.message||'Erreur du formulaire'));if(msg.requestId){const p=pendingReplies.get(msg.requestId);if(p){clearTimeout(p.t);p.rej(Error(msg.message));pendingReplies.delete(msg.requestId);}}return;}
  if(msg.type==='opus-state'){
   const current=live;
-  try{const h=await sha(JSON.stringify(msg.state));if(live!==current)return;
-   if(h!==current.lastHash){current.payload.state=msg.state;current.payload.updatedAt=new Date().toISOString();await queueSave(current.projectId,'attestations',current.recordId,current.payload,current.parents);current.lastHash=h;}
-  }catch(e){$('saveStatus').textContent='Échec sauvegarde locale — ne fermez pas';err(e);if(msg.requestId&&pendingReplies.has(msg.requestId)){const p=pendingReplies.get(msg.requestId);clearTimeout(p.t);p.rej(e);pendingReplies.delete(msg.requestId);}return;}
+  const saved=await (current.stateChain=(current.stateChain||Promise.resolve()).catch(()=>{}).then(()=>processFrameState(current,msg)));if(!saved)return;
  }
  if(msg.requestId&&pendingReplies.has(msg.requestId)){const p=pendingReplies.get(msg.requestId);clearTimeout(p.t);pendingReplies.delete(msg.requestId);p.res(msg);}
 });
-bind('closeModule',async()=>{if(!live)return;await requestFrame('opus-capture');await queueChain;await flush();const draft=await store.get(draftKey(live.projectId,'attestations',live.recordId));if(draft)toast('Travail conservé sur cette tablette. L’envoi au bureau n’est pas encore confirmé.');$('modulePanel').hidden=true;$('moduleFrame').src='about:blank';live=null;document.body.style.overflow='';await setTab('attestations');});
+bind('closeModule',async()=>{if(!live||live.closing)return;const current=live;current.closing=true;try{await requestFrame('opus-capture');await queueChain;$('modulePanel').hidden=true;$('moduleFrame').src='about:blank';live=null;document.body.style.overflow='';void flush({force:true}).catch(err);await setTab('attestations');}finally{current.closing=false;}});
 bind('previewModule',async()=>{await requestFrame('opus-capture');const response=await requestFrame('opus-pdf');if(!(response.blob instanceof Blob))throw Error('PDF absent.');await showBlob(response.blob,response.fileName||live.payload.ref+'.pdf','application/pdf');});
-bind('saveModulePdf',async()=>{await requestFrame('opus-capture');const response=await requestFrame('opus-pdf');await queueChain;await flush();const folder=await g.folder(live.projectId,'05_PDF_GENERES');const name=safeName((live.payload.ref+'_'+new Date().toISOString().slice(0,19).replaceAll(':','-'))+'.pdf');$('saveStatus').textContent='Envoi du PDF…';try{await g.upload(folder.id,name,response.blob);$('saveStatus').textContent='PDF enregistré au chantier';toast('PDF disponible pour le bureau dans le même chantier.');}catch(e){$('saveStatus').textContent='PDF non envoyé · formulaire conservé';throw e;}});
+bind('saveModulePdf',async()=>{await requestFrame('opus-capture');const response=await requestFrame('opus-pdf');await queueChain;await flush({force:true});const folder=await g.folder(live.projectId,'05_PDF_GENERES');const name=safeName((live.payload.ref+'_'+new Date().toISOString().slice(0,19).replaceAll(':','-'))+'.pdf');$('saveStatus').textContent='Envoi du PDF…';try{await g.upload(folder.id,name,response.blob);$('saveStatus').textContent='PDF enregistré au chantier';toast('PDF disponible pour le bureau dans le même chantier.');}catch(e){$('saveStatus').textContent='PDF non envoyé · formulaire conservé';throw e;}});
 // Project tasks / observations remain simple. No work is declared completed automatically.
 function tasks(){const ts=meta.tasks||[],obs=meta.observations||[];
  $('tabContent').innerHTML=`<section class="panel"><div class="panelHead"><h2>Travaux à réaliser</h2><button id="addTask" class="secondary">+ Travail</button></div>${meta.sheetSummary?'<p style="white-space:pre-wrap">'+esc(meta.sheetSummary)+'</p>':''}${ts.map((t,i)=>`<details class="taskRow"><summary>${esc(t.title||'Travail')}</summary><p>${esc(t.description||t.notes||'')}</p><label>Avancement</label><select data-task-status="${i}">${['À faire','En cours','Terminé','Hors prestation'].map(v=>`<option ${t.status===v?'selected':''}>${v}</option>`).join('')}</select></details>`).join('')||'<p class="muted">La feuille de chantier reste consultable dans Documents. Ajoutez ici les points utiles à l’équipe.</p>'}</section><section class="panel"><div class="panelHead"><h2>Observations et réserves</h2><button id="addObs" class="secondary">+ Observation</button></div><p class="muted">Un ajout de rapport PDF ne crée pas automatiquement une liste d’anomalies. Les relevés validés peuvent être saisis ici, puis documentés avant / après dans le module Réserves.</p>${obs.map((o,i)=>`<details class="taskRow"><summary>N° ${esc(o.n)} · ${esc(o.title||o.location||'Observation')}</summary><p>${esc(o.text||'')}</p><p class="muted">${esc(o.scope||'Périmètre à vérifier')}</p><label>Traitement OPUS</label><select data-obs-status="${i}">${['À traiter','En cours','Traité','Partiellement traité','Hors prestation','À vérifier'].map(v=>`<option ${o.status===v?'selected':''}>${v}</option>`).join('')}</select></details>`).join('')||'<p class="muted">Aucune observation ajoutée.</p>'}<div class="actionRow"><button id="openReserves">Créer un compte rendu de réserves</button><button id="importLegacy" class="secondary">Reprendre un dossier v2</button></div></section>`;
@@ -487,7 +539,7 @@ function setup(){modal('Connexion Microsoft 365 · configuration unique',`<div c
 }
 bind('settings',setup);bind('login',login);
 async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
-bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush();$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
+bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
  let settingsStorage;try{settingsStorage=localStorage;}catch{}

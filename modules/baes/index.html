@@ -815,7 +815,7 @@ function buildExport(){
  const intervention=s.intervention==='Autre'?(s.interventionAutre||'Autre'):s.intervention;
  const summaryRows=s.baes.map((b,i)=>`<tr><td>${i+1}</td><td>${filled(b.repere)}</td><td>${filled(b.emplacement)}</td><td><span class="badge ${markClass(b.resultat)}">${filled(b.resultat)}</span></td><td>${b.photo?'Oui':'Non'}</td></tr>`).join('');
  const testItems=(s.tests.length?s.tests:['Aucun essai général renseigné']).map(t=>`<div class="pdf-check"><span class="pdf-tick">${s.tests.length?'✓':''}</span><span>${esc(t)}</span></div>`).join('');
- let html=`<section class="pdf-page cover-page">${pdfHeader('ATTESTATION DE BON FONCTIONNEMENT DES BAES','Blocs autonomes d’éclairage de sécurité')}
+ let html=`<section class="pdf-page cover-page">${pdfHeader('VÉRIFICATION BAES','Blocs autonomes d’éclairage de sécurité')}
   <div class="pdf-info">${field('Client / exploitant',s.client)}${field('Date du contrôle',s.dateControle)}${field('Référence dossier',s.reference)}${field('Adresse du chantier',s.adresse,true)}${field('Désignation de l’opération',s.operation,true)}${field('Nature de l’intervention',intervention)}${field('Technicien',s.technicien)}${field('Nombre de BAES contrôlés',String(s.baes.length))}</div>
   <div class="pdf-section-title">Vérifications générales déclarées comme réalisées</div><div class="pdf-box"><div class="pdf-check-grid">${testItems}</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:3mm;font-size:8pt"><div><b>Durée d’essai :</b> ${filled(s.dureeEssai)}</div><div><b>Télécommandes contrôlées :</b> ${s.telecommandes.length}</div></div></div>
@@ -1045,7 +1045,7 @@ async function buildAutonomousPdf(state){
   for(const t of (state.telecommandes||[])){remotePhotos.push(t.photo?await pdfPrepareJpeg(t.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
 
   // Page de synthèse
-  let page=new OpusPdfPage(doc);await pdfHeader(page,'ATTESTATION DE BON FONCTIONNEMENT DES BAES','Blocs autonomes d’éclairage de sécurité et télécommandes',logos);
+  let page=new OpusPdfPage(doc);await pdfHeader(page,'VÉRIFICATION BAES','Blocs autonomes d’éclairage de sécurité et télécommandes',logos);
   pdfField(page,'Client / exploitant',state.client,10,29,87,13);
   pdfField(page,'Date du contrôle',state.dateControle,101,29,50,13);
   pdfField(page,'Référence dossier',state.reference,155,29,62,13);
