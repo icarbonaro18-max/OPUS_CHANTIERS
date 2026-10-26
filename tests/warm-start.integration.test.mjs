@@ -7,7 +7,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import vm f
 import {WarmCache,OPS_KEYS} from '../lib/warm-cache.js';import {OpsUI} from '../lib/ops-ui.js';
 const data=()=>Object.fromEntries(OPS_KEYS.map(k=>[k,[]]));
 test('Cached planning opens before Microsoft responds and updates after connection',async t=>{
- const dom=new JSDOM(await readFile(new URL('../index.html',import.meta.url),'utf8'),{url:'https://opus.example'});for(const k of ['window','document','localStorage'])globalThis[k]=dom.window[k];localStorage.setItem('opus-main-section','calendar');t.after(()=>{dom.window.dispatchEvent(new dom.window.Event('pagehide'));dom.window.close();});
+ const dom=new JSDOM(await readFile(new URL('../index.html',import.meta.url),'utf8'),{url:'https://opus.example'});for(const k of ['window','document','localStorage'])globalThis[k]=dom.window[k];localStorage.setItem('opus-main-section','calendar');t.after(()=>{dom.window.dispatchEvent(new dom.window.Event('pagehide'));clearTimeout(dom.window.toastTimer);dom.window.close();});
  const records=new Map();class Store{constructor(namespace){this.namespace=namespace;}async get(k){return structuredClone(records.get(this.namespace+'|'+k));}async set(k,v){records.set(this.namespace+'|'+k,structuredClone(v));}async all(){return [];}}
  const config={clientId:'app',tenant:'tenant',siteHost:'host',sitePath:'/opus'};const cache=new WarmCache(new Store('app:account-a'),'account-a',config);
  await cache.write({user:{id:'worker',displayName:'Worker',mail:'worker'},drive:{id:'drive'},site:{id:'site'},catalog:{projects:[],categories:[],loose:[]},operations:data()});
@@ -50,19 +50,22 @@ test('Installed shell returns cache immediately and does not intercept Graph',as
  vm.runInContext(await readFile(new URL('../sw.js',import.meta.url),'utf8'),context);let result;handlers.fetch({request:new Request('https://opus.example/app.js?v=3.4.73'),respondWith:p=>result=p});assert.equal(await (await result).text(),'installed-app');assert.equal(calls,0);handlers.fetch({request:new Request('https://graph.microsoft.com/v1.0/me'),respondWith:()=>assert.fail('Graph must never be intercepted')});
 });
 
-test('published personnel beats saved legacy config and warm refresh immediately shows the migrated person',async t=>{
+test('legacy config and duplicate Roberto records do not block Brahim on the first warm refresh',async t=>{
  const dom=new JSDOM(await readFile(new URL('../index.html',import.meta.url),'utf8'),{url:'https://opus.example'});
  for(const key of ['window','document','localStorage','Event'])globalThis[key]=dom.window[key];
  localStorage.setItem('opus-main-section','calendar');
- t.after(()=>{dom.window.dispatchEvent(new dom.window.Event('pagehide'));dom.window.close();});
- const person={name:'CHATTI Brahim',nameAliases:['Brahim Chatti','Ibrahim Chatti','CHATTI Ibrahim'],type:'internal',role:'apprenti',weeklyTarget:35,schoolPeriods:[{start:'2026-10-12',end:'2026-10-16',label:'École · BUT GEII'}],schoolCalendar:{id:'cfa-eve-geii-but2-2026-2028-v1',label:'BUT GEII',from:'2026-09-01',through:'2027-09-30'}};
- const published={clientId:'app',tenant:'tenant',siteHost:'host',sitePath:'/opus',defaultPeople:[person]};
+ t.after(()=>{dom.window.dispatchEvent(new dom.window.Event('pagehide'));clearTimeout(dom.window.toastTimer);dom.window.close();});
+ const published={...JSON.parse(await readFile(new URL('../config.json',import.meta.url),'utf8')),clientId:'app',tenant:'tenant',siteHost:'host',sitePath:'/opus'};
  // Historical settings saved the entire config and consequently masked newly
  // published personnel, even when the installed application itself was current.
  localStorage.setItem('opus-cloud-config-v3',JSON.stringify({...published,defaultPeople:[]}));
  const records=new Map();
  class Store{constructor(namespace){this.namespace=namespace;}async get(k){return structuredClone(records.get(this.namespace+'|'+k));}async set(k,v){records.set(this.namespace+'|'+k,structuredClone(v));}async all(){return [];}}
- const remote=data();remote.people=[{id:'existing',name:'Existing colleague',type:'internal',role:'technicien',weeklyTarget:39,active:true,officeManaged:true,absences:[]}];
+ const roberto=published.defaultPeople.find(p=>p.name==='CARBONARO Roberto');
+ const robertoRecords=[{...structuredClone(roberto),id:'rob-active',officeManaged:true},{...structuredClone(roberto),id:'rob-old',active:false,officeManaged:true}];
+ const remote=data();remote.people=[{id:'existing',name:'Existing colleague',type:'internal',role:'technicien',weeklyTarget:39,active:true,officeManaged:true,absences:[]},...structuredClone(robertoRecords)];
+ remote.events=[{id:'old-appointment',kind:'free',title:'Ancien rendez-vous',teamIds:['rob-old'],start:'2026-10-01T08:00:00Z',end:'2026-10-01T09:00:00Z'}];const oldEvents=structuredClone(remote.events);
+ const expectedPeople=remote.people.length+published.defaultPeople.length-1;
  const profile={id:'worker',displayName:'Worker',mail:'worker'},catalog={projects:[],categories:[],loose:[]};
  const cache=new WarmCache(new Store('app:account-a'),'account-a',published);
  await cache.write({user:profile,drive:{id:'drive'},site:{id:'site'},catalog,operations:remote});
@@ -77,7 +80,7 @@ test('published personnel beats saved legacy config and warm refresh immediately
  const context=vm.createContext({loadAppConfig,acquireSessionToken,requiresInteractiveAuth,CloudError,ReportRecovery,installResumeSync,localStorage:dom.window.localStorage,WarmCache,OpsUI:UI,Graph,Journal:class{},LocalStore:Store,CATEGORIES:[],norm:s=>s,structuredClone,URL,URLSearchParams,location:dom.window.location,history:dom.window.history,document:dom.window.document,window:dom.window,navigator:{onLine:true},console,setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout,
   fetch:async url=>({json:async()=>url==='./config.json'?structuredClone(published):{}})});
  vm.runInContext(source,context);await context.hooks.init();
- assert.equal(context.hooks.getConfig().defaultPeople[0].name,'CHATTI Brahim');
+ assert.ok(context.hooks.getConfig().defaultPeople.some(p=>p.name==='CHATTI Brahim'));
  assert.equal(JSON.parse(localStorage.getItem('opus-cloud-config-v3')).defaultPeople,undefined);
  await context.hooks.connectCloud({homeAccountId:'account-a'});const ui=context.hooks.getUI();
  ui.calendarPersonId='existing';await ui.renderCalendar();
@@ -85,10 +88,12 @@ test('published personnel beats saved legacy config and warm refresh immediately
  assert.equal(ui.cacheMode,true);assert.equal(dropdownNames().includes('CHATTI Brahim'),false);assert.equal(writes,0);
  release();await context.hooks.resumeCloud();
  assert.equal(writes,1);assert.equal(ui.cacheMode,false);assert.equal(ui.personnelSyncComplete,true);
- assert.equal(remote.people.length,2);assert.equal(dropdownNames().includes('CHATTI Brahim'),true);
+ assert.equal(remote.people.length,expectedPeople);assert.equal(dropdownNames().includes('CHATTI Brahim'),true);
  assert.equal(document.getElementById('calendarPerson').value,'existing');
+ assert.deepEqual(remote.people.filter(p=>p.id.startsWith('rob-')),robertoRecords);assert.deepEqual(remote.events,oldEvents);
+ assert.equal(remote.people.filter(p=>p.name==='CHATTI Brahim').length,1);assert.ok(ui.personnelSyncWarnings.includes('CARBONARO Roberto'));
  assert.equal((await cache.read()).operations.people.some(p=>p.name==='CHATTI Brahim'),true);
- await context.hooks.resumeCloud();assert.equal(writes,1);assert.equal(remote.people.length,2);assert.equal(document.getElementById('calendarPerson').value,'existing');
+ await context.hooks.resumeCloud();assert.equal(writes,1);assert.equal(remote.people.length,expectedPeople);assert.equal(document.getElementById('calendarPerson').value,'existing');
  const dialog=document.getElementById('modal');dialog.open=true;document.getElementById('modalBody').innerHTML='<form><input id="unsentAppointment" value="Saisie non envoyée"></form>';
  const input=document.getElementById('unsentAppointment'),previousLoads=loads;await context.hooks.resumeCloud();
  assert.equal(document.getElementById('unsentAppointment'),input);assert.equal(input.value,'Saisie non envoyée');assert.equal(loads,previousLoads);assert.equal(writes,1);assert.equal(dialog.open,true);
