@@ -76,3 +76,7 @@ body.calendarScreen #mainNav button{min-width:0;padding:6px 10px;font-size:12px;
 /* Private site meetings: red without changing event typography or visibility. */
 #calendarPage .hourEvent.privateSiteMeeting,#calendarPage .monthEvent.privateSiteMeeting{background:#ffe5e5;color:#8a1720;border-left-color:#c52b38}
 #newPrivateSiteEvent{background:#ffe5e5;color:#8a1720;border-color:#dca2a8;margin:6px 0}
+
+/* Undo stays next to the calendar views, outside the settings drawer. */
+#calendarPage #calendarUndo[disabled]{opacity:.45;cursor:default}
+@media(max-width:600px){#calendarPage .calendarUndoLabel{display:none}}
