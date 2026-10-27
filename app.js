@@ -17,9 +17,9 @@ import {mountCompleteProject,ensureCompletionClock,canAutoArchive} from './lib/p
 import {importSheet} from './lib/chantier-sheet.js';
 import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
-import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
+import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.99';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.98-baes-offline';
+const APP_VERSION='3.4.99-pdf-terrain';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -36,7 +36,7 @@ let reportRecovery=null,lastSyncAt=0;
 let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false,pendingInitialRoute='';
 const pendingReplies=new Map();let modalCleanup=null;
 const ATTESTATION_SYNC_MS=15*60*1000;
-let flushTask=null;
+let flushTask=null,pdfOutboxTask=null,modulePdf=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
 function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
@@ -138,16 +138,17 @@ async function resumeCloud(){
     const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
     if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez le compte initial.');
     user=profile;cloudReady=true;g.readOnlyCache=false;
+    void flushPdfOutbox().catch(err);
     await flush({force:true});
     if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Fiche conservée · planning à actualiser après fermeture de la fiche.');
     else{status('Microsoft 365 connecté',true);syncNotice('');}
    }
    else if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Données à vérifier avant envoi · Votre saisie reste dans cette fenêtre.');
-   else{status('Microsoft 365 connecté',true);syncNotice('');await flush();}
+   else{status('Microsoft 365 connecté',true);syncNotice('');void flushPdfOutbox().catch(err);await flush();}
    return;
   }
   await refresh();
-  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
+  if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){void flushPdfOutbox().catch(err);await flush();if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
  }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
  }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
@@ -236,7 +237,7 @@ installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI
 async function activate({cached=null}={}){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
-  const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');
+  const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.99');
   opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,prepareAppointmentWrite,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
   await opsUI.init({cached:cached?.operations});personnelSynced=opsUI.personnelSyncComplete===true;
  }catch(e){
@@ -260,7 +261,7 @@ async function activate({cached=null}={}){
  pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden)return;
   try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
  },Math.max(30,config.pollSeconds||45)*1000);
- if(!cached)void flush().catch(err);offerRecoveredReport();
+ if(!cached){void flush().catch(err);void flushPdfOutbox().catch(err);}offerRecoveredReport();
 }
 async function refresh(options={}){
  if(refreshBusy)return refreshBusy;
@@ -372,7 +373,50 @@ async function queueSave(projectId,kind,recordId,payload,parents,{deferRemote=fa
  });
  await updatePending();if(live===session&&session)$('saveStatus').textContent=deferRemote?'Sauvegardé sur cet appareil · envoi automatique toutes les 15 min':'Sauvegardé sur cet appareil · envoi en attente';void flush().catch(err);
 }
-async function updatePending(){if(!store)return;const all=await store.all('draft:');$('pendingCount').textContent=all.length;}
+async function updatePending(){if(!store)return;const targetStore=store;const count=async prefix=>typeof targetStore.count==='function'?targetStore.count(prefix):(await targetStore.all(prefix)).length;const [drafts,pdfs]=await Promise.all([count('draft:'),count('pdfoutbox:')]);if(store===targetStore)$('pendingCount').textContent=drafts+pdfs;}
+// A prepared PDF is a separate durable outbox item. It is never removed until
+// SharePoint confirms the same unique name and byte count. It does not wait for
+// the much slower queue of report photos and never replaces an existing file.
+function pdfForLive(row){return !!(live&&row&&live.projectId===row.projectId&&live.recordId===row.recordId&&modulePdf?.id===row.id);}
+function pdfStatus(row,text){if(pdfForLive(row)){$('pdfSaveStatus').hidden=false;$('pdfSaveStatus').textContent=text;}}
+async function restorePendingPdf(session){
+ const targetStore=store;const rows=await targetStore.all('pdfoutbox:');if(live!==session||store!==targetStore)return;
+ const row=rows.map(x=>x.value).filter(x=>x.projectId===session.projectId&&x.recordId===session.recordId).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0];
+ if(row){modulePdf=row;$('downloadModulePdf').hidden=false;pdfStatus(row,'PDF conservé sur cet appareil · envoi en attente');}
+}
+async function flushPdfOutbox({notify=false}={}){
+ if(pdfOutboxTask)return pdfOutboxTask;
+ if(!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;
+ const targetStore=store,targetGraph=g;
+ pdfOutboxTask=(async()=>{
+  for(const {key,value:row} of await targetStore.all('pdfoutbox:')){
+   if(store!==targetStore||g!==targetGraph||(!navigator.onLine&&!DEMO))break;
+   let stage='accès au dossier PDF';
+   try{
+    pdfStatus(row,'PDF : vérification du dossier…');
+    const folder=await targetGraph.folder(row.projectId,'05_PDF_GENERES');
+    stage='vérification du PDF';
+    let item=await targetGraph.named(folder.id,row.name);
+    if(!item){
+     stage='envoi du PDF';pdfStatus(row,'PDF : envoi en cours…');
+     item=await targetGraph.upload(folder.id,row.name,row.blob,p=>pdfStatus(row,`PDF : envoi ${p} %`),true);
+    }
+    stage='confirmation du PDF';
+    if(item?.id&&(!item.file||typeof item.size!=='number')&&targetGraph.item)item=await targetGraph.item(item.id);
+    if(!item?.id||!item.file||item.name!==row.name||item.size!==row.blob.size)throw Error('Le fichier transmis ne peut pas être confirmé.');
+    await targetStore.remove(key);if(store===targetStore)await updatePending();
+    pdfStatus(row,'PDF enregistré au chantier');
+    if(notify&&pdfForLive(row))toast('PDF enregistré au chantier.');
+   }catch(e){
+    const code=Number.isInteger(e?.status)&&e.status>0?` · Microsoft ${e.status}`:'';
+    pdfStatus(row,`PDF conservé sur cet appareil · échec : ${stage}${code}`);
+    console.warn('Envoi PDF non confirmé',stage,e?.status||'',e?.code||'',e?.message||'');
+    if(notify&&pdfForLive(row))toast(`PDF non envoyé au chantier : ${stage}${code}. Il reste sur cet appareil ; vous pouvez le télécharger.`);
+   }
+  }
+ })();
+ try{return await pdfOutboxTask;}finally{pdfOutboxTask=null;}
+}
 async function flush({force=false}={}){
  if(flushTask){await flushTask;if(force)return flush({force:true});return;}
  if(!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;
@@ -413,7 +457,13 @@ async function flush({force=false}={}){
 }
 window.addEventListener('online',()=>{if(user&&DEMO)void flush().catch(err);});
 $('modal').addEventListener('close',()=>{const active=opsUI?.activeReportRecovery;if(active?.form?.isConnected)void active.flush().then(offerRecoveredReport).catch(err);else offerRecoveredReport();if(user&&!DEMO&&!live)void resumeCloud();});window.addEventListener('offline',()=>{status('Hors ligne');if(cacheSnapshot)cachedNotice();if(live)$('saveStatus').textContent='Hors ligne · sauvegarde sur cette tablette';});
-bind('pendingBtn',async()=>{const rows=await store.all('draft:');modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">À envoyer</span></div>`).join('')||'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours</button></div>`);bind('retryPending',async()=>{await flush({force:true});$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));});
+bind('pendingBtn',async()=>{
+ const [rows,pdfs]=await Promise.all([store.all('draft:'),store.all('pdfoutbox:')]);
+ modal('Envois en attente',`<p class="muted">Ces données sont conservées sur cet appareil mais pas encore confirmées dans Microsoft 365.</p>${rows.map(({value:d})=>`<div class="row"><div><h3>${esc(d.payload.ref||d.payload.name||d.recordId||'Fiche chantier')}</h3><p>${dateTime(d.createdAt)}</p></div><span class="chip warn">Fiche à envoyer</span></div>`).join('')}${pdfs.map(({value:p},i)=>`<div class="row"><div><h3>${esc(p.name)}</h3><p>${dateTime(p.createdAt)} · PDF à envoyer</p></div><button type="button" class="secondary" data-pending-pdf="${i}">Télécharger</button></div>`).join('')}${rows.length||pdfs.length?'':'<p>Aucun envoi en attente.</p>'}<div class="actionRow"><button id="retryPending">Réessayer les envois</button><button id="backupPending" class="secondary">Sauvegarde de secours des fiches</button></div>`);
+ document.querySelectorAll('[data-pending-pdf]').forEach(b=>b.onclick=()=>{const p=pdfs[Number(b.dataset.pendingPdf)]?.value;if(p)download(p.blob,p.name);});
+ bind('retryPending',async()=>{await Promise.all([flush({force:true}),flushPdfOutbox({notify:true})]);$('modal').close();toast('Tentative terminée. Vérifiez le compteur des envois en attente.');});
+ bind('backupPending',()=>download(new Blob([JSON.stringify({format:'OPUS-PENDING-3',account:appAccount,drafts:rows})],{type:'application/json'}),'OPUS_ENVOIS_EN_ATTENTE.json'));
+});
 async function chooseRevision(p,kind,id,loaded,onChoose,history=false){
  const list=history?loaded.files.map(parseRevision).filter(Boolean).sort((a,b)=>(b.createdDateTime||'').localeCompare(a.createdDateTime||'')):loaded.heads;
  modal(history?'Historique des enregistrements':'Versions concurrentes à vérifier',`<p>Les anciennes versions sont conservées. Ouvrez une version pour la contrôler. ${history?'':'Aucun travail n’a été écrasé.'}</p><div id="revisionList">${list.map(r=>`<div class="row"><div><h3>${dateTime(r.createdDateTime)}</h3><p>${esc(r.createdBy?.user?.displayName||'Membre de l’équipe')} · ${r.revision.slice(0,8)}</p></div><button data-revision="${r.revision}" class="secondary">Examiner</button></div>`).join('')||'<p>Aucune version enregistrée.</p>'}</div><div id="revisionDetail"></div>`);
@@ -456,7 +506,7 @@ async function attestations(){
  document.querySelectorAll('[data-history]').forEach(b=>b.onclick=async()=>{try{const r=await journal.load(selected.id,'attestations',b.dataset.history);await chooseRevision(selected.id,'attestations',b.dataset.history,r,async(data,parents)=>openAttestation(b.dataset.history,null,{data,parents}),true);}catch(e){err(e);}});
  document.querySelectorAll('[data-delete-att]').forEach(b=>b.onclick=()=>deleteAttestation(b.dataset.deleteAtt).catch(err));
 }
-async function deleteAttestation(id){const a=attRecords.find(x=>x.id===id);if(!a)return;const label=a.ref||id;if(!confirm(`Supprimer définitivement l’attestation « ${label} » ?\n\nLe brouillon local, les versions enregistrées et les PDF générés portant cette référence seront supprimés. Les photos partagées avec d’autres attestations sont conservées.`))return;
+async function deleteAttestation(id){const a=attRecords.find(x=>x.id===id);if(!a)return;const label=a.ref||id;if((await store.all('pdfoutbox:')).some(({value:p})=>p.projectId===selected.id&&p.recordId===id))throw Error('Un PDF de cette attestation attend encore son envoi. Téléchargez-le et réessayez l’envoi avant de supprimer la fiche.');if(!confirm(`Supprimer définitivement l’attestation « ${label} » ?\n\nLe brouillon local, les versions enregistrées et les PDF générés portant cette référence seront supprimés. Les photos partagées avec d’autres attestations sont conservées.`))return;
  const key=draftKey(selected.id,'attestations',id);if(a.remote){if(!navigator.onLine&&!DEMO)throw Error('Reconnectez la tablette pour supprimer une attestation déjà enregistrée au chantier.');const dir=await journal.directory(selected.id,'attestations',id);if(dir)await g.deleteItem(dir.id);const pdfDir=await g.named(selected.id,'05_PDF_GENERES');if(pdfDir){const prefix=safeName(label)+'_';for(const f of await g.children(pdfDir.id)){if(f.file&&(f.name===safeName(label)+'.pdf'||f.name.startsWith(prefix)))await g.deleteItem(f.id);}}}
  await store.remove(key);await store.remove('att:'+selected.id+':'+id);await updatePending();toast('Attestation supprimée.');await attestations();}
 function blankHeader(m,ref){const p=meta;return {reference:ref,technicien:user.displayName,client:p.client||'',adresse:p.adresse||'',operation:p.chantier||p.name,site:p.name,chantier:p.name,installation:p.name,ordre:p.devis?'Devis n° '+p.devis:'',contact:p.contact,telephone:p.telephone,email:p.email,sourceAuteur:p.controleur||'',sourceRef:p.rapportRef||''};}
@@ -477,13 +527,14 @@ async function openAttestation(id,key,override=null){
  }
  if(!modules[key])throw Error('Ce formulaire n’existe pas dans cette version.');
  const nonce=uid();live={projectId,recordId:id,moduleKey:key,payload:clone(data),parents,nonce,lastHash:data.state?await sha(JSON.stringify(data.state)):'',lastCaptureId:0,stateChain:Promise.resolve(),ready:false,closing:false};
+ modulePdf=null;$('downloadModulePdf').hidden=true;$('pdfSaveStatus').hidden=true;void restorePendingPdf(live).catch(e=>console.warn('PDF en attente non relu',e.message));
  setRoute(projectId,'attestations',id);
  $('moduleTitle').textContent=(key==='baes'?'Vérification BAES':modules[key].title)+' · '+(data.context?.siteName||data.ref);$('moduleSub').textContent=`${data.state?.client||data.context?.client||meta.client||meta.name} · ${data.state?.adresse||data.context?.adresse||meta.adresse||''}`;$('saveStatus').textContent='Ouverture du formulaire…';
  $('modulePanel').hidden=false;document.body.style.overflow='hidden';$('moduleFrame').src=`./modules/${key}/index.html?embed=1&session=${nonce}`;
  $('moduleFrame').onload=()=>sendFrameInit();
 }
 function sendFrameInit(){if(!live||live.ready)return;$('moduleFrame').contentWindow?.postMessage({type:'opus-init',nonce:live.nonce,moduleKey:live.moduleKey,payload:live.payload},location.origin);}
-function requestFrame(type){if(!live?.ready)return Promise.reject(Error('Le formulaire se prépare encore.'));const req=uid();return new Promise((res,rej)=>{const t=setTimeout(()=>{pendingReplies.delete(req);rej(Error('Le formulaire n’a pas répondu. Ne fermez pas la tablette ; réessayez.'));},45000);pendingReplies.set(req,{res,rej,t});$('moduleFrame').contentWindow.postMessage({type,requestId:req,nonce:live.nonce},location.origin);});}
+function requestFrame(type){if(!live?.ready)return Promise.reject(Error('Le formulaire se prépare encore.'));const req=uid();return new Promise((res,rej)=>{const t=setTimeout(()=>{pendingReplies.delete(req);rej(Error('Le formulaire n’a pas répondu. Ne fermez pas la tablette ; réessayez.'));},type==='opus-pdf'?300000:45000);pendingReplies.set(req,{res,rej,t});$('moduleFrame').contentWindow.postMessage({type,requestId:req,nonce:live.nonce},location.origin);});}
 async function processFrameState(current,msg){
  if(live!==current)return false;
  const captureId=Number.isSafeInteger(msg.captureId)&&msg.captureId>0?msg.captureId:null;
@@ -517,7 +568,29 @@ window.addEventListener('message',async e=>{
 });
 bind('closeModule',async()=>{if(!live||live.closing)return;const current=live;current.closing=true;try{await requestFrame('opus-capture');await queueChain;$('modulePanel').hidden=true;$('moduleFrame').src='about:blank';live=null;document.body.style.overflow='';void flush({force:true}).catch(err);await setTab('attestations');}finally{current.closing=false;}});
 bind('previewModule',async()=>{await requestFrame('opus-capture');const response=await requestFrame('opus-pdf');if(!(response.blob instanceof Blob))throw Error('PDF absent.');await showBlob(response.blob,response.fileName||live.payload.ref+'.pdf','application/pdf');});
-bind('saveModulePdf',async()=>{await requestFrame('opus-capture');const response=await requestFrame('opus-pdf');await queueChain;await flush({force:true});const folder=await g.folder(live.projectId,'05_PDF_GENERES');const name=safeName((live.payload.ref+'_'+new Date().toISOString().slice(0,19).replaceAll(':','-'))+'.pdf');$('saveStatus').textContent='Envoi du PDF…';try{await g.upload(folder.id,name,response.blob);$('saveStatus').textContent='PDF enregistré au chantier';toast('PDF disponible pour le bureau dans le même chantier.');}catch(e){$('saveStatus').textContent='PDF non envoyé · formulaire conservé';throw e;}});
+bind('downloadModulePdf',()=>{if(modulePdf?.blob)download(modulePdf.blob,modulePdf.name);});
+bind('saveModulePdf',async()=>{
+ const session=live,targetStore=store;if(!session||!targetStore)throw Error('Ouvrez la fiche avant de préparer le PDF.');
+ const saveButton=$('saveModulePdf'),closeButton=$('closeModule'),previewButton=$('previewModule');
+ let prepared=null;
+ saveButton.disabled=true;closeButton.disabled=true;previewButton.disabled=true;$('pdfSaveStatus').hidden=false;$('pdfSaveStatus').textContent='Préparation du PDF…';
+ try{
+  await requestFrame('opus-capture');
+  const response=await requestFrame('opus-pdf');
+  if(live!==session||store!==targetStore)throw Error('La fiche ou le compte a changé : le PDF ne peut pas être envoyé.');
+  if(!(response.blob instanceof Blob)||response.blob.size<1000)throw Error('Le PDF généré est incomplet.');
+  const id=uid(),ref=safeName(String(session.payload.ref||'ATTESTATION').slice(0,60));
+  const name=`${ref}_${new Date().toISOString().slice(0,19).replaceAll(':','-')}_${id}.pdf`;
+  const row={id,projectId:session.projectId,recordId:session.recordId,name,blob:response.blob,createdAt:new Date().toISOString()};
+  modulePdf=row;prepared=row;$('downloadModulePdf').hidden=false;
+  try{await targetStore.set('pdfoutbox:'+id,row);}
+  catch(e){pdfStatus(row,'PDF prêt : téléchargez-le maintenant, stockage local indisponible');throw Error('Le PDF est prêt mais ne peut pas être conservé sur cet appareil. Cliquez sur « Télécharger le PDF préparé » avant de fermer la fiche.');}
+  await updatePending();pdfStatus(row,'PDF conservé sur cet appareil · envoi en attente');
+  toast('PDF préparé sur cet appareil. Son envoi au chantier va être tenté.');
+  void flushPdfOutbox({notify:true}).catch(err);
+ }catch(e){if(!prepared)$('pdfSaveStatus').textContent='Nouveau PDF non préparé · vérifiez la sauvegarde de la fiche';throw e;}
+ finally{saveButton.disabled=false;closeButton.disabled=false;previewButton.disabled=false;}
+});
 // Project tasks / observations remain simple. No work is declared completed automatically.
 function tasks(){const ts=meta.tasks||[],obs=meta.observations||[];
  $('tabContent').innerHTML=`<section class="panel"><div class="panelHead"><h2>Travaux à réaliser</h2><button id="addTask" class="secondary">+ Travail</button></div>${meta.sheetSummary?'<p style="white-space:pre-wrap">'+esc(meta.sheetSummary)+'</p>':''}${ts.map((t,i)=>`<details class="taskRow"><summary>${esc(t.title||'Travail')}</summary><p>${esc(t.description||t.notes||'')}</p><label>Avancement</label><select data-task-status="${i}">${['À faire','En cours','Terminé','Hors prestation'].map(v=>`<option ${t.status===v?'selected':''}>${v}</option>`).join('')}</select></details>`).join('')||'<p class="muted">La feuille de chantier reste consultable dans Documents. Ajoutez ici les points utiles à l’équipe.</p>'}</section><section class="panel"><div class="panelHead"><h2>Observations et réserves</h2><button id="addObs" class="secondary">+ Observation</button></div><p class="muted">Un ajout de rapport PDF ne crée pas automatiquement une liste d’anomalies. Les relevés validés peuvent être saisis ici, puis documentés avant / après dans le module Réserves.</p>${obs.map((o,i)=>`<details class="taskRow"><summary>N° ${esc(o.n)} · ${esc(o.title||o.location||'Observation')}</summary><p>${esc(o.text||'')}</p><p class="muted">${esc(o.scope||'Périmètre à vérifier')}</p><label>Traitement OPUS</label><select data-obs-status="${i}">${['À traiter','En cours','Traité','Partiellement traité','Hors prestation','À vérifier'].map(v=>`<option ${o.status===v?'selected':''}>${v}</option>`).join('')}</select></details>`).join('')||'<p class="muted">Aucune observation ajoutée.</p>'}<div class="actionRow"><button id="openReserves">Créer un compte rendu de réserves</button><button id="importLegacy" class="secondary">Reprendre un dossier v2</button></div></section>`;
