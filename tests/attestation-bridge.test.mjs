@@ -78,3 +78,13 @@ test('manual capture responds even when the current state is already durable',as
  const f=await setup(t);f.message({type:'opus-capture',requestId:'close-clean'});await f.timers.tick(100);
  assert.equal(f.states().length,1);assert.equal(f.states()[0].requestId,'close-clean');assert.equal(f.states()[0].state.note,'saved');
 });
+
+test('a saved large form is not collected again while idle',async t=>{
+ const f=await setup(t),before=f.collected;await f.timers.tick(16000);assert.equal(f.collected,before);
+});
+
+test('an acknowledgement arriving before a newer edit is captured does not discard it',async t=>{
+ const f=await setup(t);f.edit('Premier');await f.timers.tick(900);const first=f.states().at(-1);
+ f.edit('Dernier');f.ack(first);await f.timers.tick(900);
+ const next=f.states().at(-1);assert.equal(next.state.note,'Dernier');assert.notEqual(next.captureId,first.captureId);
+});

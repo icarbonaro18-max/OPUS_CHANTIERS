@@ -15,11 +15,11 @@ async function harness(t,{online=true,sha=hash}={}){
  const dom=new JSDOM(await readFile(new URL('../index.html',import.meta.url),'utf8'),{url:'https://opus.example/'});
  let now=Date.parse('2026-10-26T09:00:00Z'),nextTimer=0,nextId=0;
  const timers=new Map(),records=new Map(),messages=[],writes=[],trace=[];
- const controls={failSet:null,beforeGet:null,beforeSet:null,save:null};
+ const controls={failSet:null,failPdfSet:null,beforeGet:null,beforeSet:null,save:null};
  class Clock extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
  const store={
   async get(key){const value=structuredClone(records.get(key));if(controls.beforeGet)await controls.beforeGet(key,value);return value;},
-  async set(key,value){if(controls.beforeSet)await controls.beforeSet(key,value);if(controls.failSet&&key.startsWith('draft:'))throw controls.failSet;records.set(key,structuredClone(value));trace.push(['stored',key]);},
+  async set(key,value){if(controls.beforeSet)await controls.beforeSet(key,value);if(controls.failSet&&key.startsWith('draft:'))throw controls.failSet;if(controls.failPdfSet&&key.startsWith('pdfoutbox:'))throw controls.failPdfSet;records.set(key,structuredClone(value));trace.push(['stored',key]);},
   async remove(key){records.delete(key);trace.push(['removed',key]);},
   async all(prefix=''){return [...records].filter(([key])=>key.startsWith(prefix)).map(([key,value])=>({key,value:structuredClone(value)}));}
  };
@@ -34,10 +34,10 @@ async function harness(t,{online=true,sha=hash}={}){
  const navigator={onLine:online},frame=dom.window.document.getElementById('moduleFrame').contentWindow;
  frame.postMessage=(message)=>{messages.push(structuredClone(message));trace.push(['message',message.type,message.captureId,message.ok]);};
  let source=await readFile(new URL('../app.js',import.meta.url),'utf8');
- source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace("const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.2');",'').replace('init().catch(err);','');
- source+='\nstore=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={queueSave,flush,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
+ source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace(/const \{OpsUI\}=await import\('\.\/lib\/ops-ui\.js\?v=[^']+'\);/,'').replace('init().catch(err);','');
+ source+='\nstore=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
  const context=vm.createContext({TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
-  structuredClone,URL,URLSearchParams,Blob,location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
+  structuredClone,URL,URLSearchParams,Blob,safeName:s=>String(s).replace(/["*:<>?/\\|]/g,'-'),location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
   console:{log(){},warn(){},error(){}},setInterval:()=>0,clearInterval(){},setTimeout:(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,at:now+delay});return id;},clearTimeout:id=>timers.delete(id)});
  vm.runInContext(source,context);
  const session={projectId:'project-a',recordId:'baes-a',moduleKey:'baes',payload:{moduleKey:'baes',ref:'BAES-A',context:{name:'Site A'},state:null},parents:[],nonce:'session-a',lastHash:'',lastCaptureId:0,stateChain:Promise.resolve(),ready:true,closing:false};
@@ -193,4 +193,92 @@ test('a warm-start attestation link opens after fresh data arrives and yields to
    assert.ok(reads.some(([,kind,id])=>kind==='attestations'&&id==='baes-a'));
   }
  }
+});
+
+test('returning online sends the locally saved attestation without closing the open form',async t=>{
+ const h=await harness(t,{online:false});
+ h.hooks.configureProject({id:'project-a',name:'Site A',category:'02'},{name:'Site A',client:'Client',adresse:'Rue'});
+ await h.hooks.activate({cached:{operations:{}}});
+ h.hooks.setGraph({readOnlyCache:true,async connect(){},async request(){return {id:'tech',displayName:'Technicien'};}});
+ const state={baes:[{repere:'1',photo:'data:image/jpeg;base64,photo'}],signature:'data:image/png;base64,sig'};
+ h.post(state,1);await until(()=>h.ack(1));assert.equal(h.writes.length,0);
+ h.navigator.onLine=true;await h.hooks.resumeCloud();
+ assert.equal(h.writes.length,1);assert.deepEqual(h.writes[0].payload.state,state);
+ assert.equal(h.records.has(h.key),false);assert.equal(h.hooks.getLive().recordId,'baes-a');
+});
+
+
+test('slow network returns the existing local copy without replacing it with a late remote response',async t=>{
+ const h=await harness(t),delayed=deferred();const cached={data:{client:'Local'}};
+ const read=h.hooks.loadWithLocalFallback(()=>delayed.promise,cached);await h.runNextTimer();
+ const value=await read;assert.equal(value.remote,false);assert.equal(value.value,cached);
+ delayed.resolve({data:{client:'Remote'}});await turn();assert.equal(value.value.data.client,'Local');
+});
+
+async function preparePdf(h,{bytes=2000}={}){
+ const button=h.dom.window.document.getElementById('saveModulePdf');
+ const saving=button.onclick();
+ await until(()=>h.messages.some(m=>m.type==='opus-capture'));
+ const capture=h.messages.find(m=>m.type==='opus-capture');
+ h.post({baes:Array.from({length:108},(_,i)=>({repere:String(i+1),photo:'data:image/jpeg;base64,cGhvdG8='})),signature:'data:image/png;base64,c2ln'},1,{requestId:capture.requestId});
+ await until(()=>h.messages.some(m=>m.type==='opus-pdf'));
+ const request=h.messages.find(m=>m.type==='opus-pdf');
+ const frame=h.dom.window.document.getElementById('moduleFrame').contentWindow;
+ h.dom.window.dispatchEvent(new h.dom.window.MessageEvent('message',{origin:h.dom.window.location.origin,source:frame,data:{type:'opus-pdf',nonce:h.session.nonce,requestId:request.requestId,blob:new Blob([new Uint8Array(bytes)],{type:'application/pdf'})}}));
+ await saving;
+}
+function queuedPdfs(h){return [...h.records].filter(([key])=>key.startsWith('pdfoutbox:')).map(([,value])=>value);}
+
+test('a 108 BAES report prepares a durable large PDF offline without claiming a cloud save',async t=>{
+ const h=await harness(t,{online:false});await preparePdf(h,{bytes:7*1024*1024});
+ const [pdf]=queuedPdfs(h);assert.ok(pdf);assert.equal(pdf.blob.size,7*1024*1024);
+ assert.equal(h.records.get(h.key).payload.state.baes.length,108);
+ assert.equal(h.dom.window.document.getElementById('downloadModulePdf').hidden,false);
+ assert.match(h.dom.window.document.getElementById('pdfSaveStatus').textContent,/appareil.*attente/i);
+ assert.equal(h.dom.window.document.getElementById('pendingCount').textContent,'2');
+ assert.equal(h.writes.length,0);
+});
+
+test('a PDF can reach the chantier while the report-photo upload is still blocked',async t=>{
+ const h=await harness(t),started=deferred(),release=deferred();
+ h.controls.save=async()=>{started.resolve();await release.promise;};
+ await h.save({moduleKey:'baes',state:{note:'Première saisie'}});
+ const slow=h.hooks.flush({force:true});await started.promise;
+ let uploaded=0;h.hooks.setGraph({readOnlyCache:false,folder:async()=>({id:'pdf-folder'}),named:async()=>null,upload:async(parent,name,blob)=>{uploaded++;return {id:'pdf-1',name,size:blob.size,file:{}};}});
+ await preparePdf(h);await until(()=>uploaded===1);await h.hooks.flushPdfOutbox();
+ assert.equal(queuedPdfs(h).length,0);assert.equal(h.records.get(h.key).payload.state.baes.length,108);
+ assert.match(h.dom.window.document.getElementById('pdfSaveStatus').textContent,/enregistré au chantier/i);
+ release.resolve();await slow;
+});
+
+test('a Microsoft 400 retains the PDF and identifies the failed step',async t=>{
+ const h=await harness(t,{online:false});await preparePdf(h);h.navigator.onLine=true;
+ let uploads=0;h.hooks.setGraph({readOnlyCache:false,folder:async()=>{throw Object.assign(Error('The request is malformed or incorrect.'),{status:400,code:'invalidRequest'});},upload:async()=>{uploads++;}});
+ await h.hooks.flushPdfOutbox({notify:true});
+ assert.equal(queuedPdfs(h).length,1);assert.equal(uploads,0);
+ assert.match(h.dom.window.document.getElementById('pdfSaveStatus').textContent,/accès au dossier PDF.*Microsoft 400/i);
+ assert.match(h.dom.window.document.getElementById('toast').textContent,/non envoyé au chantier/i);
+});
+
+test('a lost upload response is confirmed by its unique name and size instead of uploading again',async t=>{
+ const h=await harness(t,{online:false});await preparePdf(h);h.navigator.onLine=true;
+ let stored=null,uploads=0;
+ h.hooks.setGraph({readOnlyCache:false,folder:async()=>({id:'pdf-folder'}),named:async()=>stored,upload:async(parent,name,blob)=>{uploads++;stored={id:'pdf-1',name,size:blob.size,file:{}};throw Error('Réponse perdue');}});
+ await h.hooks.flushPdfOutbox();assert.equal(queuedPdfs(h).length,1);
+ await h.hooks.flushPdfOutbox();assert.equal(queuedPdfs(h).length,0);assert.equal(uploads,1);
+});
+
+test('a same-name file with the wrong size does not clear the locally saved PDF',async t=>{
+ const h=await harness(t,{online:false});await preparePdf(h);h.navigator.onLine=true;
+ let uploads=0;h.hooks.setGraph({readOnlyCache:false,folder:async()=>({id:'pdf-folder'}),named:async(parent,name)=>({id:'other',name,size:1,file:{}}),upload:async()=>{uploads++;}});
+ await h.hooks.flushPdfOutbox();assert.equal(queuedPdfs(h).length,1);assert.equal(uploads,0);
+ assert.match(h.dom.window.document.getElementById('pdfSaveStatus').textContent,/confirmation du PDF/i);
+});
+
+test('if the device cannot store the PDF, its download remains available and no send is claimed',async t=>{
+ const h=await harness(t,{online:false});h.controls.failPdfSet=Error('QuotaExceededError');await preparePdf(h);
+ assert.equal(queuedPdfs(h).length,0);assert.equal(h.dom.window.document.getElementById('downloadModulePdf').hidden,false);
+ assert.match(h.dom.window.document.getElementById('pdfSaveStatus').textContent,/téléchargez-le.*stockage local indisponible/i);
+ assert.match(h.dom.window.document.getElementById('toast').textContent,/Télécharger le PDF préparé/i);
+ assert.equal(h.records.get(h.key).payload.state.baes.length,108);
 });

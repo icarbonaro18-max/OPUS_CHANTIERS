@@ -78,3 +78,13 @@ test('a blank BAES PDF is headed Vérification BAES and does not certify success
     assert.equal(text.split('\n').filter(value=>value==='OUI').length,0);
   } finally {dom.window.close();}
 });
+
+test('the bottom add button appends a new BAES after a 120-unit inventory',()=>{
+ const {dom,w}=moduleFixture();
+ try{
+  w.HTMLElement.prototype.scrollIntoView=function(){};
+  const s=prefilledState('Site A','Rue');s.baes=Array.from({length:120},(_,i)=>({repere:String(i+1)}));
+  w.applyState(s);w.document.getElementById('addBaesBottomBtn').click();
+  const data=w.collectState();assert.equal(data.baes.length,121);assert.equal(data.baes[119].repere,'120');assert.equal(data.baes[120].repere,'');
+ }finally{dom.window.close();}
+});

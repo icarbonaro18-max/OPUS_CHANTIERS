@@ -10,6 +10,7 @@ test('administrator corrects material metadata without upload, preserves previou
  assert.equal(row.id,'m');assert.equal(row.fileId,'original');assert.equal(row.createdAt,old.createdAt);assert.equal(row.history[0].pickup,'Rexel');assert.equal(row.pickup,'Buc');
  u.c.isAdmin=()=>false;u.canPlan=()=>true;
  await assert.rejects(addMaterialOrder(u,x,null,{pickup:'Autre'},'m'),/administrateur/);
+ u.canPlan=()=>false;
  await u.editIntervention({id:'i'});await u.editVisit({id:'v'});
  assert.equal(document.getElementById('intForm'),null);assert.equal(document.getElementById('visitForm'),null);
 });
