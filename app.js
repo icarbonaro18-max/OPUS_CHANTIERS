@@ -19,8 +19,17 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.97-undo';
+const APP_VERSION='3.4.98-baes-offline';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
+// When a local copy exists, a weak connection must not block field work for
+// the full Graph timeout. A timed-out read is ignored; it never writes locally.
+async function loadWithLocalFallback(read,local,timeoutMs=3000){
+ if(!local)return {value:await read(),remote:true};
+ let timer;try{
+  const value=await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Lecture distante trop lente')),timeoutMs);})]);
+  return {value,remote:true};
+ }catch{return {value:local,remote:false};}finally{clearTimeout(timer);}
+}
 let config,modules,msal,user,g,journal,store,opsUI,catalog={projects:[],categories:[],loose:[]},selected=null,meta=null,metaParents=[],tab='overview',category='all',docStack=[],attRecords=[],live=null,viewerBlob=null,pdfDoc=null,pdfPage=1,flushBusy=false,flushRetry=null,metaConflict=false,pollId,appAccount='',queueChain=Promise.resolve(),inflight=null;
 const projectPickupCache=new Map();const previewMetaCache=new Map();
 let reportRecovery=null,lastSyncAt=0;
@@ -106,7 +115,7 @@ async function connectCloud(account){
 function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}el.textContent=text;el.hidden=!text;if(text&&user&&!DEMO){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);}}
 function cachedNotice(){
  const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
- syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Consultation uniquement. Photos et signatures disponibles en ligne.');
+ syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Les fiches de contrôle préparées peuvent être saisies sur cet appareil ; leur envoi attend le réseau.');
  status(navigator.onLine?'Données mémorisées · actualisation…':'Hors ligne · consultation');
 }
 async function rememberWarm(){if(!warmCache||opsUI?.cacheMode||opsUI?.dataLoadError||!cloudReady)return;
@@ -123,7 +132,17 @@ async function resumeCloud(){
   if($('modal').open||live||!$('viewer').hidden){
    // Renew only the session while editing: never replace a form's backing records.
    if(g.accessToken)await g.accessToken();
-   if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Données à vérifier avant envoi · Votre saisie reste dans cette fenêtre.');
+   if(live){
+    // Revalidate the account and library before sending locally saved work.
+    // Keep the open form mounted; journal revisions preserve concurrent edits.
+    const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);
+    if(profile.id!==user.id)throw Error('Le compte Microsoft a changé. Reconnectez le compte initial.');
+    user=profile;cloudReady=true;g.readOnlyCache=false;
+    await flush({force:true});
+    if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Fiche conservée · planning à actualiser après fermeture de la fiche.');
+    else{status('Microsoft 365 connecté',true);syncNotice('');}
+   }
+   else if(opsUI?.cacheMode||opsUI?.needsRefresh)syncNotice('Données à vérifier avant envoi · Votre saisie reste dans cette fenêtre.');
    else{status('Microsoft 365 connecté',true);syncNotice('');await flush();}
    return;
   }
@@ -234,7 +253,8 @@ async function activate({cached=null}={}){
   cachedNotice();
   const personal=isAdmin()?await warmCache.privateRead(user.id):null;
   if(personal){opsUI.privateCalendar=cachedPrivateCalendar(personal);}
-  renderProjects();if(opsUI&&!pendingInitialRoute)await opsUI.restoreSection();
+  renderProjects();if(pendingInitialRoute&&navigator.onLine===false){try{await restoreRoute();pendingInitialRoute='';}catch(e){syncNotice('Fiche non mémorisée sur cette tablette : ouvrez-la une première fois avec du réseau.');}}
+  if(opsUI&&!pendingInitialRoute&&!routeState().projectId)await opsUI.restoreSection();
  }else{await refresh({skipOps:true});await restoreRoute();if(opsUI&&!routeState().projectId)await opsUI.restoreSection();}
  clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden)return;
@@ -294,7 +314,10 @@ $('allProjects').onclick=()=>{category='all';selected=null;showDashboard();};$('
 async function openProject(id){
  const p=catalog.projects.find(x=>x.id===id);if(!p)throw Error('Chantier introuvable. Actualisez la liste des chantiers.');status('Ouverture du chantier…');
  selected=p;docStack=[{id:p.id,name:'Documents du chantier'}];
- let remoteLoaded=true,r;try{r=await journal.load(p.id,'fiche',null);await store.set('meta:'+p.id,r);}catch(e){remoteLoaded=false;r=await store.get('meta:'+p.id);if(!r)throw e;status('Fiche locale — hors ligne');}
+ const previous=await store.get('meta:'+p.id);
+ const loaded=await loadWithLocalFallback(()=>journal.load(p.id,'fiche',null),previous);
+ const remoteLoaded=loaded.remote,r=loaded.value;
+ if(remoteLoaded)await store.set('meta:'+p.id,r);else status('Fiche mémorisée sur cet appareil · données à actualiser');
  meta=r.data||metaDefaults(p);metaParents=r.heads.map(h=>h.revision);metaConflict=r.heads.length>1;
  const draft=await store.get(draftKey(p.id,'fiche',null));if(draft){meta=draft.payload;metaParents=draft.parents;}
  if(remoteLoaded&&isAdmin()&&!metaConflict&&!draft){
@@ -421,9 +444,11 @@ async function openDocument(item){const cacheKey='file:'+item.id+':'+(item.eTag|
  await showBlob(b,item.name,item.file?.mimeType);
 }
 async function attestations(){
- let dirs=[];try{const d=await journal.directory(selected.id,'attestations',null);dirs=d?(await g.children(d.id)).filter(x=>x.folder):[];}catch(e){dirs=(await store.get('attdirs:'+selected.id))||[];}
- await store.set('attdirs:'+selected.id,dirs);attRecords=[];
- for(const d of dirs){try{const r=await journal.load(selected.id,'attestations',d.name);if(r.data)attRecords.push({id:d.name,...r.data,heads:r.heads,loaded:r,remote:true});await store.set('att:'+selected.id+':'+d.name,r);}catch(e){const r=await store.get('att:'+selected.id+':'+d.name);if(r?.data)attRecords.push({id:d.name,...r.data,heads:r.heads,loaded:r,remote:true});}}
+ let dirs=[],fromCache=false;const cachedDirs=await store.get('attdirs:'+selected.id);
+ try{const result=await loadWithLocalFallback(async()=>{const d=await journal.directory(selected.id,'attestations',null);return d?(await g.children(d.id)).filter(x=>x.folder):[];},cachedDirs);dirs=result.value;fromCache=!result.remote;if(result.remote)await store.set('attdirs:'+selected.id,dirs);}catch(e){dirs=cachedDirs||[];fromCache=true;}
+ attRecords=[];
+ const loadedRecords=await Promise.all(dirs.map(async d=>{const cached=await store.get('att:'+selected.id+':'+d.name);try{const result=fromCache&&cached?{value:cached,remote:false}:await loadWithLocalFallback(()=>journal.load(selected.id,'attestations',d.name),cached);if(result.remote)await store.set('att:'+selected.id+':'+d.name,result.value);return result.value?.data?{id:d.name,...result.value.data,heads:result.value.heads,loaded:result.value,remote:true}:null;}catch{return null;}}));
+ attRecords=loadedRecords.filter(Boolean);
  for(const{value:d}of await store.all(`draft:${selected.id}:attestations:`)){const idx=attRecords.findIndex(a=>a.id===d.recordId);const v={id:d.recordId,...d.payload,heads:d.parents.map(revision=>({revision})),pending:true,remote:idx>=0};if(idx>=0)attRecords[idx]={...attRecords[idx],...v};else attRecords.push(v);}
  $('tabContent').innerHTML=`<section class="panel"><h2>Attestations de ce chantier</h2><p class="muted">Chaque dossier conserve ses propres formulaires, photos et signatures.</p>${attRecords.map(a=>`<div class="row"><div><h3>${esc(a.ref||a.id)} · ${esc(modules[a.moduleKey]?.title||a.moduleKey)}</h3>${a.context?.siteName?`<p><strong>${esc(a.context.siteName)}</strong><br>${esc(a.state?.adresse||a.context?.adresse||'')}<br>Technicien : ${esc(a.state?.technicien||a.context?.technician||'À renseigner')}</p>`:''}<p>${esc(a.authorName||'')} · ${dateTime(a.updatedAt)}</p><span class="chip ${a.pending||a.heads.length>1?'warn':''}">${a.heads.length>1?'Versions à vérifier':a.pending?'Envoi en attente':'Enregistrée au chantier'}</span></div><div class="actionRow"><button data-att="${esc(a.id)}">Ouvrir</button>${a.remote?`<button data-history="${esc(a.id)}" class="secondary">Versions</button>`:''}<button data-delete-att="${esc(a.id)}" class="danger">Supprimer</button></div></div>`).join('')||'<p class="muted">Aucune attestation créée pour le moment.</p>'}</section><section class="panel"><h2>Créer une attestation</h2><p class="muted">Tous les formulaires sont disponibles. Ne remplissez que ceux utiles à ce chantier.</p><div class="moduleGrid">${Object.entries(modules).map(([key,m])=>`<article class="moduleCard"><div class="moduleMark" style="background:${m.color}">${esc(m.badge)}</div><h3>${esc(m.title)}</h3><p>${esc(m.subtitle)}</p><button data-new-att="${key}" class="secondary">+ Créer</button></article>`).join('')}</div></section>`;
  document.querySelectorAll('[data-new-att]').forEach(b=>b.onclick=()=>openAttestation(null,b.dataset.newAtt).catch(err));
@@ -441,7 +466,7 @@ async function openAttestation(id,key,override=null){
  if(id){const pending=await store.get(draftKey(projectId,'attestations',id));let r;
   if(override){data=override.data;parents=override.parents;}
   else if(pending){data=pending.payload;parents=pending.parents;}
-  else{try{r=await journal.load(projectId,'attestations',id);await store.set('att:'+projectId+':'+id,r);}catch(e){r=await store.get('att:'+projectId+':'+id);if(!r)throw e;}
+  else{const cached=await store.get('att:'+projectId+':'+id);const result=await loadWithLocalFallback(()=>journal.load(projectId,'attestations',id),cached);r=result.value;if(result.remote)await store.set('att:'+projectId+':'+id,r);
    if(r.heads.length>1){await chooseRevision(projectId,'attestations',id,r,async(data,parents)=>openAttestation(id,null,{data,parents}));return;}
    data=r.data;parents=r.heads.map(h=>h.revision);
   }

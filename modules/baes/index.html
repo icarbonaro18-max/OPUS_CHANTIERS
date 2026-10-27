@@ -296,6 +296,7 @@ button{touch-action:manipulation}
  </section>
 
  <div id="baesContainer"></div>
+ <div style="margin:12px 0 20px"><button class="btn btn-secondary" id="addBaesBottomBtn" type="button">+ Ajouter un BAES</button></div>
 
  <section class="panel">
   <div class="panel-head"><h2>5. Conclusion, observations et signature</h2></div>
@@ -446,7 +447,6 @@ function createBaesCard(data={}){
    </div>`;
   container.appendChild(card);
   updatePhotoPreview(card);
-  renumberCards();
   scheduleSave();
   return card;
 }
@@ -757,7 +757,9 @@ container.addEventListener('click',e=>{
   if(e.target.closest('.remove-photo')){card.dataset.photo='';updatePhotoPreview(card);scheduleSave();}
 });
 document.querySelectorAll('main input,main select,main textarea').forEach(el=>{el.addEventListener('input',scheduleSave);el.addEventListener('change',scheduleSave);});
-document.getElementById('addBaesBtn').addEventListener('click',()=>{const card=createBaesCard({});card.scrollIntoView({behavior:'smooth',block:'start'});});
+function addBaes(){const card=createBaesCard({});scheduleSave();card.scrollIntoView({behavior:'smooth',block:'start'});}
+document.getElementById('addBaesBtn').addEventListener('click',addBaes);
+document.getElementById('addBaesBottomBtn').addEventListener('click',addBaes);
 function addRemoteAndScroll(){const card=createRemoteCard({});card.scrollIntoView({behavior:'smooth',block:'start'});}
 document.getElementById('addRemoteBtn').addEventListener('click',addRemoteAndScroll);
 document.getElementById('addRemoteInline').addEventListener('click',addRemoteAndScroll);

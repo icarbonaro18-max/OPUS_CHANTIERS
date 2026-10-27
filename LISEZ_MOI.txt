@@ -1,0 +1,11 @@
+OPUS CHANTIERS — Mise à jour BAES et réseau
+
+Remplacer les quatre fichiers dans GitHub en respectant leur emplacement :
+- app.js à la racine
+- sw.js à la racine
+- lib/bridge.js dans le dossier lib
+- modules/baes/index.html dans le dossier modules/baes
+
+Conserver les autres fichiers et config.json. Après le déploiement Vercel, vérifier que les rapports ouverts et les envois en attente sont enregistrés avant de fermer les onglets et redémarrer l’application pour activer la mise à jour.
+
+Sur la tablette, ouvrir une première fois le chantier et son attestation en ligne pour en mémoriser une copie. Tester ensuite sur un dossier d’essai : couper le réseau, saisir un BAES et une photo, attendre la confirmation locale, rétablir le réseau et vérifier que la sauvegarde Microsoft 365 est confirmée. Garder l’application ouverte pour permettre la synchronisation.
