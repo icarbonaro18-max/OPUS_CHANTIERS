@@ -76,7 +76,7 @@ test('parallel Graph reads share one pending token acquisition',async()=>{
 });
 test('a timed out Graph request does not start two more long retries',async()=>{
  let calls=0;const graph=new Graph(async()=>'test-token',async()=>{calls++;throw Object.assign(Error('timeout'),{name:'TimeoutError'});});
- await assert.rejects(graph.request('/me'),/timeout/);assert.equal(calls,1);
+ await assert.rejects(graph.request('/me'),e=>e.code==='network_timeout');assert.equal(calls,1);
 });
 
 test('a hung token acquisition times out and a later request can renew',async()=>{

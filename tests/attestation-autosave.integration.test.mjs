@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {JSDOM} from 'jsdom';
+import {parseRevision} from '../lib/cloud.js';
 
 const PERIOD=15*60*1000;
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
@@ -35,9 +36,9 @@ async function harness(t,{online=true,sha=hash}={}){
  frame.postMessage=(message)=>{messages.push(structuredClone(message));trace.push(['message',message.type,message.captureId,message.ok]);};
  let source=await readFile(new URL('../app.js',import.meta.url),'utf8');
  source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace(/const \{OpsUI\}=await import\('\.\/lib\/ops-ui\.js\?v=[^']+'\);/,'').replace('init().catch(err);','');
- source+='\nstore=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
+ source+='\nstore=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,chooseRevision,reconnectReport,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
  const context=vm.createContext({TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
-  structuredClone,URL,URLSearchParams,Blob,safeName:s=>String(s).replace(/["*:<>?/\\|]/g,'-'),location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
+  structuredClone,URL,URLSearchParams,Blob,parseRevision,safeName:s=>String(s).replace(/["*:<>?/\\|]/g,'-'),location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
   console:{log(){},warn(){},error(){}},setInterval:()=>0,clearInterval(){},setTimeout:(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,at:now+delay});return id;},clearTimeout:id=>timers.delete(id)});
  vm.runInContext(source,context);
  const session={projectId:'project-a',recordId:'baes-a',moduleKey:'baes',payload:{moduleKey:'baes',ref:'BAES-A',context:{name:'Site A'},state:null},parents:[],nonce:'session-a',lastHash:'',lastCaptureId:0,stateChain:Promise.resolve(),ready:true,closing:false};
@@ -202,9 +203,51 @@ test('returning online sends the locally saved attestation without closing the o
  h.hooks.setGraph({readOnlyCache:true,async connect(){},async request(){return {id:'tech',displayName:'Technicien'};}});
  const state={baes:[{repere:'1',photo:'data:image/jpeg;base64,photo'}],signature:'data:image/png;base64,sig'};
  h.post(state,1);await until(()=>h.ack(1));assert.equal(h.writes.length,0);
- h.navigator.onLine=true;await h.hooks.resumeCloud();
+ h.navigator.onLine=true;await h.hooks.resumeCloud({forceUploads:true});await until(()=>!h.records.has(h.key));await h.hooks.flush();
  assert.equal(h.writes.length,1);assert.deepEqual(h.writes[0].payload.state,state);
  assert.equal(h.records.has(h.key),false);assert.equal(h.hooks.getLive().recordId,'baes-a');
+});
+
+test('background reconnection respects the fifteen-minute due time and does not wait for a slow photo upload',async t=>{
+ const h=await harness(t),started=deferred(),release=deferred();let connections=0;
+ h.hooks.configureProject({id:'project-a',name:'Site A',category:'02'},{name:'Site A',client:'Client',adresse:'Rue'});
+ await h.hooks.activate({cached:{operations:{}}});
+ h.hooks.setGraph({readOnlyCache:true,async connect(){connections++;},async accessToken(){return 'token';},async request(){return {id:'tech',displayName:'Technicien'};}});
+ await h.save({moduleKey:'baes',state:{note:'En cours de saisie'}});
+ await h.hooks.resumeCloud();await h.hooks.flush();assert.equal(h.writes.length,0,'A focus or periodic refresh must not force an early remote save');
+ h.advance(PERIOD);h.controls.save=async()=>{started.resolve();await release.promise;};
+ const resume=h.hooks.resumeCloud();await started.promise;await resume;
+ assert.equal(h.records.has(h.key),true,'The slow send is still outstanding');assert.equal(h.hooks.getLive(),h.session);
+ await h.hooks.resumeCloud();assert.equal(connections,1,'An open form only checks its token after the initial connection');
+ release.resolve();await h.hooks.flush();assert.equal(h.records.has(h.key),false);
+});
+
+test('reconnecting from the history dialog verifies Microsoft without reloading every operational record',async t=>{
+ const h=await harness(t);h.hooks.configureProject({id:'project-a',name:'Site A',category:'02'},{name:'Site A',client:'Client',adresse:'Rue'});
+ await h.hooks.activate({cached:{operations:{}}});h.hooks.setLive(null);
+ const dialog=h.dom.window.document.getElementById('modal');dialog.open=true;h.dom.window.document.getElementById('modalBody').innerHTML='<p>Historique des enregistrements</p>';
+ let connections=0;const graph={readOnlyCache:true,async connect(){connections++;},async accessToken(){return 'token';},async request(){return {id:'tech',displayName:'Technicien'};}};h.hooks.setGraph(graph);
+ h.hooks.getUI().reload=async()=>assert.fail('Reading history must not depend on reloading the 43 MB intervention file');
+ await h.hooks.reconnectReport();assert.equal(connections,1);assert.equal(graph.readOnlyCache,false);assert.equal(dialog.open,true);assert.equal(h.hooks.getUI().cacheMode,true,'The operational snapshot is still protected until its own refresh');
+ assert.match(h.dom.window.document.getElementById('syncNotice').textContent,/Connexion vérifiée/);
+});
+
+test('Examiner shows the chosen version beside its row without loading photos; reopening waits for photos and honours cancellation',async t=>{
+ for(const cancel of [false,true]){
+  const h=await harness(t),document=h.dom.window.document,dialog=document.getElementById('modal'),photos=deferred(),entered=deferred();
+  dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;};
+  const revision='a'.repeat(32),file={id:'revision-a',name:`r_${revision}__p_root.json`,createdDateTime:'2026-10-28T11:13:20Z'},loaded={dir:{id:'revisions'},files:[file],heads:[{revision}]},payload={moduleKey:'baes',state:{note:'Notes de Ruben',photo:{$opusAsset:{id:'asset',mime:'image/jpeg'}}}};
+  let reads=0,hydrations=0,chosen=null;
+  h.journal.load=async(p,kind,id,rev,options)=>{reads++;assert.equal(rev,revision);assert.equal(options.hydrate,false);assert.equal(options.known,loaded);return {data:payload,doc:{createdAt:file.createdDateTime,author:{name:'Ruben'}}};};
+  h.journal.hydrate=async()=>{hydrations++;entered.resolve();await photos.promise;return {...payload,state:{note:'Notes de Ruben',photo:'data:image/jpeg;base64,cGhvdG8='}};};
+  await h.hooks.chooseRevision('project-a','attestations','baes-a',loaded,async(data,parents)=>{chosen={data,parents};},true);
+  const examine=document.querySelector('[data-revision]');await examine.onclick();assert.equal(reads,1);assert.equal(hydrations,0);assert.equal(examine.disabled,false);
+  const detail=document.getElementById('revisionDetail');assert.equal(examine.closest('.row').nextElementSibling,detail);assert.match(detail.textContent,/Notes de Ruben/);assert.match(detail.textContent,/photo\/signature conservée/);
+  const use=document.getElementById('useRevision'),opening=use.onclick();await entered.promise;assert.equal(dialog.open,true);assert.equal(use.disabled,true);assert.equal(chosen,null);
+  if(cancel)dialog.close();photos.resolve();await opening;
+  if(cancel)assert.equal(chosen,null,'Closing history while photos load must not reopen a report later');
+  else{assert.equal(dialog.open,false);assert.equal(chosen.data.state.photo,'data:image/jpeg;base64,cGhvdG8=');assert.deepEqual(Array.from(chosen.parents),[revision]);}
+ }
 });
 
 
