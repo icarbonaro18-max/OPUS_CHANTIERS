@@ -19,7 +19,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.4.99';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.4.99-pdf-terrain';
+const APP_VERSION='3.5.0-rendezvous';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -42,7 +42,7 @@ function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.mes
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
 $('modal').addEventListener('submit',e=>{
- if(!(opsUI?.cacheMode||opsUI?.needsRefresh)||e.target.classList.contains('localReportForm')||['appointmentOnly','freeEventForm'].includes(e.target.id))return;
+ if(!(opsUI?.cacheMode||opsUI?.needsRefresh)||e.target.classList.contains('localReportForm')||e.target.dataset.recordEdit==='1'||['appointmentOnly','appointmentReplan','freeEventForm'].includes(e.target.id))return;
  e.preventDefault();e.stopImmediatePropagation();
  const recovery=opsUI?.activeReportRecovery;
  if(recovery?.form===e.target&&recovery.form.isConnected)void recovery.flush(true).then(()=>toast('Brouillon du rapport conservé sur cet appareil · non envoyé au bureau.')).catch(err);
@@ -194,7 +194,7 @@ async function reconnectReport(){
  if($('modal').open&&opsUI?.hasLoadedRemote&&!opsUI.cacheMode&&!opsUI.needsRefresh&&!opsUI.dataLoadError&&cloudReady&&!g.readOnlyCache){
   status('Microsoft 365 connecté',true);syncNotice('');return;
  }
- const appointment=$('appointmentOnly')||$('freeEventForm');
+ const appointment=$('appointmentOnly')||$('appointmentReplan')||$('freeEventForm')||$('modal').querySelector('[data-record-edit="1"]');
  if($('modal').open&&!current){
   if(appointment){await prepareAppointmentWrite();return;}
   if(opsUI?.cacheMode||opsUI?.needsRefresh)throw Error('Connexion vérifiée. Fermez cette fenêtre avant d’actualiser les données ; aucune modification n’a été envoyée.');
@@ -237,7 +237,7 @@ installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI
 async function activate({cached=null}={}){
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('newProject').hidden=!isAdmin();
  try{
-  const {OpsUI}=await import('./lib/ops-ui.js?v=3.4.99');
+  const {OpsUI}=await import('./lib/ops-ui.js?v=3.5.0');
   opsUI=new OpsUI({graph:g,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,prepareAppointmentWrite,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
   await opsUI.init({cached:cached?.operations});personnelSynced=opsUI.personnelSyncComplete===true;
  }catch(e){
@@ -639,6 +639,7 @@ bind('settings',setup);bind('login',login);
 async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
 bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
 async function init(){
+ if($('version'))$('version').textContent='Version '+APP_VERSION.split('-')[0];
  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
  let settingsStorage;try{settingsStorage=localStorage;}catch{}
  config=loadAppConfig(await(await fetch('./config.json',{cache:'no-store'})).json(),settingsStorage);
