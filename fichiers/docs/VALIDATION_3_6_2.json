@@ -1,0 +1,15 @@
+{
+  "version": "3.6.2",
+  "date": "2026-10-29",
+  "base_commit": "6fe1c0f3df7c2c1316ecaf71155acc377302250a",
+  "command": "npm test",
+  "build": "success",
+  "results": {
+    "tests": 505,
+    "pass": 505,
+    "fail": 0
+  },
+  "new_feature_tests": 17,
+  "production_deployed": false,
+  "actual_mailbox_authenticated_in_this_session": false
+}

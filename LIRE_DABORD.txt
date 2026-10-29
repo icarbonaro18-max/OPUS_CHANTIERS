@@ -1,0 +1,14 @@
+OPUS CHANTIERS 3.6.2 — 29 octobre 2026
+
+1. Modifier les coordonnées client et le contact depuis les interventions, visites/devis et rendez-vous, sans rapport.
+2. Onglet E-mails fournisseurs : recherche dans Outlook par fournisseur ou texte libre, avec Difam, CDO et les autres fournisseurs.
+3. Correctif de connexion 3.6.1 conservé.
+
+Base : version 3.6.0 publiée, commit 6fe1c0f.
+505 tests passent, compilation réussie.
+Cette mise à jour n’est pas encore publiée sur Vercel.
+
+Appliquer le patch dans le dépôt, ou reprendre les fichiers de fichiers/ aux mêmes emplacements. Exécuter npm test puis utiliser le déploiement Vercel habituel. Conserver les autres changements si la branche a évolué.
+Cette archive est un correctif et non une application autonome. Ne pas la déposer dans les documents d’un chantier.
+
+Détail et recette : fichiers/docs/COORDONNEES_ET_EMAILS_3_6_2.md

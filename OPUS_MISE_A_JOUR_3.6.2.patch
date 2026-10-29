@@ -1,0 +1,1070 @@
+diff --git a/app.js b/app.js
+index e090c25..13c65fd 100644
+--- a/app.js
++++ b/app.js
+@@ -1,6 +1,7 @@
++import {installAppUpdates} from './lib/app-update.js';
+ import {openStorageHealth} from './lib/storage-health.js';
+ import {loadAppConfig,deviceConfigOverrides} from './lib/app-config.js';
+-import {acquireSessionToken,requiresInteractiveAuth} from './lib/auth-session.js';
++import {acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount} from './lib/auth-session.js';
+ import {syncPrivateNotifications} from './lib/notifications-ui.js';
+ import {ReportRecovery} from './lib/report-recovery.js';
+ import {installResumeSync} from './lib/resume-sync.js';
+@@ -20,7 +21,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
+ import {loadOrders,renderOrders} from './lib/project-orders.js';
+ import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
+ const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+-const APP_VERSION='3.6.0-stockage';
++const APP_VERSION='3.6.2-coordonnees';
+ const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
+ // When a local copy exists, a weak connection must not block field work for
+ // the full Graph timeout. A timed-out read is ignored; it never writes locally.
+@@ -37,9 +38,10 @@ let reportRecovery=null,lastSyncAt=0;
+ let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false,pendingInitialRoute='';
+ const pendingReplies=new Map();let modalCleanup=null;
+ const ATTESTATION_SYNC_MS=15*60*1000;
++let authInitTask=null,authBusy=false,authBlocked=false;
+ let flushTask=null,pdfOutboxTask=null,modulePdf=null;
+ function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
+-function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
++function err(e){if(e?.code==='auth_interaction_blocked'||e?.errorCode==='interaction_in_progress'){authBlocked=true;status('Connexion Microsoft bloquée');syncNotice(e.message);}console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
+ function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
+ $('modalClose').onclick=()=>$('modal').close();
+ $('modal').addEventListener('submit',e=>{
+@@ -63,6 +65,10 @@ function formFields(data,list=fields){return list.map(([k,l])=>`<div class="${k=
+ function readFields(data,list=fields){const result=clone(data);for(const[k]of list)result[k]=$('f-'+k).value.trim();return result;}
+ async function authInit(){
+  if(!config.clientId)return;
++ if(!authInitTask)authInitTask=authInitNow().catch(error=>{authInitTask=null;throw error;});
++ return authInitTask;
++}
++async function authInitNow(){
+  const M=await import('./vendor/msal.js').catch(()=>{throw new Error('Le module Microsoft doit être installé par le déploiement GitHub Actions. Voir le guide inclus dans le ZIP.');});
+  msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('./auth.html',location.href).href,postLogoutRedirectUri:new URL('./',location.href).href},cache:{cacheLocation:'localStorage'}});
+  await msal.initialize();const response=await msal.handleRedirectPromise();
+@@ -71,8 +77,9 @@ async function authInit(){
+  if(account){msal.setActiveAccount(account);await connectCloud(account);}
+ }
+ async function token(options={}){
+- try{return await acquireSessionToken(msal,config.scopes,options);}
++ try{return await acquireSessionToken(msal,config.scopes,{...options,expectedHomeAccountId:appAccount});}
+  catch(e){
++  if(e.authErrorCode==='interaction_in_progress')authBlocked=true;
+   if(requiresInteractiveAuth(e)){
+    status('Validation Microsoft nécessaire');$('login').textContent='Renouveler la connexion';
+    syncNotice('Microsoft demande une validation de connexion. Votre fiche reste ouverte et votre brouillon est conservé.');
+@@ -93,16 +100,47 @@ async function connectPrivateCalendar(interactive=false){
+  privateCalendarLoading=loadPrivateCalendar(interactive).finally(()=>{privateCalendarLoading=null;});return privateCalendarLoading;
+ }
+ async function loadPrivateCalendar(interactive){
+- const account=msal.getActiveAccount(),scopes=['Files.ReadWrite.AppFolder'];
++ const account=selectSessionAccount(msal,appAccount),scopes=['Files.ReadWrite.AppFolder'];
++ if(!account)throw new CloudError('Reconnectez votre compte Microsoft pour ouvrir l’agenda privé.',401,'auth_required');
+  async function privateToken(options={}){return acquireSessionToken(msal,scopes,{...options,account});}
+- try{await privateToken();}catch(e){if(!interactive||!requiresInteractiveAuth(e))throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
++ try{await privateToken();}catch(e){if(!interactive||!requiresInteractiveAuth(e))throw e;const result=await interactiveAuth(()=>msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href}));if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
+  const next=new PrivateCalendar(new Graph(privateToken),user.id);
+  await next.load();privateCalendarSession=next;
+  next.onChange=async()=>{await syncPrivateNotifications(opsUI,next);try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
+  if(opsUI){opsUI.privateCalendar=next;if(opsUI.section==='calendar'&&!$('modal').open)await opsUI.renderCalendar();}
+  return next;
+ }
+-async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await opsUI?.activeReportRecovery?.flush(true);await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
++function setAuthBusy(busy){
++ authBusy=busy;
++ for(const element of document.querySelectorAll('#login,#changeAccount,#logout,[data-auth-reconnect],[data-auth-repair]'))element.disabled=busy;
++}
++function interactiveAuth(operation){return runAuthInteraction(msal,operation,setAuthBusy);}
++async function persistBeforeAuth(){
++ await opsUI?.activeReportRecovery?.flush(true);
++ if(live){await requestFrame('opus-capture');await queueChain;}
++}
++async function login(){
++ if(!config.clientId){setup();return;}
++ await authInit();
++ return interactiveAuth(async()=>{await persistBeforeAuth();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});
++}
++async function recoverAuth(){
++ if(!msal)await authInit();else if(authInitTask)await authInitTask;
++ const expected=appAccount;
++ const result=await interactiveAuth(async()=>{
++  await persistBeforeAuth();
++  const account=selectSessionAccount(msal,expected);
++  // Explicit user recovery only: MSAL cancels the previous bridge monitor and
++  // replaces its interaction marker. No token, draft or account cache is erased.
++  const response=await msal.acquireTokenPopup({scopes:config.scopes,...(account?{account}:{prompt:'select_account',loginHint:user?.mail||user?.userPrincipalName}),overrideInteractionInProgress:true});
++  if(!response?.account)throw Error('Microsoft n’a renvoyé aucun compte. Réessayez la connexion.');
++  if(expected&&response.account.homeAccountId!==expected){const old=selectSessionAccount(msal,expected);msal.setActiveAccount(old);throw Error('Reconnectez le même compte Microsoft que celui de la fiche ouverte.');}
++  msal.setActiveAccount(response.account);authBlocked=false;return response;
++ });
++ if(!user||!g){await connectCloud(result.account);return;}
++ if($('modal').open&&$('changeAccount'))$('modal').close();
++ await reconnectReport();
++}
+ async function connectCloud(account){
+  appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);warmCache=new WarmCache(store,appAccount,config);
+  reportRecovery=new ReportRecovery(store,localStorage,config.clientId+':'+appAccount);cacheSnapshot=await warmCache.read();g=new Graph(token);journal=new Journal(g,{assetStore:store});
+@@ -113,7 +151,14 @@ async function connectCloud(account){
+  status('Connexion à la bibliothèque…');
+  const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);user=profile;cloudReady=true;await activate();
+ }
+-function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}el.textContent=text;el.hidden=!text;if(text&&user&&!DEMO){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);}}
++function syncNotice(text){
++ let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}
++ el.textContent=text;el.hidden=!text;
++ if(text&&user&&!DEMO){
++  const b=document.createElement('button');b.type='button';b.className='secondary';b.dataset.authReconnect='1';b.disabled=authBusy;b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);
++  if(authBlocked){const repair=document.createElement('button');repair.type='button';repair.className='secondary';repair.dataset.authRepair='1';repair.disabled=authBusy;repair.textContent='Relancer la connexion bloquée';repair.onclick=()=>recoverAuth().catch(err);el.append(' ',repair);}
++ }
++}
+ function cachedNotice(){
+  const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
+  syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Les fiches de contrôle préparées peuvent être saisies sur cet appareil ; leur envoi attend le réseau.');
+@@ -143,7 +188,7 @@ async function resumeCloud({forceUploads=false}={}){
+   }
+   await refresh();
+   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){void flushPdfOutbox().catch(err);void flush({force:forceUploads}).catch(err);if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
+- }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
++ }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(authBlocked?'Connexion Microsoft bloquée':requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
+  }).finally(()=>{resumeBusy=null;});return resumeBusy;
+ }
+ 
+@@ -172,14 +217,15 @@ async function openRecoveredTarget(target){
+  if(target.kind==='visits'){await opsUI.openVisit(target.id);if(target.detail)await opsUI.editVisitTask(target.id,target.index??null);}
+  else{await opsUI.openIntervention(target.id);if(target.detail)await opsUI.editInterventionItem(target.id,target.index??null);}
+ }
+-async function reconnectReport(){
++async function reconnectReport(){return interactiveAuth(()=>reconnectReportNow());}
++async function reconnectReportNow(){
+  await opsUI?.activeReportRecovery?.flush(true);
+  if(navigator.onLine===false)throw Error('Pas de réseau. Gardez votre brouillon et réessayez dès le retour de la connexion.');
+  // Keep the dialog intact while testing the session. Persist before any redirect.
+  try{await (g.accessToken?g.accessToken():token());}catch(e){
+   if(!requiresInteractiveAuth(e))throw e;
+   // Keep the active form mounted even when Microsoft genuinely requires interaction.
+-  const response=await msal.acquireTokenPopup({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName,...(e.claims?{claims:e.claims}:{})});
++  const response=await msal.acquireTokenPopup({scopes:config.scopes,account:selectSessionAccount(msal,appAccount),loginHint:user?.mail||user?.userPrincipalName,...(e.claims?{claims:e.claims}:{})});
+   if(response.account?.homeAccountId!==appAccount)throw Error('Reconnectez le même compte Microsoft pour conserver cette fiche.');
+   msal.setActiveAccount(response.account);
+  }
+@@ -635,11 +681,18 @@ bind('storageHealth',()=>openStorageHealth({graph:g,store,isAdmin,modal,reposito
+  completed:async()=>{if(opsUI){await opsUI.reload({background:false});opsUI.needsRefresh=false;opsUI.refreshPending=false;}await rememberWarm();status('Microsoft 365 connecté',true);syncNotice('');}
+ }));
+ bind('settings',setup);bind('login',login);
+-async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
+-bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
++async function logoutCurrent(){
++ if(DEMO){location.href='./';return;}
++ if(authInitTask)await authInitTask;
++ return interactiveAuth(async()=>{await persistBeforeAuth();setRoute();await msal.logoutRedirect({account:selectSessionAccount(msal,appAccount),postLogoutRedirectUri:new URL('./',location.href).href});});
++}
++bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button type="button" data-auth-repair>Relancer la connexion bloquée</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{if(DEMO){$('modal').close();return;}await login();});const repair=$('modalBody').querySelector('[data-auth-repair]');if(repair)repair.onclick=()=>recoverAuth().catch(err);setAuthBusy(authBusy);bind('logout',logoutCurrent);});
+ async function init(){
+  if($('version'))$('version').textContent='Version '+APP_VERSION.split('-')[0];
+- if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
++ if('serviceWorker'in navigator)void installAppUpdates({navigator,document,location,beforeUpdate:async()=>{
++  if(live||$('modal').open||!$('viewer').hidden)throw Error('Revenez au chantier après avoir fermé le formulaire ou l’aperçu, puis appliquez la mise à jour.');
++  await queueChain;
++ },onError:err}).catch(e=>console.warn('Vérification de mise à jour différée',e.message));
+  let settingsStorage;try{settingsStorage=localStorage;}catch{}
+  config=loadAppConfig(await(await fetch('./config.json',{cache:'no-store'})).json(),settingsStorage);
+  modules=await(await fetch('./lib/modules.json')).json();
+diff --git a/commandes/app.js b/commandes/app.js
+index e6fee51..cbdf4ea 100644
+--- a/commandes/app.js
++++ b/commandes/app.js
+@@ -8,7 +8,7 @@ import {Graph,safeName} from '../lib/cloud.js';
+ import {affairIdentity,matchAffair} from './affair.js';
+ import {makePDF} from './pdf.js';
+ const $=id=>document.getElementById(id),fields=['supplier','number','date','clientReference','deliveryMode','destination','availability','notes'];
+-let config,msal,g,projects=[],images=[],warnings=[],allowed=false,busy=false;
++let outlook,config,msal,g,projects=[],images=[],warnings=[],allowed=false,busy=false;
+ const status=t=>$('status').textContent=t;
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ async function run(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){status(e.message||'Action impossible.');}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);}}
+@@ -17,14 +17,14 @@ async function api(method,body){const r=await fetch('/api/commande',{method,head
+ $('login').disabled=true;
+ let connectionReady;
+ $('login').onclick=()=>run(async()=>{await connectionReady;sessionStorage.setItem('opus-auth-return','/commandes/');await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});
+-async function init(){config=await(await fetch('../config.json',{cache:'no-store'})).json();const M=await import('../vendor/msal.js');msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('../auth.html',location.href).href},cache:{cacheLocation:'sessionStorage'}});const account=await initializeConnection(msal);if(!account){status('Connectez-vous pour préparer vos commandes.');return;}msal.setActiveAccount(account);await api('GET');allowed=true;$('locked').hidden=true;$('workspace').hidden=false;$('login').textContent='Changer de compte';status('Votre espace personnel est ouvert.');g=new Graph(token);try{await g.connect(config);projects=(await g.projects()).projects.sort(newestFirst);try{projects.push(...interventionTargets((await readInterventions(g)).rows,{includeClosed:true}));}catch(e){status('Interventions inaccessibles : '+e.message);}$('project').innerHTML='<option value="">Choisir un chantier</option>'+projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');mountTargetPicker($('project'),projects);}catch(e){status('PDF disponible. Liste des chantiers inaccessible : '+e.message);}addRow();const outlook=mountOutlook({host:$('outlookPage'),authorize:()=>api('GET'),download,onImport:text=>{images=[];sources();$('sourceText').value=text;$('approved').checked=false;$('supplierPage').hidden=false;$('depotPage').hidden=true;status('E-mail repris. Ajoutez les pièces jointes utiles puis cliquez sur Lire la commande.');}});$('outlookOpen').onclick=()=>outlook.show();mountDepot({g:()=>g,projects:()=>projects,run,download,status,authorize:()=>api('GET'),logo:()=>imageURL('../assets/logo.png')});}
++async function init(){config=await(await fetch('../config.json',{cache:'no-store'})).json();const M=await import('../vendor/msal.js');msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('../auth.html',location.href).href},cache:{cacheLocation:'sessionStorage'}});const account=await initializeConnection(msal);if(!account){status('Connectez-vous pour préparer vos commandes.');return;}msal.setActiveAccount(account);await api('GET');allowed=true;$('locked').hidden=true;$('workspace').hidden=false;$('login').textContent='Changer de compte';status('Votre espace personnel est ouvert.');g=new Graph(token);try{await g.connect(config);projects=(await g.projects()).projects.sort(newestFirst);try{projects.push(...interventionTargets((await readInterventions(g)).rows,{includeClosed:true}));}catch(e){status('Interventions inaccessibles : '+e.message);}$('project').innerHTML='<option value="">Choisir un chantier</option>'+projects.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');mountTargetPicker($('project'),projects);}catch(e){status('PDF disponible. Liste des chantiers inaccessible : '+e.message);}addRow();outlook=mountOutlook({host:$('outlookPage'),authorize:()=>api('GET'),download,onImport:text=>{images=[];sources();$('sourceText').value=text;$('approved').checked=false;selectOrderTab('supplier');status('E-mail repris. Ajoutez les pièces jointes utiles puis cliquez sur Lire la commande.');}});$('outlookOpen').onclick=()=>selectOrderTab('mail');mountDepot({g:()=>g,projects:()=>projects,run,download,status,authorize:()=>api('GET'),logo:()=>imageURL('../assets/logo.png')});}
+ function addRow(v={}){const tr=document.createElement('tr');tr.innerHTML=['reference','description','quantity','unit'].map(k=>`<td><input aria-label="${k}" data-field="${k}" value="${esc(v[k]||'')}"></td>`).join('')+'<td><button title="Supprimer cette ligne">×</button></td>';tr.querySelector('button').onclick=()=>{tr.remove();$('approved').checked=false;};$('items').append(tr);}
+ function read(){return Object.fromEntries([...fields.map(k=>[k,$(k).value.trim()]),['warnings',warnings],['items',[...$('items').rows].map(tr=>Object.fromEntries([...tr.querySelectorAll('input')].map(i=>[i.dataset.field,i.value.trim()])))]]);}
+ function fill(o){const match=matchAffair(projects.filter(p=>p.selectable!==false&&((p.kind||'project')!=='project'||activeProject(p))),o.clientReference);$('project').value=match?.id||'';showAffair();for(const k of fields)$(k).value=String(o[k]||'');$('items').replaceChildren();for(const v of o.items||[])addRow(v);warnings=Array.isArray(o.warnings)?o.warnings.map(String):[];$('warnings').textContent=warnings.join('\n');$('warnings').hidden=!warnings.length;$('approved').checked=false;if(/buc/i.test(o.destination||''))$('group').value='depot';}
+ function showAffair(){let el=$('affairSummary');if(!el){el=document.createElement('p');el.id='affairSummary';$('project').after(el);}const p=projects.find(p=>p.id===$('project').value);el.textContent=p?'Affaire : '+affairIdentity(p.name).label:'Choisissez l’affaire : son numéro et son nom figureront sur le bon.';}
+ $('project').addEventListener('change',showAffair);
+ function validated(){if(!allowed)throw Error('Connectez-vous à votre compte.');const selected=projects.find(p=>p.id===$('project').value);if(!selected)throw Error('Choisissez l’affaire pour inscrire son numéro et son nom sur le bon.');const o=read();if(!o.supplier||!o.number||!o.destination||!['retrait','livraison'].includes(o.deliveryMode))throw Error('Renseignez le fournisseur, le numéro de commande, le mode et le lieu.');if(!o.items.length||o.items.some(i=>!i.description||!/^\d+(?:[.,]\d+)?$/.test(i.quantity)||Number(i.quantity.replace(',','.'))<=0))throw Error('Chaque ligne doit avoir une désignation et une quantité positive vérifiée.');if(!$('approved').checked)throw Error('Cochez la validation après avoir relu le bon.');return o;}
+-$('workspace').addEventListener('input',e=>{if(e.target.id!=='approved')$('approved').checked=false;});
++$('workspace').addEventListener('input',e=>{if(e.target.id!=='approved'&&!e.target.closest('#outlookPage'))$('approved').checked=false;});
+ $('add').onclick=()=>{addRow();$('approved').checked=false;};
+ function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000);}
+ const logoKey=()=> 'opus-order-logo:'+String(msal?.getActiveAccount()?.homeAccountId||'')+':'+$('supplier').value.trim().toLowerCase();
+@@ -49,5 +49,9 @@ connectionReady=init().catch(e=>{status(e.errorCode==='interaction_in_progress'?
+ 
+ if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
+ 
+-$('supplierTab').onclick=()=>{$('supplierPage').hidden=false;$('depotPage').hidden=true;};
+-$('depotTab').onclick=()=>{$('supplierPage').hidden=true;$('depotPage').hidden=false;};
++function selectOrderTab(name){
++ $('supplierPage').hidden=name!=='supplier';$('depotPage').hidden=name!=='depot';if(outlook)outlook.show(name==='mail');
++ for(const [id,view]of [['supplierTab','supplier'],['depotTab','depot'],['outlookOpen','mail']]){const button=$(id);button.setAttribute('aria-pressed',String(name===view));button.classList.toggle('secondary',name!==view);}
++}
++$('supplierTab').onclick=()=>selectOrderTab('supplier');
++$('depotTab').onclick=()=>selectOrderTab('depot');
+diff --git a/commandes/index.html b/commandes/index.html
+index bd04ecb..9f27416 100644
+--- a/commandes/index.html
++++ b/commandes/index.html
+@@ -1,6 +1,6 @@
+ <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b406c"><title>OPUS — Bons de commande</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="../icon-192.png"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="../lib/light-interface.css" media="screen"></head><body>
+ <header><img src="../assets/logo.png" alt="OPUS ELEC"><div><strong>BONS DE COMMANDE</strong><small>Le matériel prêt pour le terrain</small></div><button id="login">Se connecter avec Microsoft</button><button id="install" hidden>Installer l’application</button></header>
+ <main><p id="status" role="status">Connexion à votre espace privé…</p><section id="locked" class="card"><h1>Vos commandes, au même format.</h1><p>Importez une page fournisseur, une capture ou un e-mail. Vérifiez le matériel et le lieu de retrait, puis créez votre bon OPUS.</p><p>Accès réservé à Ignazio Carbonaro.</p></section>
+-<div id="workspace" hidden><div class="intro"><h1>Préparer un bon de commande · V88</h1><p>Importez · vérifiez · classez dans le chantier</p><button id="new" class="secondary">Nouveau bon</button></div>
+-<div class="actions" style="margin-bottom:20px"><button id="outlookOpen" class="secondary">Importer depuis Outlook</button><button id="supplierTab">Fournisseurs</button><button id="depotTab" class="secondary">Matériel dépôt</button></div><section id="outlookPage" hidden></section><section id="depotPage" hidden></section><div class="layout" id="supplierPage"><section class="card"><h2>1. Document fournisseur</h2><label class="drop">Captures, photos ou PDF<input id="files" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf"></label><p class="hint">Une commande à la fois · jusqu’à 30 pages, lues par lots automatiques. Préférez une capture rapprochée pour lire les références.</p><div id="sources"></div><h3>Copier un e-mail, sans imprimer</h3><p class="hint">Dans votre messagerie, sélectionnez le contenu de la commande puis copiez-le. Collez-le ci-dessous avec Ctrl + V ou le bouton. Le lien du message seul ne permet pas de le lire.</p><button id="pasteEmail" class="secondary">Coller l’e-mail</button><label>Contenu du message<textarea id="sourceText" rows="7" placeholder="Collez ici le contenu de l’e-mail ou de la page fournisseur."></textarea></label><button id="extract">Lire la commande</button><p class="hint">La lecture transmet les documents sélectionnés à l’IA. Vérifiez le résultat avant l’export.</p><details><summary>Logo du fournisseur</summary><p>Importez son logo officiel. Il sera conservé sur cet ordinateur pour ce fournisseur. Sans logo, son nom apparaît sur le bon.</p><input id="supplierLogo" type="file" accept="image/png,image/jpeg,image/webp"><button id="removeLogo" class="secondary">Retirer le logo</button></details></section>
+-<section class="card"><h2>2. Vérifier le bon</h2><div id="warnings" class="warnings" hidden></div><div class="grid"><label>Fournisseur<input id="supplier" list="suppliers"><datalist id="suppliers"><option>CLAREO</option><option>Rexel</option><option>YESSS</option><option>Sylvania</option><option>Sonepar</option></datalist></label><label>N° de commande fournisseur<input id="number"></label><label>Date de commande<input id="date" type="date"></label><label>Référence client / affaire<input id="clientReference"></label><label>Mode<select id="deliveryMode"><option value="inconnu">À confirmer</option><option value="retrait">Retrait en agence</option><option value="livraison">Livraison</option></select></label><label>Disponibilité / suivi<input id="availability" placeholder="Indiquer le statut confirmé par le fournisseur"></label></div><label>Adresse de retrait ou de livraison<textarea id="destination" rows="2"></textarea></label><button id="buc" class="secondary">Utiliser le dépôt de Buc</button><label>Consignes<textarea id="notes" rows="2"></textarea></label><div class="tablewrap"><table><thead><tr><th>Référence</th><th>Désignation</th><th>Qté</th><th>Unité</th><th></th></tr></thead><tbody id="items"></tbody></table></div><button id="add" class="secondary">+ Ajouter du matériel</button><hr><h2>3. Exporter et classer</h2><label>Destination OPUS<select id="project"><option value="">Choisir un chantier (facultatif pour télécharger)</option></select></label><label>Classement<select id="group"><option value="supplier">Fournisseurs</option><option value="depot">Dépôt de Buc</option></select></label><label class="check"><input id="approved" type="checkbox">J’ai vérifié les lignes, les quantités et le lieu de récupération.</label><div class="actions"><button id="pdf">Télécharger le PDF</button><button id="archive">Enregistrer dans OPUS</button><button id="draft" class="secondary">Sauvegarder le brouillon</button><label class="secondary">Ouvrir un brouillon<input id="loadDraft" type="file" accept="application/json" hidden></label></div><p class="hint">Le PDF ne contient aucun prix. L’enregistrement dans OPUS est confirmé uniquement après le transfert.</p></section></div></div></main><script type="module" src="app.js"></script></body></html>
++<div id="workspace" hidden><div class="intro"><h1>Préparer un bon de commande</h1><p>Importez · vérifiez · classez dans le chantier</p><button id="new" class="secondary">Nouveau bon</button></div>
++<div class="actions" style="margin-bottom:20px"><button id="outlookOpen" class="secondary">E-mails fournisseurs</button><button id="supplierTab">Fournisseurs</button><button id="depotTab" class="secondary">Matériel dépôt</button></div><section id="outlookPage" hidden></section><section id="depotPage" hidden></section><div class="layout" id="supplierPage"><section class="card"><h2>1. Document fournisseur</h2><label class="drop">Captures, photos ou PDF<input id="files" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf"></label><p class="hint">Une commande à la fois · jusqu’à 30 pages, lues par lots automatiques. Préférez une capture rapprochée pour lire les références.</p><div id="sources"></div><h3>Copier un e-mail, sans imprimer</h3><p class="hint">Dans votre messagerie, sélectionnez le contenu de la commande puis copiez-le. Collez-le ci-dessous avec Ctrl + V ou le bouton. Le lien du message seul ne permet pas de le lire.</p><button id="pasteEmail" class="secondary">Coller l’e-mail</button><label>Contenu du message<textarea id="sourceText" rows="7" placeholder="Collez ici le contenu de l’e-mail ou de la page fournisseur."></textarea></label><button id="extract">Lire la commande</button><p class="hint">La lecture transmet les documents sélectionnés à l’IA. Vérifiez le résultat avant l’export.</p><details><summary>Logo du fournisseur</summary><p>Importez son logo officiel. Il sera conservé sur cet ordinateur pour ce fournisseur. Sans logo, son nom apparaît sur le bon.</p><input id="supplierLogo" type="file" accept="image/png,image/jpeg,image/webp"><button id="removeLogo" class="secondary">Retirer le logo</button></details></section>
++<section class="card"><h2>2. Vérifier le bon</h2><div id="warnings" class="warnings" hidden></div><div class="grid"><label>Fournisseur<input id="supplier" list="suppliers"><datalist id="suppliers"><option>CLAREO</option><option>Rexel</option><option>YESSS</option><option>Sylvania</option><option>Sonepar</option><option>Difam</option><option>CDO</option></datalist></label><label>N° de commande fournisseur<input id="number"></label><label>Date de commande<input id="date" type="date"></label><label>Référence client / affaire<input id="clientReference"></label><label>Mode<select id="deliveryMode"><option value="inconnu">À confirmer</option><option value="retrait">Retrait en agence</option><option value="livraison">Livraison</option></select></label><label>Disponibilité / suivi<input id="availability" placeholder="Indiquer le statut confirmé par le fournisseur"></label></div><label>Adresse de retrait ou de livraison<textarea id="destination" rows="2"></textarea></label><button id="buc" class="secondary">Utiliser le dépôt de Buc</button><label>Consignes<textarea id="notes" rows="2"></textarea></label><div class="tablewrap"><table><thead><tr><th>Référence</th><th>Désignation</th><th>Qté</th><th>Unité</th><th></th></tr></thead><tbody id="items"></tbody></table></div><button id="add" class="secondary">+ Ajouter du matériel</button><hr><h2>3. Exporter et classer</h2><label>Destination OPUS<select id="project"><option value="">Choisir un chantier (facultatif pour télécharger)</option></select></label><label>Classement<select id="group"><option value="supplier">Fournisseurs</option><option value="depot">Dépôt de Buc</option></select></label><label class="check"><input id="approved" type="checkbox">J’ai vérifié les lignes, les quantités et le lieu de récupération.</label><div class="actions"><button id="pdf">Télécharger le PDF</button><button id="archive">Enregistrer dans OPUS</button><button id="draft" class="secondary">Sauvegarder le brouillon</button><label class="secondary">Ouvrir un brouillon<input id="loadDraft" type="file" accept="application/json" hidden></label></div><p class="hint">Le PDF ne contient aucun prix. L’enregistrement dans OPUS est confirmé uniquement après le transfert.</p></section></div></div></main><script type="module" src="app.js"></script></body></html>
+diff --git a/commandes/outlook.js b/commandes/outlook.js
+index e024707..658a97e 100644
+--- a/commandes/outlook.js
++++ b/commandes/outlook.js
+@@ -1,16 +1,35 @@
+ const EXPECTED='opuselec@hotmail.com';
+ const ROOT='https://graph.microsoft.com/v1.0/';
+-export const SUPPLIERS=['Rexel','Sonepar','YESSS','Sylvania','CLAREO','ElecDirect','Exertis','UGF','ARIC'];
+-export function supplierOf(m){const s=[m.from?.emailAddress?.address,m.from?.emailAddress?.name,m.subject].join(' ').toLowerCase();return SUPPLIERS.find(x=>s.includes(x.toLowerCase()))||(/yes{2,}/.test(s)?'YESSS':'Autres');}
++export const SUPPLIERS=['Rexel','Sonepar','YESSS','Difam','CDO','Sylvania','CLAREO','ElecDirect','Exertis','UGF','ARIC'];
++
++const searchTerm=value=>String(value||'').replace(/[\"\\\r\n()]/g,' ').trim().replace(/\s+/g,' ');
++export function buildMessageQuery({supplier='',query='',since='',until=''}={}){
++ const date=value=>{if(!value)return '';if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||new Date(value+'T00:00:00Z').toISOString().slice(0,10)!==value)throw Error('Choisissez une date valide.');return value;};
++ since=date(since);until=date(until);if(since&&until&&since>until)throw Error('La date de fin doit être après la date de début.');
++ const q=searchTerm(query),f=searchTerm(supplier);if(q.length>250||f.length>100)throw Error('La recherche est trop longue.');
++ const params=new URLSearchParams({'$select':'id,subject,from,receivedDateTime,bodyPreview,hasAttachments','$top':'50'});
++ if(q||f){
++  const terms=[];if(f)terms.push(...f.split(' ').map(word=>'from:'+word));if(q)terms.push(q);
++  const us=value=>value.slice(5,7)+'/'+value.slice(8,10)+'/'+value.slice(0,4);
++  if(since)terms.push('received>='+us(since));if(until)terms.push('received<='+us(until));
++  params.set('$search',JSON.stringify(terms.join(' AND ')));
++ }else{
++  const filters=[];if(since)filters.push('receivedDateTime ge '+since+'T00:00:00Z');
++  if(until){const after=new Date(until+'T00:00:00Z');after.setUTCDate(after.getUTCDate()+1);filters.push('receivedDateTime lt '+after.toISOString());}
++  params.set('$orderby','receivedDateTime desc');if(filters.length)params.set('$filter',filters.join(' and '));
++ }
++ return 'me/messages?'+params;
++}
++export function supplierOf(m){const s=[m.from?.emailAddress?.address,m.from?.emailAddress?.name,m.subject].join(' ').toLowerCase();return SUPPLIERS.find(x=>x==='CDO'?/\bcdo\b/.test(s):s.includes(x.toLowerCase()))||(/yes{2,}/.test(s)?'YESSS':'Autres');}
+ export function graphUrl(path){const u=new URL(path,ROOT);if(u.origin!=='https://graph.microsoft.com'||!/^\/v1\.0\/me(?:\/|$)/.test(u.pathname))throw Error('Adresse Outlook non autorisée.');return u.href;}
+-export function createMailbox(getToken,request=fetch){return async path=>{const r=await request(graphUrl(path),{headers:{Authorization:'Bearer '+await getToken(),Prefer:'outlook.body-content-type="text", IdType="ImmutableId"'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error(r.status===401?'Reconnectez votre boîte Outlook.':r.status===403?'La lecture des e-mails doit être autorisée dans Microsoft (Mail.Read).':r.status===429?'Outlook reçoit trop de demandes. Réessayez dans quelques instants.':'Lecture Outlook impossible (HTTP '+r.status+').');return r.json();};}
++export function createMailbox(getToken,request=fetch){return async path=>{const r=await request(graphUrl(path),{headers:{Authorization:'Bearer '+await getToken(),Prefer:'outlook.body-content-type="text", IdType="ImmutableId"'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error(r.status===401?'Reconnectez votre boîte Outlook.':r.status===403?'La lecture des e-mails doit être autorisée dans Microsoft (Mail.Read).':r.status===400?'La recherche Outlook n’a pas abouti. Essayez un nom ou une référence plus simple.':r.status===429?'Outlook reçoit trop de demandes. Réessayez dans quelques instants.':'Lecture Outlook impossible (HTTP '+r.status+').');return r.json();};}
+ export function messageText(m,doc=document){let text=m.body?.content||m.bodyPreview||'';if(m.body?.contentType?.toLowerCase()==='html'){const d=doc.implementation.createHTMLDocument('');d.body.innerHTML=text;d.querySelectorAll('script,style,iframe,object,img,link').forEach(x=>x.remove());d.querySelectorAll('br,p,div,tr,li').forEach(x=>x.append('\n'));text=d.body.textContent;}return `De : ${m.from?.emailAddress?.address||''}\nObjet : ${m.subject||''}\nDate : ${m.receivedDateTime||''}\n\n${text}`;}
+ export function mountOutlook({host,onImport,authorize,download,purpose='order',onAttachment,onSelect}){
+  const el=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e;};
+- host.className='card';host.hidden=true;host.innerHTML='<h2>E-mails fournisseurs</h2><p>Boîte : opuselec@hotmail.com · classement indicatif par expéditeur et objet. Les messages restent dans Outlook.</p><details id="mailSetup"><summary>Activer la connexion Outlook (première utilisation)</summary><p>Suivez le guide ACTIVATION_OUTLOOK_V14.txt, puis collez ici l’identifiant d’application (client). Ce n’est pas une clé secrète.</p><input id="mailClient" aria-label="Identifiant d’application Outlook"><button id="mailConfig">Enregistrer la configuration</button></details><div class="actions"><button id="mailConnect">Connecter ma boîte Outlook</button><button id="mailDisconnect" class="secondary">Déconnecter Outlook</button></div><p id="mailStatus" role="status"></p><div class="grid"><label>Depuis le<input id="mailSince" type="date"></label><label>Fournisseur<select id="mailSupplier"><option value="">Tous les fournisseurs</option></select></label><label>Rechercher dans les messages chargés<input id="mailSearch" type="search" placeholder="Commande, référence, chantier…"></label></div><button id="mailRefresh">Rechercher les e-mails</button><p id="mailCount"></p><div id="mailList"></div><button id="mailMore" class="secondary" hidden>Charger les messages suivants</button><section id="mailPreview" hidden><h3 id="mailSubject"></h3><pre id="mailBody" style="white-space:pre-wrap;max-height:350px;overflow:auto"></pre><div id="mailAttachments"></div><p>Seul ce message sera repris. Cliquez ensuite sur « Lire la commande » pour transmettre son contenu à l’IA.</p><button id="mailUse">Utiliser cet e-mail pour le bon</button></section>';
+- const $=id=>host.querySelector('#'+id);for(const s of [...SUPPLIERS,'Autres']){const o=el('option',s);o.value=s;$('mailSupplier').append(o);}
++ host.className='card';host.hidden=true;host.innerHTML='<h2>Rechercher dans mes e-mails</h2><p>Boîte : opuselec@hotmail.com. Recherchez un fournisseur, une adresse e-mail ou une référence dans l’expéditeur, l’objet et le contenu des messages.</p><details id="mailSetup"><summary>Activer la connexion Outlook (première utilisation)</summary><p>Suivez le guide ACTIVATION_OUTLOOK_V14.txt, puis collez ici l’identifiant d’application (client). Ce n’est pas une clé secrète.</p><input id="mailClient" aria-label="Identifiant d’application Outlook"><button id="mailConfig">Enregistrer la configuration</button></details><div class="actions"><button id="mailConnect">Connecter ma boîte Outlook</button><button id="mailDisconnect" class="secondary">Déconnecter Outlook</button></div><p id="mailStatus" role="status"></p><div class="grid"><label>Depuis le (facultatif)<input id="mailSince" type="date"></label><label>Jusqu’au (facultatif)<input id="mailUntil" type="date"></label><label>Fournisseur<select id="mailSupplier"><option value="">Tous les expéditeurs</option></select></label><label>Rechercher dans ma boîte mail<input id="mailSearch" type="search" placeholder="Difam, CDO, fournisseur, référence, chantier…"></label></div><button id="mailRefresh">Rechercher les e-mails</button><p id="mailCount"></p><div id="mailList"></div><button id="mailMore" class="secondary" hidden>Charger les messages suivants</button><section id="mailPreview" hidden><h3 id="mailSubject"></h3><pre id="mailBody" style="white-space:pre-wrap;max-height:350px;overflow:auto"></pre><div id="mailAttachments"></div><p>Seul ce message sera repris. Cliquez ensuite sur « Lire la commande » pour transmettre son contenu à l’IA.</p><button id="mailUse">Utiliser cet e-mail pour le bon</button></section>';
++ const $=id=>host.querySelector('#'+id);for(const s of SUPPLIERS){const o=el('option',s);o.value=s;$('mailSupplier').append(o);}
+  if(purpose==='service'){host.querySelector('h2').textContent='Importer un ordre de service depuis Outlook';$('mailSupplier').closest('label').hidden=true;$('mailSearch').placeholder='Syndic, résidence, ordre de service…';$('mailUse').textContent='Préparer la demande depuis cet e-mail';$('mailPreview').querySelector('p').textContent='Choisissez les pièces jointes utiles, puis préparez la demande. Le contenu sélectionné sera transmis à l’IA pour préremplir une fiche à vérifier.';}
+- const key='opus-outlook-client-id';$('mailClient').value=localStorage.getItem(key)||'';$('mailSince').value=new Date(Date.now()-90*86400000).toISOString().slice(0,10);
++ const key='opus-outlook-client-id';$('mailClient').value=localStorage.getItem(key)||'';
+  let client,account,mailbox,next='',rows=[],selected,busy=false;
+  const status=t=>$('mailStatus').textContent=t;
+  async function run(fn){if(busy)return;busy=true;host.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){status(e.message||'Connexion Outlook impossible.');}finally{busy=false;host.querySelectorAll('button').forEach(b=>b.disabled=false);}}
+@@ -19,11 +38,26 @@ export function mountOutlook({host,onImport,authorize,download,purpose='order',o
+  $('mailConfig').onclick=()=>run(async()=>{clear();await setup();status('Configuration enregistrée. Cliquez sur Connecter ma boîte Outlook.');});
+  $('mailConnect').onclick=()=>run(async()=>{await authorize();clear();if(!client)await setup();const r=await client.loginPopup({scopes:['User.Read','Mail.Read'],loginHint:EXPECTED,prompt:'select_account'});account=r.account;const api=createMailbox(async()=>{if(!account)throw Error('Connectez votre boîte Outlook.');try{return(await client.acquireTokenSilent({scopes:['User.Read','Mail.Read'],account})).accessToken;}catch{throw Error('Session Outlook expirée. Cliquez sur Connecter ma boîte Outlook.');}});const me=await api('me?$select=mail,userPrincipalName');if(![me.mail,me.userPrincipalName,account?.username].some(v=>String(v||'').toLowerCase()===EXPECTED)){clear();await client.clearCache();throw Error('Choisissez le compte '+EXPECTED+'.');}mailbox=api;status('Boîte connectée. Cliquez sur Rechercher les e-mails.');});
+  $('mailDisconnect').onclick=()=>run(async()=>{clear();await client?.clearCache();status('Outlook déconnecté de cette fenêtre.');});
+- function render(){const q=$('mailSearch').value.toLowerCase(),f=$('mailSupplier').value;const visible=rows.filter(m=>(f?supplierOf(m)===f:purpose==='service'||supplierOf(m)!=='Autres')&&[m.subject,m.from?.emailAddress?.address,m.bodyPreview].join(' ').toLowerCase().includes(q));$('mailList').replaceChildren();for(const m of visible){const b=el('button',`${supplierOf(m)} · ${new Date(m.receivedDateTime).toLocaleDateString('fr-FR')} · ${m.subject||'(Sans objet)'} — ${m.from?.emailAddress?.address||''}`);b.className='secondary';b.style.cssText='display:block;width:100%;text-align:left;margin:6px 0';b.onclick=()=>run(()=>open(m));$('mailList').append(b);}$('mailCount').textContent=`${visible.length} message(s) affiché(s) sur ${rows.length} chargé(s).`+(next?' D’autres messages sont disponibles ci-dessous.':' Fin des messages pour cette période.');$('mailMore').hidden=!next;}
++ function render(){
++ $('mailList').replaceChildren();
++ for(const m of rows){const b=el('button',`${supplierOf(m)} · ${new Date(m.receivedDateTime).toLocaleDateString('fr-FR')} · ${m.subject||'(Sans objet)'} — ${m.from?.emailAddress?.address||''}`);b.className='secondary';b.style.cssText='display:block;width:100%;text-align:left;margin:6px 0';b.onclick=()=>run(()=>open(m));$('mailList').append(b);}
++ $('mailCount').textContent=rows.length?`${rows.length} message(s) trouvé(s) et chargé(s).`+(next?' D’autres résultats sont disponibles ci-dessous.':rows.length>=1000?' Affinez les dates ou la recherche pour retrouver d’autres messages.':''):'Aucun message trouvé. Vérifiez le nom du fournisseur et les dates.';
++ $('mailMore').hidden=!next;
++ }
+  async function page(path){if(!mailbox)throw Error('Connectez votre boîte Outlook.');const d=await mailbox(path);const seen=new Set(rows.map(x=>x.id));rows.push(...(d.value||[]).filter(x=>!seen.has(x.id)));next=d['@odata.nextLink']||'';render();status('E-mails chargés. Choisissez un message.');}
+- $('mailRefresh').onclick=()=>run(async()=>{if(!mailbox)throw Error('Connectez votre boîte Outlook.');const since=$('mailSince').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(since))throw Error('Choisissez une date de début.');rows=[];next='';selected=null;$('mailPreview').hidden=true;await page('me/messages?'+new URLSearchParams({'$select':'id,subject,from,receivedDateTime,bodyPreview,hasAttachments','$orderby':'receivedDateTime desc','$filter':`receivedDateTime ge ${since}T00:00:00Z`,'$top':'100'}));});
+- $('mailMore').onclick=()=>run(()=>page(next));$('mailSupplier').onchange=render;$('mailSearch').oninput=render;
++ async function search(){
++  if(!mailbox)throw Error('Connectez votre boîte Outlook.');
++  const path=buildMessageQuery({supplier:$('mailSupplier').value,query:$('mailSearch').value,since:$('mailSince').value,until:$('mailUntil').value});
++  rows=[];next='';selected=null;$('mailList').replaceChildren();$('mailCount').textContent='Recherche dans votre boîte mail…';$('mailMore').hidden=true;$('mailPreview').hidden=true;
++  status('Recherche Outlook en cours…');await page(path);
++ }
++ $('mailRefresh').onclick=()=>run(search);
++ $('mailMore').onclick=()=>run(()=>page(next));
++ $('mailSupplier').onchange=()=>run(search);
++ $('mailSearch').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();void run(search);}};
++ for(const id of ['mailSearch','mailSince','mailUntil'])$(id).oninput=()=>status('Recherche modifiée. Cliquez sur Rechercher les e-mails ou appuyez sur Entrée.');
++
+  async function open(m){onSelect?.();selected=null;$('mailPreview').hidden=true;const full=await mailbox('me/messages/'+encodeURIComponent(m.id)+'?$select=id,subject,from,receivedDateTime,body,hasAttachments');selected=full;$('mailSubject').textContent=full.subject||'(Sans objet)';$('mailBody').textContent=messageText(full);$('mailAttachments').replaceChildren();if(full.hasAttachments){const note=el('p',purpose==='service'?'Ajoutez les ordres de service utiles à l’analyse.':'Pièces jointes : téléchargez le document utile puis ajoutez-le dans « Captures, photos ou PDF » du bon.');$('mailAttachments').append(note);let path='me/messages/'+encodeURIComponent(m.id)+'/attachments?$select=id,name,size,contentType,isInline';do{const d=await mailbox(path);for(const a of d.value||[]){if(a.isInline)continue;const b=el('button',a.name+(purpose==='service'?' — Ajouter à la demande':' — Télécharger'));b.className='secondary';b.onclick=()=>run(async()=>{if(a.size>20000000)throw Error('Pièce jointe supérieure à 20 Mo : ouvrez-la dans Outlook.');const f=await mailbox('me/messages/'+encodeURIComponent(m.id)+'/attachments/'+encodeURIComponent(a.id));if(!f.contentBytes)throw Error('Cette pièce jointe doit être ouverte dans Outlook.');const data=Uint8Array.from(atob(f.contentBytes),c=>c.charCodeAt(0));const blob=new Blob([data],{type:f.contentType||'application/octet-stream'});if(purpose==='service'&&onAttachment){await onAttachment(new File([blob],f.name,{type:blob.type}));status('Pièce ajoutée à la demande : '+f.name);}else download(blob,f.name);});$('mailAttachments').append(b);}path=d['@odata.nextLink']||'';}while(path);}$('mailPreview').hidden=false;}
+  $('mailUse').onclick=()=>run(async()=>{if(!selected)throw Error('Sélectionnez un e-mail.');await authorize();if(purpose==='service'||confirm('Reprendre cet e-mail et vider les anciennes sources du bon ?')){await onImport(messageText(selected),selected);host.hidden=true;}});
+- return {show(){host.hidden=!host.hidden;},};
++ return {show(force){host.hidden=typeof force==='boolean'?!force:!host.hidden;},};
+ }
+diff --git a/config.json b/config.json
+index 02284bd..f3d6bff 100644
+--- a/config.json
++++ b/config.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": "3.4.2",
++  "version": "3.6.2",
+   "tenant": "595e6766-879a-4be0-8f96-51a5760336f1",
+   "clientId": "27a6b8e9-831e-42e4-96c1-9da09684e0ba",
+   "siteHost": "opuselec.sharepoint.com",
+diff --git a/docs/COORDONNEES_ET_EMAILS_3_6_2.md b/docs/COORDONNEES_ET_EMAILS_3_6_2.md
+new file mode 100644
+index 0000000..07a537b
+--- /dev/null
++++ b/docs/COORDONNEES_ET_EMAILS_3_6_2.md
+@@ -0,0 +1,47 @@
++# OPUS CHANTIERS 3.6.2 — coordonnées client et recherche fournisseurs
++
++Préparé le 29 octobre 2026 sur le dépôt OPUS_CHANTIERS, commit de base 6fe1c0f3df7c2c1316ecaf71155acc377302250a, qui sert encore la version 3.6.0 sur Vercel lors du contrôle. Cette livraison conserve le correctif de connexion 3.6.1 préparé précédemment. Elle n'est pas déployée automatiquement.
++
++## Modifier les coordonnées sans faire de rapport
++
++Un bouton « Modifier les coordonnées » est disponible sur les cartes Interventions et Visites / Devis, ainsi que dans l'aperçu du rendez-vous du calendrier lorsqu'il est lié à l'une de ces fiches.
++
++Il ouvre une petite fiche indépendante : client / raison sociale, nom, prénom, téléphone, e-mail, adresse client, puis nom, téléphone et e-mail du contact sur place. Aucun rapport n'est ouvert et aucune photo n'est téléchargée pour cette modification. Le bureau et les chefs de chantier y ont accès, conformément au droit de modification des fiches existant. L'accès de complétion déjà disponible aux techniciens dans les rapports est conservé.
++
++Les coordonnées de la fiche client sont partagées ; celles du contact sur place concernent seulement la visite ou l'intervention sélectionnée. Quand le contact reprend le téléphone/e-mail du client, la correction suit dans cette fiche. Un contact distinct garde ses propres coordonnées. Une correction faite explicitement dans le champ du contact ne peut pas être remplacée par la copie automatique du client.
++
++À l'enregistrement, seules les coordonnées modifiées sont appliquées à l'état le plus récent. Le planning, les horaires réalisés, le statut, les notes, les pièces jointes et les rapports sont conservés. Une modification concurrente des mêmes coordonnées ou un changement de client sont signalés. Si la fiche client est confirmée mais que le contact ne peut pas être envoyé, les saisies restent affichées pour réessayer sans créer un doublon.
++
++## Rechercher les fournisseurs dans la boîte mail
++
++Dans Bons de commande, l'onglet « E-mails fournisseurs » ouvre la recherche dans la boîte Outlook opuselec@hotmail.com déjà prévue dans l'application. La connexion personnelle Outlook et l'autorisation Mail.Read restent nécessaires.
++
++L'ancien écran avait deux limitations : il masquait les expéditeurs non reconnus dans une liste fixe et recherchait seulement dans les messages déjà chargés. La recherche appelle désormais Microsoft Graph dans la boîte aux lettres :
++
++- Choix de fournisseur : Rexel, YESSS, Difam, CDO et les autres fournisseurs déjà présents.
++- Saisie libre : nom de n'importe quel fournisseur, adresse e-mail, référence ou chantier ; recherche dans l'expéditeur, l'objet et le contenu.
++- Dates de début et de fin facultatives. La limite implicite aux 90 derniers jours est supprimée.
++- Recherche explicite par bouton ou Entrée ; résultats et pagination servent les réponses du serveur, sans les filtrer à nouveau sur le simple aperçu du message.
++- Les fournisseurs inconnus restent visibles avec leur adresse d'expéditeur. La catégorie indicative ne masque aucun résultat.
++- Ouverture du message en texte, accès aux pièces jointes selon le parcours existant, puis « Utiliser cet e-mail pour le bon ». Les pièces PDF utiles restent à ajouter dans les sources du bon après téléchargement, comme dans le parcours existant.
++- Passer entre Fournisseurs, Matériel dépôt et E-mails n'efface pas le bon en cours. La simple recherche ne retire pas sa validation. L'importation d'un message reste une action distincte et explicite, avant le bouton de lecture de la commande.
++
++La fonction reste en lecture des messages. L'application n'envoie pas de message et ne transmet pas automatiquement les résultats de recherche à l'IA. La lecture de commande utilise uniquement les sources que l'utilisateur choisit ensuite.
++
++## Limites et vérification sur les comptes réels
++
++La recherche de messages Microsoft Graph retourne au maximum 1 000 résultats par recherche. Pour un fournisseur ayant beaucoup de messages, restreindre les dates ou ajouter une référence. La pagination est suivie tant que Microsoft fournit une page suivante.
++
++Les tests vérifient les demandes envoyées à Graph, les résultats fictifs, la sécurité des URLs, le rendu en texte, l'importation choisie et le maintien du bon en cours. Ils ne prouvent pas l'autorisation Mail.Read effective du compte personnel ni un accès réussi à sa boîte réelle dans cette session.
++
++Les tests de coordonnées vérifient les corrections client/contact, la séparation des contacts, la conservation du rapport et du calendrier, les modifications concurrentes, les échecs d'envoi, la reprise et l'accès direct depuis le calendrier.
++
++## Publication
++
++La livraison contient un patch et les fichiers modifiés avec leurs chemins de dépôt. Appliquer ces changements à la branche actuelle en conservant toute évolution plus récente, exécuter `npm test`, puis publier avec le déploiement Vercel habituel. L'archive est un correctif, pas une application autonome. Ne pas la déposer dans un dossier de chantier.
++
++Après publication, contrôler la version 3.6.2 et ouvrir la page de relance du site si l'ancienne interface est encore mémorisée. Terminer/conserver les saisies et fermer les autres fenêtres OPUS avant la relance. Ne pas effacer les données de site des appareils.
++
++Recette : corriger un chiffre du téléphone depuis une carte Intervention, refaire depuis une Visite / Devis et un rendez-vous du calendrier ; contrôler le contact et le planning. Dans Bons de commande, connecter Outlook, chercher Difam puis CDO et un fournisseur libre, ouvrir un message ancien, puis utiliser un message choisi pour préparer un bon.
++
++Référence Microsoft : https://learn.microsoft.com/en-us/graph/search-query-parameter
+diff --git a/docs/CORRECTIF_CONNEXION_3_6_1.md b/docs/CORRECTIF_CONNEXION_3_6_1.md
+new file mode 100644
+index 0000000..4ef6137
+--- /dev/null
++++ b/docs/CORRECTIF_CONNEXION_3_6_1.md
+@@ -0,0 +1,48 @@
++# Connexion OPUS CHANTIERS — correctif 3.6.1 du 28 octobre 2026
++
++## Constat vérifié
++
++La capture utilisateur affiche la version 3.5.0-rendezvous, une copie de données mémorisées et l'erreur MSAL `interaction_in_progress`. Cette erreur signifie qu'une tentative interactive Microsoft est déjà marquée en cours ; elle ne prouve pas, à elle seule, la cause initiale de ce marqueur.
++
++Lors du contrôle, https://opus-chantiers.vercel.app/app.js sert la version 3.6.0-stockage. Son SHA-256 est `e11e5aa630869fa0dc5222dc966ae12aee9f67b952519ce8defb913082556393`. Ce fichier est identique à celui du dépôt OPUS_CHANTIERS, commit `6fe1c0f3df7c2c1316ecaf71155acc377302250a`. L'installation visible dans la capture exécute donc un code antérieur à celui publié.
++
++La page https://opus-chantiers.vercel.app/reparer.html répond correctement. Elle renouvelle uniquement le cache de l'interface et désinscrit le service worker de cette application. Elle conserve IndexedDB, les comptes et les brouillons. Elle ne constitue pas une réparation du marqueur Microsoft bloqué.
++
++## Défauts de code et corrections
++
++- `msal` est affecté avant la fin de `initialize()` et de `handleRedirectPromise()`. L'ancien bouton de connexion vérifie seulement l'existence de `msal` : il peut commencer une interaction alors que l'initialisation est encore en cours. Le correctif partage une seule initialisation et l'attend avant une nouvelle connexion.
++- Connexion, reconnexion, calendrier privé et déconnexion ne disposent pas de verrou commun. Le correctif réserve une seule interaction Microsoft à la fois. Une action concurrente est refusée clairement, sans être différée pour s'exécuter à l'insu de l'utilisateur.
++- Le nom affiché vient du cache utilisateur et peut rester présent alors que `getActiveAccount()` ne retourne plus de compte. La récupération de jeton retrouve désormais uniquement le compte correspondant exactement au `homeAccountId` du dossier ouvert. Elle ne choisit pas le premier compte disponible.
++- Les erreurs `interaction_in_progress` deviennent un message compréhensible, avec une action dédiée « Relancer la connexion bloquée ».
++- Cette relance est explicitement déclenchée par l'utilisateur, après fermeture de l'ancienne fenêtre Microsoft. Elle utilise `overrideInteractionInProgress` de MSAL 5.21.0 pour le popup. L'option n'est jamais appliquée automatiquement aux connexions normales. Aucun compte, jeton, brouillon ou document de chantier n'est effacé par le correctif.
++- Avant connexion, relance ou déconnexion, les saisies du rapport et de l'attestation ouverte sont conservées localement. Si cette conservation échoue, l'opération de connexion n'est pas lancée.
++- Si le compte choisi lors de la réparation diffère de celui du dossier, la reprise est refusée et le compte initial est rétabli quand il est disponible.
++- Un bouton de mise à jour est prévu pour les versions futures. L'activation attend la fermeture des formulaires et des autres fenêtres OPUS.
++
++## Conservation de la version actuellement publiée
++
++Ce correctif s'applique à la version 3.6.0 récupérée dans le dépôt, et conserve ses changements de stockage, d'historique et de cache des médias. Il ne remplace pas ces fichiers par ceux du ZIP 3.5.1 de la réponse précédente. Le délai de sauvegarde et la politique de stockage de 3.6.0 restent ceux de cette base ; cette livraison traite le blocage de connexion.
++
++La version 3.6.1 est préparée localement. Elle n'a pas été poussée dans GitHub et n'est pas déployée dans Vercel.
++
++## Vérifications
++
++La suite complète et la compilation sont exécutées avec `npm test`. Les nouveaux tests reproduisent : une initialisation lente suivie d'un clic de connexion ; deux reconnexions simultanées ; une déconnexion pendant le popup ; une relance après marqueur bloqué ; la perte du compte actif ; le refus d'un autre compte ; et l'arrêt de toute interaction si le brouillon ne peut pas être persisté.
++
++Ces tests valident le comportement du code et les demandes transmises à MSAL. Ils ne constituent pas une authentification réussie avec le compte Roberto sur son navigateur. L'accès à cette session et la vérification réelle après déploiement restent nécessaires.
++
++## Reprise immédiate de l'installation actuelle
++
++1. Terminer/conserver les saisies en cours. Ne pas effacer les données de site.
++2. Fermer les autres fenêtres et applications OPUS ainsi que toute ancienne fenêtre de connexion Microsoft.
++3. Ouvrir la page `reparer.html` du site et choisir « Relancer sans effacer mes brouillons ».
++4. Vérifier que la version 3.6.0 publiée est chargée, puis lancer une seule tentative de connexion. Si l'erreur demeure, le correctif de connexion reste nécessaire.
++
++Après publication de 3.6.1, refaire la relance si l'ancienne installation est encore active, vérifier Version 3.6.1, puis utiliser « Relancer la connexion bloquée » depuis le menu de session si nécessaire. Confirmer le même compte que celui du rapport.
++
++## Publication du correctif
++
++Appliquer le patch sur le commit indiqué, ou reprendre les changements dans une branche à jour du dépôt. Conserver les autres évolutions éventuellement publiées entre-temps. Exécuter `npm test`, puis utiliser le déploiement Vercel habituel. Ne pas republier l'ancienne archive 3.5.1 sur la base 3.6.0.
++
++Documentation officielle : https://learn.microsoft.com/en-us/entra/msal/javascript/browser/errors
++Implémentation de l'option utilisée : `node_modules/@azure/msal-browser/src/request/PopupRequest.ts` et `controllers/StandardController.ts`, version 5.21.0 épinglée dans ce projet.
+diff --git a/docs/VALIDATION_3_6_2.json b/docs/VALIDATION_3_6_2.json
+new file mode 100644
+index 0000000..9161da0
+--- /dev/null
++++ b/docs/VALIDATION_3_6_2.json
+@@ -0,0 +1,15 @@
++{
++  "version": "3.6.2",
++  "date": "2026-10-29",
++  "base_commit": "6fe1c0f3df7c2c1316ecaf71155acc377302250a",
++  "command": "npm test",
++  "build": "success",
++  "results": {
++    "tests": 505,
++    "pass": 505,
++    "fail": 0
++  },
++  "new_feature_tests": 17,
++  "production_deployed": false,
++  "actual_mailbox_authenticated_in_this_session": false
++}
+diff --git a/index.html b/index.html
+index 38de368..c2299e9 100644
+--- a/index.html
++++ b/index.html
+@@ -4,7 +4,7 @@
+ <div id="demoBar" hidden>MODE DÉMONSTRATION — données fictives locales, aucun lien avec Microsoft 365. <a href="./">Quitter l’aperçu</a></div>
+ <section id="start" class="start"><div class="welcome"><p class="eyebrow">OPUS ELEC / ESPACE ÉQUIPE</p><h1>Vos chantiers.<br>Vos documents.<br>Une seule application.</h1><p>Feuilles de chantier, commandes, photos et attestations au même endroit. Connectez-vous avec votre compte professionnel OPUS ELEC.</p><button id="login">Se connecter avec Microsoft</button><p id="setupHint" class="muted"></p><a class="demoLink" href="?demo=1">Découvrir l’interface en démonstration</a></div><div class="welcomeCard"><img src="./icon-512.png" alt="Icône OPUS CHANTIERS"><strong>Un chantier, toutes les attestations</strong><p>BAES · CFO · CFA · SSI<br>Consignation · Intervention<br>Réserves · Suivi · Visite avant devis</p><div class="privacy">Les données restent dans l’espace Microsoft 365 de l’entreprise.<br>Pas de mot de passe confié à l’application.</div></div></section>
+ <nav id="mainNav" class="mainNav" hidden><button data-main="projects" class="active">Chantiers</button><button data-main="interventions">Interventions</button><button data-main="visits">Visites / Devis</button><button data-main="calendar">Calendrier</button><button data-main="office" id="officeNav">Bureau</button><button id="ordersAdminNav" hidden>Bons de commande / Dépôt</button><span id="roleBadge" class="roleBadge"></span></nav>
+-<div id="shell" hidden><aside id="projectAside"><button id="allProjects" class="nav active">Tous les chantiers</button><div id="sideCategories"></div><hr><button id="pendingBtn" class="nav">Envois en attente <b id="pendingCount">0</b></button><p class="asideNote">ESPACE COMMUN<br><strong>OPUS CHANTIERS</strong><br>Bibliothèque Microsoft 365<br><span id="version">Version 3.6.0</span></p></aside><main>
++<div id="shell" hidden><aside id="projectAside"><button id="allProjects" class="nav active">Tous les chantiers</button><div id="sideCategories"></div><hr><button id="pendingBtn" class="nav">Envois en attente <b id="pendingCount">0</b></button><p class="asideNote">ESPACE COMMUN<br><strong>OPUS CHANTIERS</strong><br>Bibliothèque Microsoft 365<br><span id="version">Version 3.6.2</span></p></aside><main>
+ <div id="dashboard"><div class="pageHeading"><div><p class="eyebrow">VOTRE ÉQUIPE SUR LE TERRAIN</p><h1>Chantiers de l’entreprise</h1><p class="muted" id="lastRefresh">Chargement de la bibliothèque…</p></div><button id="newProject">+ Nouveau chantier</button></div><div id="mobileProjectFilters" class="mobileProjectFilters" aria-label="Filtrer les chantiers"></div><div class="metrics" id="metrics"></div><div class="searchline"><input id="search" type="search" placeholder="Rechercher un nom de dossier ou un n° de devis…" aria-label="Rechercher un chantier"><span id="projectCount"></span></div><div id="projectList" class="projectList"></div><div id="looseFiles"></div></div>
+ <div id="interventionsPage" hidden></div><div id="visitsPage" hidden></div><div id="calendarPage" hidden></div><div id="officePage" hidden></div>
+ <div id="projectPage" hidden><button id="backProjects" class="textButton">← Tous les chantiers</button><div class="projectHero"><div><p class="eyebrow" id="projectCategory"></p><h1 id="projectTitle"></h1><p id="projectAddress"></p><div class="chips" id="projectChips"></div></div><button id="editProject" class="whiteBtn">Compléter la fiche</button></div><div id="projectWarning"></div><nav class="tabs"><button data-tab="overview" class="selected">Vue d’ensemble</button><button data-tab="documents">Documents</button><button data-tab="reports">Rapports</button><button data-tab="orders">Bons de commande</button><button data-tab="attestations">Attestations</button><button data-tab="tasks">Travaux & observations</button></nav><div id="tabContent"></div></div>
+@@ -13,4 +13,4 @@
+ <dialog id="modal"><div class="dialogHead"><h2 id="modalTitle"></h2><button id="modalClose" class="quiet" aria-label="Fermer">✕</button></div><div id="modalBody"></div></dialog>
+ <section id="modulePanel" hidden><div class="moduleToolbar"><button id="closeModule" class="whiteBtn">← Retour chantier</button><div><strong id="moduleTitle"></strong><small id="moduleSub"></small></div><div class="moduleActions"><span id="saveStatus" role="status">Ouverture…</span><span id="pdfSaveStatus" role="status" hidden></span><button id="previewModule" class="whiteBtn">Aperçu PDF</button><button id="downloadModulePdf" class="whiteBtn" hidden>Télécharger le PDF préparé</button><button id="saveModulePdf">Enregistrer le PDF au chantier</button></div></div><iframe id="moduleFrame" title="Formulaire OPUS" allow="camera; clipboard-write" referrerpolicy="same-origin"></iframe></section>
+ <section id="viewer" hidden><div class="viewerToolbar" style="display:grid;grid-template-columns:minmax(0,1fr);max-height:35%;overflow:auto;flex:0 0 auto"><button id="closeViewer" class="whiteBtn">← Retour</button><strong id="viewerTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;overflow-wrap:normal"></strong><div class="pager"><button id="prevPage" class="whiteBtn">Précédente</button><span id="pageCounter"></span><button id="nextPage" class="whiteBtn">Suivante</button><button id="downloadFile" class="whiteBtn">Télécharger</button></div></div><div id="viewerBody"></div></section>
+-<script type="module" src="./app.js?v=3.6.0"></script></body></html>
++<script type="module" src="./app.js?v=3.6.2"></script></body></html>
+diff --git a/lib/app-update.js b/lib/app-update.js
+new file mode 100644
+index 0000000..f9c214f
+--- /dev/null
++++ b/lib/app-update.js
+@@ -0,0 +1,27 @@
++// Install updates explicitly, while the operator is between forms. Other tabs
++// must be closed before the worker changes the shared application shell.
++export async function installAppUpdates({navigator,document,location,beforeUpdate,onError=()=>{}}){
++ let requested=false;
++ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(requested)location.reload();});
++ const registration=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
++ const offer=()=>{
++  if(!registration.waiting||!navigator.serviceWorker.controller)return;
++  let banner=document.getElementById('appUpdate');
++  if(!banner){banner=document.createElement('div');banner.id='appUpdate';banner.className='warning';banner.setAttribute('role','status');document.body.prepend(banner);}
++  banner.replaceChildren();const text=document.createElement('span'),button=document.createElement('button');text.textContent='Une mise à jour OPUS est prête. ';button.textContent='Appliquer la mise à jour';banner.append(text,button);
++  button.onclick=async()=>{
++   button.disabled=true;
++   try{
++    await beforeUpdate();const worker=registration.waiting;if(!worker)throw Error('La mise à jour se prépare. Réessayez.');
++    requested=true;
++    await new Promise((resolve,reject)=>{
++     const channel=new MessageChannel(),timer=setTimeout(()=>{channel.port1.close();reject(Error('Mise à jour sans réponse. Fermez puis rouvrez les fenêtres OPUS.'));},5000);
++     channel.port1.onmessage=({data})=>{clearTimeout(timer);channel.port1.close();data?.ok?resolve():reject(Error(data?.message||'Fermez les autres fenêtres OPUS puis réessayez.'));};
++     worker.postMessage({type:'OPUS_ACTIVATE'},[channel.port2]);
++    });
++   }catch(e){requested=false;text.textContent=e.message+' ';onError(e);button.disabled=false;}
++  };
++ };
++ offer();registration.addEventListener('updatefound',()=>{const worker=registration.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed')offer();});});
++ await registration.update();return registration;
++}
+diff --git a/lib/auth-session.js b/lib/auth-session.js
+index 0169734..6eafec7 100644
+--- a/lib/auth-session.js
++++ b/lib/auth-session.js
+@@ -6,9 +6,34 @@ const INTERACTIVE_CODES=new Set(['auth_required','interaction_required','login_r
+ export function requiresInteractiveAuth(error){
+  return error?.name==='InteractionRequiredAuthError'||INTERACTIVE_CODES.has(error?.errorCode||error?.code);
+ }
+-export async function acquireSessionToken(msal,scopes,{forceRefresh=false,account:requestedAccount}={}){
++const interactions=new WeakMap();
++// One interactive operation per MSAL client. Never queue a sign-out behind a
++// sign-in or retry an interactive operation automatically.
++export async function runAuthInteraction(msal,operation,onBusy=()=>{}){
++ if(!msal)throw new CloudError('La connexion Microsoft se prépare. Réessayez dans un instant.',0,'auth_not_initialized');
++ if(interactions.has(msal))throw new CloudError('Une fenêtre de connexion Microsoft est déjà en cours. Terminez-la ou fermez-la avant de réessayer.',0,'auth_busy');
++ const marker={};interactions.set(msal,marker);
++ try{onBusy(true);return await operation();}
++ catch(cause){
++  if((cause?.errorCode||cause?.code)==='interaction_in_progress'){
++   const error=new CloudError('Une ancienne tentative de connexion bloque Microsoft. Utilisez « Relancer la connexion bloquée » après avoir fermé la fenêtre Microsoft précédente.',0,'auth_interaction_blocked');error.cause=cause;throw error;
++  }
++  throw cause;
++ }finally{if(interactions.get(msal)===marker)interactions.delete(msal);onBusy(false);}
++}
++export function selectSessionAccount(msal,expectedHomeAccountId=''){
++ const active=msal?.getActiveAccount();
++ if(expectedHomeAccountId){
++  if(active?.homeAccountId===expectedHomeAccountId)return active;
++  const found=msal?.getAllAccounts?.().find(a=>a.homeAccountId===expectedHomeAccountId);
++  if(found){msal.setActiveAccount(found);return found;}
++  return null;
++ }
++ return active||null;
++}
++export async function acquireSessionToken(msal,scopes,{forceRefresh=false,account:requestedAccount,expectedHomeAccountId=''}={}){
+  if(!msal)throw new CloudError('La connexion Microsoft n’est pas encore initialisée. Réessayez dans quelques instants.',0,'auth_not_initialized');
+- const account=requestedAccount||msal.getActiveAccount();
++ const account=requestedAccount||selectSessionAccount(msal,expectedHomeAccountId);
+  if(!account)throw new CloudError('Sélectionnez votre compte Microsoft pour vous connecter.',401,'auth_required');
+  try{
+   const response=await msal.acquireTokenSilent({scopes,account,forceRefresh});
+diff --git a/lib/calendar-preview.js b/lib/calendar-preview.js
+index 5b3cf66..974418f 100644
+--- a/lib/calendar-preview.js
++++ b/lib/calendar-preview.js
+@@ -1,3 +1,4 @@
++import {coordinateButton,bindCoordinateButtons} from './client-coordinate-editor.js';
+ import {planningSummary} from './person-planning.js';
+ import {eventProjectIds} from './planning-affairs.js';
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+@@ -5,7 +6,8 @@ export function calendarLabel(ui,e){if(e.purpose)return e.purpose;if(e.kind==='p
+ export async function previewEvent(ui,id){
+  const e=ui.data.events.find(x=>x.id===id);if(!e)return;
+  const x=e.kind==='intervention'?ui.data.interventions.find(x=>x.id===e.linkId):e.kind==='visit'?ui.data.visits.find(x=>x.id===e.linkId):null;
+- ui.c.modal(e.kind==='free'?'Rendez-vous libre':'Rendez-vous',`<section class="calendarPreview"><h2>${esc(calendarLabel(ui,e))}</h2><p>${esc(new Date(e.start).toLocaleString('fr-FR'))} → ${esc(new Date(e.end).toLocaleString('fr-FR'))}</p>${missionHtml(e,x)}<h3>Adresse</h3><p id="eventAddress">${esc(x?.siteAddress||e.address||e.siteAddress||'Adresse en cours de vérification…')}</p><section id="eventAccess">${accessHtml(x||{})}</section><h3>Équipe</h3><p>${esc(ui.teamNames(e.teamIds)||'Équipe à préciser')}</p><p>${esc(planningSummary(e,ui.data.people))}</p><div class="actionRow"><button id="eventBack" type="button">Retour au planning</button>${e.kind==='free'?'':'<button id="eventFile" type="button" class="secondary">Ouvrir le dossier</button>'}${ui.canPlan()?'<button id="eventEdit" type="button" class="secondary">Modifier le rendez-vous</button>':''}</div></section>`);
++ ui.c.modal(e.kind==='free'?'Rendez-vous libre':'Rendez-vous',`<section class="calendarPreview"><h2>${esc(calendarLabel(ui,e))}</h2><p>${esc(new Date(e.start).toLocaleString('fr-FR'))} → ${esc(new Date(e.end).toLocaleString('fr-FR'))}</p>${missionHtml(e,x)}<h3>Adresse</h3><p id="eventAddress">${esc(x?.siteAddress||e.address||e.siteAddress||'Adresse en cours de vérification…')}</p><section id="eventAccess">${accessHtml(x||{})}</section><h3>Équipe</h3><p>${esc(ui.teamNames(e.teamIds)||'Équipe à préciser')}</p><p>${esc(planningSummary(e,ui.data.people))}</p><div class="actionRow">${x?coordinateButton(ui,x,e.kind==='visit'?'visits':'interventions'):''}<button id="eventBack" type="button">Retour au planning</button>${e.kind==='free'?'':'<button id="eventFile" type="button" class="secondary">Ouvrir le dossier</button>'}${ui.canPlan()?'<button id="eventEdit" type="button" class="secondary">Modifier le rendez-vous</button>':''}</div></section>`);
++ bindCoordinateButtons(ui,document.getElementById('modal'));
+  document.getElementById('eventBack').onclick=()=>document.getElementById('modal').close();
+  const openFile=async(kind,id)=>{try{if(kind==='project')await ui.c.openProject(id);else if(kind==='intervention')await ui.openIntervention(id);else await ui.openVisit(id);if(kind==='project')document.getElementById('modal').close();}catch(error){ui.c.toast('Impossible d’ouvrir le dossier : '+error.message);}};
+  const fileButton=document.getElementById('eventFile');if(fileButton)fileButton.onclick=()=>openFile(e.kind,e.linkId);
+diff --git a/lib/client-coordinate-editor.js b/lib/client-coordinate-editor.js
+new file mode 100644
+index 0000000..d477589
+--- /dev/null
++++ b/lib/client-coordinate-editor.js
+@@ -0,0 +1,102 @@
++import {saveClientDraft} from './client-contacts.js';
++import {completionDraft} from './client-completion.js';
++const clean=value=>String(value??'').trim();
++const esc=value=>clean(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++const CLIENT_FIELDS={name:'Client / raison sociale',lastName:'Nom',firstName:'Prénom',phone:'Téléphone du client',email:'E-mail du client',billingAddress:'Adresse du client / facturation'};
++const CONTACT_FIELDS={siteContact:'Nom du contact sur place',sitePhone:'Téléphone du contact',siteEmail:'E-mail du contact'};
++const recordFor=(ui,kind,id)=>ui.data[kind]?.find(row=>row.id===id);
++const clientFor=(ui,id)=>ui.data.clients.find(row=>row.id===id);
++const recordCoordinates=record=>Object.fromEntries(['clientId',...Object.keys(CONTACT_FIELDS)].map(key=>[key,record[key]]));
++const assertRole=ui=>{if(!ui.canPlan?.())throw Error('Modification réservée au bureau et aux chefs de chantier.');};
++
++export function coordinateButton(ui,record,kind){
++ return ui.canPlan?.()?`<button type="button" class="secondary" data-coordinate-record="${esc(record.id)}" data-coordinate-kind="${kind}">Modifier les coordonnées</button>`:'';
++}
++export function bindCoordinateButtons(ui,root){
++ root.querySelectorAll('[data-coordinate-record]').forEach(button=>button.onclick=()=>openCoordinateEditor(ui,button.dataset.coordinateRecord,button.dataset.coordinateKind));
++ if(ui.canPlan?.())root.querySelectorAll('[data-complete-record]').forEach(button=>button.onclick=()=>openCoordinateEditor(ui,button.dataset.completeRecord,button.dataset.completeKind));
++}
++function valuesFor(client,record){
++ const draft=completionDraft(client,record);
++ return {name:client?.name||record.clientName||'',lastName:client?.lastName||'',firstName:client?.firstName||'',phone:draft.phone,email:draft.email,billingAddress:draft.billingAddress,siteContact:record.siteContact||'',sitePhone:record.sitePhone??record.phone??'',siteEmail:record.siteEmail??record.email??''};
++}
++function changedFields(fields,baseline,values){return Object.keys(fields).filter(key=>clean(values[key])!==clean(baseline[key]));}
++function checkConcurrent(current,original,keys,values){
++ for(const key of keys)if(clean(current[key])!==clean(original[key])&&clean(current[key])!==clean(values[key]))throw Error('Ces coordonnées ont changé sur un autre appareil. Votre correction reste affichée ; rouvrez la fiche pour vérifier la dernière version.');
++}
++
++// Apply only edited coordinates to the refreshed records. Planning, reports,
++// hours, media references and completion status never enter this patch.
++export async function saveCoordinates(ui,context,values){
++ assertRole(ui);
++ const clientKeys=changedFields(CLIENT_FIELDS,context.baseline,values),contactKeys=changedFields(CONTACT_FIELDS,context.baseline,values);
++ if(!clientKeys.length&&!contactKeys.length)return false;
++ await ui.c.prepareAppointmentWrite?.();assertRole(ui);
++ const record=recordFor(ui,context.kind,context.recordId);
++ if(!record)throw Error('Cette fiche n’est plus disponible. Aucune correction envoyée.');
++ if((record.clientId||'')!==(context.originalRecord.clientId||'')&&record.clientId!==context.clientId)throw Error('Le client de cette fiche a changé. Rouvrez les coordonnées avant de réessayer.');
++ let client=clientFor(ui,context.clientId);
++ if(context.originalClient&&!client)throw Error('La fiche client n’est plus disponible. Actualisez avant de réessayer.');
++ if(client)checkConcurrent(client,context.originalClient||{},clientKeys,values);
++ checkConcurrent(record,context.originalRecord,contactKeys,values);
++ const create=!client;
++ if(create){client={id:context.clientId,sites:[],...Object.fromEntries(Object.keys(CLIENT_FIELDS).map(key=>[key,clean(context.baseline[key])]))};}
++ if(create||clientKeys.length){
++  const draft={...structuredClone(client),...Object.fromEntries(clientKeys.map(key=>[key,clean(values[key])]))};
++  await saveClientDraft(ui,draft);client=draft;
++  // If the subsequent contact write fails, a retry reuses the confirmed client.
++  context.originalClient=structuredClone(client);
++ }
++ const patch={};
++ if(record.clientId!==client.id)patch.clientId=client.id;
++ if(create||clientKeys.includes('name'))patch.clientName=client.name;
++ if(create||clientKeys.includes('billingAddress'))patch.billingAddress=client.billingAddress;
++ for(const key of contactKeys)patch[key]=clean(values[key]);
++ if(context.kind==='visits'){
++  if(contactKeys.includes('sitePhone'))patch.phone=patch.sitePhone;
++  if(contactKeys.includes('siteEmail'))patch.email=patch.siteEmail;
++ }
++ if(Object.keys(patch).length){
++  const keys=[...Object.keys(patch),'updatedAt'],present=new Set(keys.filter(key=>Object.hasOwn(record,key))),before=Object.fromEntries(keys.map(key=>[key,record[key]]));Object.assign(record,patch,{updatedAt:new Date().toISOString()});
++  try{await ui.save(context.kind);}
++  catch(error){for(const key of keys){if(present.has(key))record[key]=before[key];else delete record[key];}throw Error((create||clientKeys.length?'La fiche client est enregistrée, mais le contact de ce rendez-vous reste à enregistrer. ':'Le contact n’a pas été enregistré. ')+'Votre correction reste affichée. Réessayez : '+error.message);}
++ }
++ context.baseline={...values};context.originalRecord=recordCoordinates(record);return true;
++}
++
++export function openCoordinateEditor(ui,id,kind,{onReturn}={}){
++ try{
++  assertRole(ui);if(!['interventions','visits'].includes(kind))throw Error('Type de fiche inconnu.');
++  const record=recordFor(ui,kind,id);if(!record)throw Error('Cette fiche n’est plus disponible.');
++  const client=clientFor(ui,record.clientId);
++  if(record.clientId&&!client)throw Error('La fiche client n’est pas chargée. Actualisez la connexion avant de modifier ses coordonnées.');
++  const baseline=valuesFor(client,record),context={kind,recordId:id,clientId:client?.id||'cli_'+crypto.randomUUID(),baseline:{...baseline},originalClient:client?structuredClone(client):null,originalRecord:recordCoordinates(record)};
++  const input=(key,label)=>`<div><label for="coords-${key}">${label}</label><input id="coords-${key}" name="${key}" type="${/email/i.test(key)?'email':/phone/i.test(key)?'tel':'text'}" value="${esc(baseline[key])}"></div>`;
++  ui.c.modal('Modifier les coordonnées',`<p><strong>${esc(record.number||'')} · ${esc(record.clientName||'Client à compléter')}</strong></p><form id="coordinateForm" novalidate data-record-edit="1"><h3>Fiche client</h3><p class="muted">Les coordonnées du client sont partagées avec ses autres dossiers.</p><div class="formGrid">${Object.entries(CLIENT_FIELDS).map(([key,label])=>input(key,label)).join('')}</div><h3>Contact pour ${kind==='visits'?'cette visite / devis':'cette intervention'}</h3><p class="muted">Ce contact concerne cette fiche. Il peut être différent du client.</p><div class="formGrid">${Object.entries(CONTACT_FIELDS).map(([key,label])=>input(key,label)).join('')}</div><p role="status" aria-live="polite"></p><div class="actionRow"><button type="submit">Enregistrer les coordonnées</button><button type="button" id="cancelCoordinates" class="secondary">Annuler</button></div></form>`);
++  const form=document.getElementById('coordinateForm');
++  const independent=completionDraft(client,record).differentContact;
++  const links={phone:!independent&&(!clean(baseline.sitePhone)||clean(baseline.sitePhone)===clean(baseline.phone)),email:!independent&&(!clean(baseline.siteEmail)||clean(baseline.siteEmail)===clean(baseline.email))};
++  form.addEventListener('input',event=>{
++   const key=event.target.name;
++   for(const [source,target]of [['phone','sitePhone'],['email','siteEmail']]){
++    if(key===target)links[source]=false;
++    if(key===source&&links[source])form.elements.namedItem(target).value=event.target.value;
++   }
++  });
++  const back=async()=>{document.getElementById('modal').close();if(onReturn)await onReturn();};
++  document.getElementById('cancelCoordinates').onclick=()=>back().catch(error=>ui.c.toast(error.message));
++  form.onsubmit=async event=>{
++   event.preventDefault();if(form.dataset.saving)return;
++   const button=form.querySelector('[type=submit]'),status=form.querySelector('[role=status]'),cancel=document.getElementById('cancelCoordinates');
++   const values=Object.fromEntries(Object.keys({...CLIENT_FIELDS,...CONTACT_FIELDS}).map(key=>[key,form.elements.namedItem(key).value]));
++   for(const key of [...changedFields(CLIENT_FIELDS,context.baseline,values),...changedFields(CONTACT_FIELDS,context.baseline,values)])if(!form.elements.namedItem(key).checkValidity()){status.textContent='Vérifiez le champ « '+(CLIENT_FIELDS[key]||CONTACT_FIELDS[key])+' ».';form.elements.namedItem(key).focus();return;}
++   form.dataset.saving='1';button.disabled=true;cancel.disabled=true;status.textContent='Enregistrement des coordonnées…';
++   try{
++    const saved=await saveCoordinates(ui,context,values);status.textContent=saved?'Coordonnées enregistrées.':'Aucune modification.';
++    await back();ui.c.toast(saved?'Coordonnées enregistrées.':'Aucune modification.');
++    if(!onReturn)try{if(ui.section==='calendar')await ui.renderCalendar();else if(kind==='visits')await ui.renderVisits();else await ui.renderInterventions();}catch{ui.c.toast('Coordonnées enregistrées. Actualisez la liste pour les afficher.');}
++   }catch(error){status.textContent=error.message;}
++   finally{delete form.dataset.saving;button.disabled=false;cancel.disabled=false;}
++  };
++ }catch(error){ui.c.toast(error.message);}
++}
+diff --git a/lib/ops-ui.js b/lib/ops-ui.js
+index 2bfc8ed..c7db0ac 100644
+--- a/lib/ops-ui.js
++++ b/lib/ops-ui.js
+@@ -1,3 +1,4 @@
++import {coordinateButton,bindCoordinateButtons} from './client-coordinate-editor.js';
+ import {hasMediaReferences} from './media-store.js';
+ import {captureEditState,preserveUnedited,schedulingChanged,restoreRecord,validateEditedFields} from './record-edit-state.js';
+ import {editFreeAppointment} from './free-appointments.js';
+@@ -408,10 +409,10 @@ export class OpsUI{
+     root.innerHTML=`<div class="pageHeading"><div><p class="eyebrow">PASSAGES PONCTUELS · SAV · DÉPANNAGES</p><h1>Interventions</h1><p class="muted">Chaque intervention reçoit un numéro chronologique et reste liée au client, au planning et à sa fiche terrain.</p></div><div class="actionRow">${this.c.isAdmin()?'<button id="importInterventionReports" class="secondary">Importer des rapports PDF</button>':''}${this.canPlan()?'<button id="newIntervention">+ Nouvelle intervention</button>':''}</div></div>
+       <div class="tabs" aria-label="Classement des interventions"><button type="button" id="intCurrent">Interventions en cours (${visible.filter(x=>!x.archivedAt&&!['terminee','facturee'].includes(x.status)).length})</button><button type="button" id="intCompleted">Interventions terminées (${visible.filter(x=>!x.archivedAt&&['terminee','facturee'].includes(x.status)).length})</button><button type="button" id="intArchived">Interventions achevées (${visible.filter(x=>x.archivedAt).length})</button><button type="button" id="intCancelled">Annulées (${rows.filter(x=>x.status==='annulee').length})</button></div>
+       <div class="searchline"><input id="intSearch" type="search" placeholder="Client, adresse, n° intervention…"></div><div id="intList" class="projectList"></div>`;
+-    const draw=()=>{const q=norm(document.getElementById('intSearch').value);const cancelled=this.interventionView==='cancelled',completed=this.interventionView==='completed',archived=this.interventionView==='archived';for(const [id,active] of [['intCancelled',cancelled],['intCurrent',!completed&&!archived&&!cancelled],['intCompleted',completed],['intArchived',archived]]){const b=document.getElementById(id);b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}const list=(cancelled?rows.filter(x=>x.status==='annulee'):visible).filter(x=>(cancelled|| (archived?!!x.archivedAt:!x.archivedAt&&['terminee','facturee'].includes(x.status)===completed))&&norm([x.number,x.clientName,x.siteAddress,x.title].join(' ')).includes(q));document.getElementById('intList').innerHTML=list.length?list.map(x=>this.interventionCard(x)).join(''):'<div class="panel empty">Aucune intervention.</div>';bindCompletionBadges(this,root);bindAppointmentButtons(this,root);root.querySelectorAll('[data-int-orders]').forEach(b=>b.onclick=async()=>{await this.openIntervention(b.dataset.intOrders);document.getElementById('intMaterialTab')?.click();});this.refreshPickupBadges=()=>refreshInterventionPickupBadges(this,root);this.refreshPickupBadges();root.querySelectorAll('[data-int]').forEach(b=>b.onclick=()=>this.openIntervention(b.dataset.int));root.querySelectorAll('[data-archive-int]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await setInterventionArchived(this,b.dataset.archiveInt,b.dataset.restore!=='true');this.c.toast(b.dataset.restore==='true'?'Intervention remise dans les terminées.':'Intervention contrôlée et achevée.');await this.renderInterventions();}catch(e){this.c.toast(e.message);b.disabled=false;}});};
++    const draw=()=>{const q=norm(document.getElementById('intSearch').value);const cancelled=this.interventionView==='cancelled',completed=this.interventionView==='completed',archived=this.interventionView==='archived';for(const [id,active] of [['intCancelled',cancelled],['intCurrent',!completed&&!archived&&!cancelled],['intCompleted',completed],['intArchived',archived]]){const b=document.getElementById(id);b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}const list=(cancelled?rows.filter(x=>x.status==='annulee'):visible).filter(x=>(cancelled|| (archived?!!x.archivedAt:!x.archivedAt&&['terminee','facturee'].includes(x.status)===completed))&&norm([x.number,x.clientName,x.siteAddress,x.title].join(' ')).includes(q));document.getElementById('intList').innerHTML=list.length?list.map(x=>this.interventionCard(x)).join(''):'<div class="panel empty">Aucune intervention.</div>';bindCompletionBadges(this,root);bindCoordinateButtons(this,root);bindAppointmentButtons(this,root);root.querySelectorAll('[data-int-orders]').forEach(b=>b.onclick=async()=>{await this.openIntervention(b.dataset.intOrders);document.getElementById('intMaterialTab')?.click();});this.refreshPickupBadges=()=>refreshInterventionPickupBadges(this,root);this.refreshPickupBadges();root.querySelectorAll('[data-int]').forEach(b=>b.onclick=()=>this.openIntervention(b.dataset.int));root.querySelectorAll('[data-archive-int]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await setInterventionArchived(this,b.dataset.archiveInt,b.dataset.restore!=='true');this.c.toast(b.dataset.restore==='true'?'Intervention remise dans les terminées.':'Intervention contrôlée et achevée.');await this.renderInterventions();}catch(e){this.c.toast(e.message);b.disabled=false;}});};
+     document.getElementById('intCancelled').onclick=()=>{this.interventionView='cancelled';draw();};document.getElementById('intCurrent').onclick=()=>{this.interventionView='current';draw();};document.getElementById('intCompleted').onclick=()=>{this.interventionView='completed';draw();};document.getElementById('intArchived').onclick=()=>{this.interventionView='archived';draw();};document.getElementById('intSearch').oninput=draw;draw();if(this.c.isAdmin())document.getElementById('importInterventionReports').onclick=()=>openImportReports(this);if(this.canPlan())document.getElementById('newIntervention').onclick=()=>this.editIntervention();mountServiceImport(this,root,'intervention');
+   }
+-  interventionCard(x){const st=({a_planifier:'À planifier',planifiee:'Planifiée',en_cours:'En cours',terminee:'Terminée',facturee:'Facturée',annulee:'Annulée'})[x.status]||x.status;return `<article class="projectCard"><div><div class="chips"><span class="chip">${esc(x.number)}</span><span class="chip ${x.status==='terminee'?'warn':x.status==='facturee'?'good':''}">${x.archivedAt?'Achevée':esc(st)}</span></div><h3><button type="button" class="textButton" data-int="${esc(x.id)}" style="text-align:left;padding:0;white-space:normal;overflow-wrap:anywhere">${esc(x.clientName||'Client à compléter')} · ${esc(x.title||'Intervention')}</button></h3>${x.request?`<p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.request)}</p>`:''}<p>${esc(x.siteAddress||'Adresse à compléter')}${x.plannedStart?' · '+esc(frDateTime(x.plannedStart)):''}</p><div class="chips"><span class="chip">${esc(this.teamNames(x.teamIds))}</span></div></div><div class="actionRow">${appointmentButton(x,'interventions')}${completionBadge(this,x,'interventions')}<button type="button" class="secondary" data-int-orders="${esc(x.id)}">Bons de commande · …</button>${this.c.isAdmin()&&['terminee','facturee'].includes(x.status)?`<button type="button" class="secondary" data-archive-int="${esc(x.id)}" data-restore="${!!x.archivedAt}">${x.archivedAt?'Remettre dans les terminées':'Valider et achever'}</button>`:''}</div></article>`;}
++  interventionCard(x){const st=({a_planifier:'À planifier',planifiee:'Planifiée',en_cours:'En cours',terminee:'Terminée',facturee:'Facturée',annulee:'Annulée'})[x.status]||x.status;return `<article class="projectCard"><div><div class="chips"><span class="chip">${esc(x.number)}</span><span class="chip ${x.status==='terminee'?'warn':x.status==='facturee'?'good':''}">${x.archivedAt?'Achevée':esc(st)}</span></div><h3><button type="button" class="textButton" data-int="${esc(x.id)}" style="text-align:left;padding:0;white-space:normal;overflow-wrap:anywhere">${esc(x.clientName||'Client à compléter')} · ${esc(x.title||'Intervention')}</button></h3>${x.request?`<p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.request)}</p>`:''}<p>${esc(x.siteAddress||'Adresse à compléter')}${x.plannedStart?' · '+esc(frDateTime(x.plannedStart)):''}</p><div class="chips"><span class="chip">${esc(this.teamNames(x.teamIds))}</span></div></div><div class="actionRow">${appointmentButton(x,'interventions')}${completionBadge(this,x,'interventions')}${coordinateButton(this,x,'interventions')}<button type="button" class="secondary" data-int-orders="${esc(x.id)}">Bons de commande · …</button>${this.c.isAdmin()&&['terminee','facturee'].includes(x.status)?`<button type="button" class="secondary" data-archive-int="${esc(x.id)}" data-restore="${!!x.archivedAt}">${x.archivedAt?'Remettre dans les terminées':'Valider et achever'}</button>`:''}</div></article>`;}
+   async editIntervention(existing=null,seed=null){
+     if(existing?.status==='annulee')return this.openIntervention(existing.id);
+     if(!this.canPlan())return;
+@@ -559,8 +560,8 @@ export class OpsUI{
+   }
+   async renderVisits(){
+     const root=document.getElementById('visitsPage'),rows=[...this.data.visits].sort((a,b)=>String(a.plannedStart||'9999').localeCompare(String(b.plannedStart||'9999')));
+-    root.innerHTML=`<div class="pageHeading"><div><p class="eyebrow">AVANT DEVIS · DIAGNOSTIC · RELEVÉS</p><h1>Visites / Devis</h1><p class="muted">Client habituel ou nouveau client : la fiche garde les coordonnées, les métrés, les photos et peut ensuite être transformée en chantier.</p></div>${this.canPlan()?'<button id="newVisit">+ Nouvelle visite</button>':''}</div><div class="projectList">${rows.length?rows.map(v=>`<article class="projectCard"><div><div class="chips"><span class="chip">${esc(v.number)}</span><span class="chip">${esc(v.type||'Visite avant devis')}</span><span class="chip ${v.status==='terminee'?'good':''}">${esc(isReception(v)&&v.status==='terminee'?'Réception effectuée':this.visitStatusLabel(v.status))}</span></div><h3>${esc(v.clientName||'Client à compléter')}</h3><p>${esc(v.siteAddress||'Adresse à compléter')}${v.plannedStart?' · '+esc(frDateTime(v.plannedStart)):''}</p><div class="chips">${Array.isArray(v.visitTasks)&&v.visitTasks.length?`<span class="chip">${v.visitTasks.length} tâche(s)</span>`:''}${Array.isArray(v.photos)&&v.photos.length?`<span class="chip">${v.photos.length} photo(s)</span>`:''}</div></div><div class="actionRow">${appointmentButton(v,'visits')}${completionBadge(this,v,'visits')}<button data-visit="${esc(v.id)}">Ouvrir →</button>${this.c.isAdmin()?`<button type="button" class="danger" data-delete-visit="${esc(v.id)}">Supprimer la visite</button>`:''}</div></article>`).join(''):'<div class="panel empty">Aucune visite enregistrée.</div>'}</div>`;
+-    mountVisitTabs(this,root,rows);mountReception(this,root);bindCompletionBadges(this,root);
++    root.innerHTML=`<div class="pageHeading"><div><p class="eyebrow">AVANT DEVIS · DIAGNOSTIC · RELEVÉS</p><h1>Visites / Devis</h1><p class="muted">Client habituel ou nouveau client : la fiche garde les coordonnées, les métrés, les photos et peut ensuite être transformée en chantier.</p></div>${this.canPlan()?'<button id="newVisit">+ Nouvelle visite</button>':''}</div><div class="projectList">${rows.length?rows.map(v=>`<article class="projectCard"><div><div class="chips"><span class="chip">${esc(v.number)}</span><span class="chip">${esc(v.type||'Visite avant devis')}</span><span class="chip ${v.status==='terminee'?'good':''}">${esc(isReception(v)&&v.status==='terminee'?'Réception effectuée':this.visitStatusLabel(v.status))}</span></div><h3>${esc(v.clientName||'Client à compléter')}</h3><p>${esc(v.siteAddress||'Adresse à compléter')}${v.plannedStart?' · '+esc(frDateTime(v.plannedStart)):''}</p><div class="chips">${Array.isArray(v.visitTasks)&&v.visitTasks.length?`<span class="chip">${v.visitTasks.length} tâche(s)</span>`:''}${Array.isArray(v.photos)&&v.photos.length?`<span class="chip">${v.photos.length} photo(s)</span>`:''}</div></div><div class="actionRow">${appointmentButton(v,'visits')}${completionBadge(this,v,'visits')}${coordinateButton(this,v,'visits')}<button data-visit="${esc(v.id)}">Ouvrir →</button>${this.c.isAdmin()?`<button type="button" class="danger" data-delete-visit="${esc(v.id)}">Supprimer la visite</button>`:''}</div></article>`).join(''):'<div class="panel empty">Aucune visite enregistrée.</div>'}</div>`;
++    mountVisitTabs(this,root,rows);mountReception(this,root);bindCompletionBadges(this,root);bindCoordinateButtons(this,root);
+     root.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>this.openVisit(b.dataset.visit));root.querySelectorAll('[data-delete-visit]').forEach(b=>b.onclick=()=>this.deleteVisit(b.dataset.deleteVisit,b));if(this.canPlan())document.getElementById('newVisit').onclick=()=>this.editVisit();mountServiceImport(this,root,'visit');bindAppointmentButtons(this,root);
+   }
+   async editVisit(existing=null,seed=null){
+diff --git a/package-lock.json b/package-lock.json
+index 9b2cfd0..e9a3b44 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "opus-chantiers",
+-  "version": "3.4.2",
++  "version": "3.6.2",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "opus-chantiers",
+-      "version": "3.4.2",
++      "version": "3.6.2",
+       "dependencies": {
+         "@azure/msal-browser": "5.21.0",
+         "jspdf": "2.5.2",
+diff --git a/package.json b/package.json
+index 7772912..e165417 100644
+--- a/package.json
++++ b/package.json
+@@ -2,7 +2,7 @@
+   "name": "opus-chantiers",
+   "private": true,
+   "type": "module",
+-  "version": "3.4.2",
++  "version": "3.6.2",
+   "scripts": {
+     "build": "node scripts/build.mjs",
+     "pretest": "npm run build",
+diff --git a/sw.js b/sw.js
+index 76198a2..e700850 100644
+--- a/sw.js
++++ b/sw.js
+@@ -1,6 +1,6 @@
+ /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
+ const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
+-const CACHE=PREFIX+'3.6.0-stockage';
++const CACHE=PREFIX+'3.6.2-coordonnees';
+ const SCOPE=new URL(self.registration.scope);
+ let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
+ // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
+@@ -43,3 +43,14 @@ self.addEventListener('push',event=>event.waitUntil((async()=>{
+  await self.registration.showNotification(String(p.title||'OPUS · Rappel').slice(0,160),{body:String(p.body||'Un rendez-vous approche.').slice(0,700),icon:new URL('icon-192.png',SCOPE).href,tag:String(p.tag||'opus-reminder'),data:{route:safeRoute},actions:safeRoute?[{action:'route',title:'Ouvrir l’itinéraire'}]:[]});
+ })()));
+ self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const route=event.notification.data?.route;let target=SCOPE.href;if(route){try{const u=new URL(route);if(u.origin==='https://www.google.com'&&u.pathname==='/maps/dir/')target=u.href;}catch{}}await self.clients.openWindow(target);})());});
++
++// A manual update only switches the shell when this is the sole OPUS window.
++self.addEventListener('message',event=>{
++ if(event.data?.type!=='OPUS_ACTIVATE'||!event.source?.url)return;
++ const source=new URL(event.source.url);if(source.origin!==SCOPE.origin||!source.pathname.startsWith(SCOPE.pathname))return;
++ event.waitUntil((async()=>{
++  const clients=(await self.clients.matchAll({type:'window',includeUncontrolled:true})).filter(client=>{const u=new URL(client.url);return u.origin===SCOPE.origin&&u.pathname.startsWith(SCOPE.pathname);});
++  if(clients.some(client=>client.id!==event.source.id)){event.ports[0]?.postMessage({ok:false,message:'Fermez les autres fenêtres OPUS puis réessayez la mise à jour.'});return;}
++  event.ports[0]?.postMessage({ok:true});await self.skipWaiting();
++ })());
++});
+diff --git a/tests/app-update.test.mjs b/tests/app-update.test.mjs
+new file mode 100644
+index 0000000..bb892c3
+--- /dev/null
++++ b/tests/app-update.test.mjs
+@@ -0,0 +1,26 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import vm from 'node:vm';
++import {readFile} from 'node:fs/promises';
++import {JSDOM} from 'jsdom';
++import {installAppUpdates} from '../lib/app-update.js';
++
++test('an update is explicit, blocked by an open form, and only reloads after activation was requested',async t=>{
++ const dom=new JSDOM('<body></body>');t.after(()=>dom.window.close());let ready=false,reloads=0,sends=0,updates=0;
++ const previous=globalThis.MessageChannel;globalThis.MessageChannel=class{constructor(){this.port1={close(){}};this.port2={reply:data=>queueMicrotask(()=>this.port1.onmessage({data}))};}};t.after(()=>globalThis.MessageChannel=previous);
++ const listeners={},registration={waiting:{postMessage:(message,ports)=>{sends++;assert.equal(message.type,'OPUS_ACTIVATE');ports[0].reply({ok:true});}},addEventListener(){},update:async()=>updates++};
++ const navigator={serviceWorker:{controller:{},addEventListener:(name,fn)=>listeners[name]=fn,register:async()=>registration}};
++ await installAppUpdates({navigator,document:dom.window.document,location:{reload:()=>reloads++},beforeUpdate:async()=>{if(!ready)throw Error('Fermez le formulaire');}});
++ assert.equal(updates,1);listeners.controllerchange();assert.equal(reloads,0);
++ const button=dom.window.document.querySelector('button');await button.onclick();assert.equal(sends,0);assert.match(dom.window.document.body.textContent,/Fermez le formulaire/);
++ ready=true;await button.onclick();assert.equal(sends,1);listeners.controllerchange();assert.equal(reloads,1);
++});
++
++test('the waiting worker refuses to switch while another OPUS window is open',async()=>{
++ const handlers={},messages=[];let activations=0,clients=[{id:'a',url:'https://opus.example/OPUS/'},{id:'b',url:'https://opus.example/OPUS/modules/baes/'}];
++ vm.runInNewContext(await readFile(new URL('../sw.js',import.meta.url),'utf8'),{URL,self:{registration:{scope:'https://opus.example/OPUS/'},addEventListener:(name,fn)=>handlers[name]=fn,clients:{matchAll:async()=>clients},skipWaiting:async()=>activations++}});
++ let pending;const event={data:{type:'OPUS_ACTIVATE'},source:{id:'a',url:'https://opus.example/OPUS/'},ports:[{postMessage:value=>messages.push(value)}],waitUntil:p=>pending=p};
++ handlers.message(event);await pending;assert.equal(activations,0);assert.equal(messages.at(-1).ok,false);
++ clients=[clients[0],{id:'unrelated',url:'https://other.example/'}];handlers.message(event);await pending;assert.equal(activations,1);assert.equal(messages.at(-1).ok,true);
++ handlers.message({...event,source:{id:'attacker',url:'https://other.example/'},waitUntil:()=>assert.fail('Foreign origin cannot activate')});
++});
+diff --git a/tests/attestation-autosave.integration.test.mjs b/tests/attestation-autosave.integration.test.mjs
+index 5df2c43..4c6ce16 100644
+--- a/tests/attestation-autosave.integration.test.mjs
++++ b/tests/attestation-autosave.integration.test.mjs
+@@ -1,3 +1,4 @@
++import {runAuthInteraction,selectSessionAccount} from '../lib/auth-session.js';
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import vm from 'node:vm';
+@@ -36,8 +37,8 @@ async function harness(t,{online=true,sha=hash}={}){
+  frame.postMessage=(message)=>{messages.push(structuredClone(message));trace.push(['message',message.type,message.captureId,message.ok]);};
+  let source=await readFile(new URL('../app.js',import.meta.url),'utf8');
+  source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace(/const \{OpsUI\}=await import\('\.\/lib\/ops-ui\.js\?v=[^']+'\);/,'').replace('init().catch(err);','');
+- source+='\nstore=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,chooseRevision,reconnectReport,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
+- const context=vm.createContext({TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
++ source+='\nmsal={};store=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,chooseRevision,reconnectReport,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
++ const context=vm.createContext({runAuthInteraction,selectSessionAccount,TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
+   structuredClone,URL,URLSearchParams,Blob,parseRevision,safeName:s=>String(s).replace(/["*:<>?/\\|]/g,'-'),location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
+   console:{log(){},warn(){},error(){}},setInterval:()=>0,clearInterval(){},setTimeout:(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,at:now+delay});return id;},clearTimeout:id=>timers.delete(id)});
+  vm.runInContext(source,context);
+diff --git a/tests/auth-interaction.integration.test.mjs b/tests/auth-interaction.integration.test.mjs
+new file mode 100644
+index 0000000..5b18da2
+--- /dev/null
++++ b/tests/auth-interaction.integration.test.mjs
+@@ -0,0 +1,62 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import vm from 'node:vm';
++import {readFile} from 'node:fs/promises';
++import {JSDOM} from 'jsdom';
++import {CloudError} from '../lib/cloud.js';
++import {acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount} from '../lib/auth-session.js';
++const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
++const turn=()=>new Promise(r=>setImmediate(r));
++async function fixture(t){
++ const dom=new JSDOM(await readFile(new URL('../index.html',import.meta.url),'utf8'),{url:'https://opus.example/'}),document=dom.window.document;
++ document.getElementById('modal').showModal=function(){this.open=true;};document.getElementById('modal').close=function(){this.open=false;};
++ let source=await readFile(new URL('../app.js',import.meta.url),'utf8');
++ source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace('init().catch(err);','').replace("await import('./vendor/msal.js')","await Promise.resolve(TEST_MODULE)");
++ source+='\nconfig={clientId:"client",tenant:"tenant",scopes:["User.Read"],adminUsers:[]};globalThis.hooks={authInit,login,reconnectReport,recoverAuth,logoutCurrent,getMsal:()=>msal,setClient:value=>msal=value,setModule:value=>TEST_MODULE=value,configure:({client,graph,ui,owner="owner"})=>{msal=client;g=graph;opsUI=ui;appAccount=owner;user={id:"tech",mail:"tech@example.test"};cloudReady=true;},setLive:value=>live=value,setCapture:fn=>requestFrame=fn,setConnect:fn=>connectCloud=fn};';
++ const context=vm.createContext({TEST_MODULE:{},runAuthInteraction,selectSessionAccount,acquireSessionToken,requiresInteractiveAuth,CloudError,installResumeSync:()=>{},
++ document,window:dom.window,navigator:{onLine:true},localStorage:dom.window.localStorage,location:dom.window.location,history:dom.window.history,URL,URLSearchParams,structuredClone,
++ console:{log(){},warn(){},error(){}},setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){}});vm.runInContext(source,context);
++ t.after(()=>{clearTimeout(dom.window.toastTimer);dom.window.close();});
++ return {dom,document,hooks:context.hooks,context};
++}
++const currentSession=(h,client,graph={readOnlyCache:false,accessToken:async()=>'token'})=>{
++ h.document.getElementById('modal').open=true;
++ const ui={hasLoadedRemote:true,cacheMode:false,needsRefresh:false,dataLoadError:null};h.hooks.configure({client,graph,ui});return ui;
++};
++
++test('login awaits the singleton initialization and redirect callback before starting Microsoft',async t=>{
++ const h=await fixture(t),ready=deferred(),trace=[];let instances=0;
++ class Client{constructor(){instances++;}async initialize(){trace.push('init');await ready.promise;}async handleRedirectPromise(){trace.push('callback');return null;}getAllAccounts(){return [];}getActiveAccount(){return null;}async loginRedirect(){trace.push('login');}}
++ h.hooks.setModule({PublicClientApplication:Client});const initializing=h.hooks.authInit();await turn();const login=h.hooks.login();await turn();assert.deepEqual(trace,['init']);assert.equal(instances,1);
++ ready.resolve();await Promise.all([initializing,login]);assert.deepEqual(trace,['init','callback','login']);assert.equal(instances,1);
++});
++
++test('double reconnect and sign-out cannot start another interaction while a popup is open',async t=>{
++ const h=await fixture(t),popup=deferred();let popups=0,logouts=0;const account={homeAccountId:'owner'};
++ const client={getActiveAccount:()=>account,setActiveAccount(){},acquireTokenPopup:async()=>{popups++;return popup.promise;},logoutRedirect:async()=>logouts++};
++ currentSession(h,client,{readOnlyCache:false,accessToken:async()=>{throw new CloudError('renew',401,'auth_required');}});
++ const first=h.hooks.reconnectReport();await turn();assert.equal(popups,1);
++ await assert.rejects(h.hooks.reconnectReport(),e=>e.code==='auth_busy');await assert.rejects(h.hooks.logoutCurrent(),e=>e.code==='auth_busy');assert.equal(logouts,0);
++ popup.resolve({account});await first;assert.equal(popups,1);
++});
++
++test('explicit repair persists an open attestation before using the supported MSAL override',async t=>{
++ const h=await fixture(t),trace=[],account={homeAccountId:'owner'};let request;
++ const client={getActiveAccount:()=>account,setActiveAccount(){},acquireTokenPopup:async value=>{trace.push('popup');request=value;return {account};}};
++ currentSession(h,client);h.hooks.setLive({recordId:'attestation'});
++ h.hooks.setCapture(async()=>{trace.push('capture');});await h.hooks.recoverAuth();
++ assert.equal(request.overrideInteractionInProgress,true);assert.equal(request.account,account);assert.deepEqual(trace,['capture','popup']);
++});
++
++test('repair cannot sign a report into a different account',async t=>{
++ const h=await fixture(t),owner={homeAccountId:'owner'},other={homeAccountId:'other'};let selected=null,graphCalls=0;
++ const client={getActiveAccount:()=>owner,getAllAccounts:()=>[owner,other],setActiveAccount:a=>selected=a,acquireTokenPopup:async()=>({account:other})};
++ currentSession(h,client,{readOnlyCache:false,accessToken:async()=>{graphCalls++;return 'token';}});
++ await assert.rejects(h.hooks.recoverAuth(),/même compte Microsoft/);assert.equal(selected,owner);assert.equal(graphCalls,0);
++});
++
++test('repair and sign-out stop when the local draft cannot be persisted',async t=>{
++ const h=await fixture(t);let calls=0;const account={homeAccountId:'owner'},client={getActiveAccount:()=>account,acquireTokenPopup:async()=>calls++,logoutRedirect:async()=>calls++};
++ const ui=currentSession(h,client);ui.activeReportRecovery={flush:async()=>{throw Error('Stockage local plein');}};
++ await assert.rejects(h.hooks.recoverAuth(),/Stockage local plein/);await assert.rejects(h.hooks.logoutCurrent(),/Stockage local plein/);assert.equal(calls,0);
++});
+diff --git a/tests/auth-session.test.mjs b/tests/auth-session.test.mjs
+index 314df0f..03f9932 100644
+--- a/tests/auth-session.test.mjs
++++ b/tests/auth-session.test.mjs
+@@ -1,6 +1,6 @@
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import {acquireSessionToken,requiresInteractiveAuth} from '../lib/auth-session.js';
++import {acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount} from '../lib/auth-session.js';
+ const account={homeAccountId:'technician'};
+ const client=acquireTokenSilent=>({getActiveAccount:()=>account,acquireTokenSilent});
+ test('network, iframe timeout and throttling do not require interactive sign-in',async()=>{
+@@ -27,3 +27,30 @@ test('missing account needs sign-in, missing initialized client does not',async(
+  await assert.rejects(acquireSessionToken({getActiveAccount:()=>null},[]),requiresInteractiveAuth);
+  await assert.rejects(acquireSessionToken(null,[]),e=>e.code==='auth_not_initialized'&&!requiresInteractiveAuth(e));
+ });
++
++
++test('a second login or logout cannot overlap an active Microsoft interaction',async()=>{
++ let release,calls=0;const ready=new Promise(resolve=>release=resolve),client={},states=[];
++ const first=runAuthInteraction(client,async()=>{calls++;await ready;return 'ok';},busy=>states.push(busy));
++ await assert.rejects(runAuthInteraction(client,async()=>{calls++;}),e=>e.code==='auth_busy');
++ assert.equal(calls,1);assert.deepEqual(states,[true]);release();assert.equal(await first,'ok');assert.deepEqual(states,[true,false]);
++ assert.equal(await runAuthInteraction(client,async()=>'again'),'again');
++});
++
++test('a stranded MSAL interaction yields an actionable error and releases the local gate',async()=>{
++ const client={},cause=Object.assign(Error('raw'),{errorCode:'interaction_in_progress'});
++ await assert.rejects(runAuthInteraction(client,async()=>{throw cause;}),e=>e.code==='auth_interaction_blocked'&&e.cause===cause&&/Relancer la connexion bloquée/.test(e.message));
++ assert.equal(await runAuthInteraction(client,async()=>'recovered'),'recovered');
++});
++
++test('the known report owner is reselected by exact homeAccountId if active account disappeared',async()=>{
++ const owner={homeAccountId:'owner'},other={homeAccountId:'other'};let selected=null,sent;
++ const client={getActiveAccount:()=>selected,getAllAccounts:()=>[other,owner],setActiveAccount:account=>selected=account,acquireTokenSilent:async request=>{sent=request;return {accessToken:'token'};}};
++ assert.equal(await acquireSessionToken(client,[],{expectedHomeAccountId:'owner'}),'token');assert.equal(sent.account,owner);assert.equal(selected,owner);
++ selected=other;assert.equal(selectSessionAccount(client,'owner'),owner);assert.equal(selected,owner);
++});
++
++test('an absent owner never falls back to another technician cached in the browser',async()=>{
++ const client={getActiveAccount:()=>({homeAccountId:'other'}),getAllAccounts:()=>[{homeAccountId:'other'}],acquireTokenSilent:async()=>assert.fail('Wrong owner token request')};
++ await assert.rejects(acquireSessionToken(client,[],{expectedHomeAccountId:'owner'}),e=>e.code==='auth_required');
++});
+diff --git a/tests/client-coordinate-editor.test.mjs b/tests/client-coordinate-editor.test.mjs
+new file mode 100644
+index 0000000..19c0b77
+--- /dev/null
++++ b/tests/client-coordinate-editor.test.mjs
+@@ -0,0 +1,51 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {JSDOM} from 'jsdom';
++import {OpsUI} from '../lib/ops-ui.js';
++import {openCoordinateEditor,coordinateButton,bindCoordinateButtons} from '../lib/client-coordinate-editor.js';
++import {previewEvent} from '../lib/calendar-preview.js';
++function setup(t,kind='visits'){
++ const dom=new JSDOM('<main id="visitsPage"></main><main id="interventionsPage"></main><dialog id="modal"></dialog>',{url:'https://opus.test'}),document=dom.window.document,old=globalThis.document,oldStorage=globalThis.localStorage,oldWindow=globalThis.window;globalThis.document=document;globalThis.localStorage=dom.window.localStorage;globalThis.window=dom.window;
++ t.after(()=>{globalThis.document=old;globalThis.localStorage=oldStorage;globalThis.window=oldWindow;dom.window.close();});
++ const client={id:'c',name:'Client',lastName:'Nom',firstName:'Prénom',phone:'0600000000',email:'client@example.fr',billingAddress:'Agence',sites:[{id:'s',phone:'site'}],custom:'keep'};
++ const record={id:'r',number:'VIS-1',type:'Visite avant devis',clientId:'c',siteId:'s',clientName:'Client',siteContact:'Client',sitePhone:client.phone,siteEmail:client.email,phone:client.phone,email:client.email,siteAddress:'Chantier',plannedStart:'2026-10-29T09:00:00Z',plannedEnd:'2026-10-29T10:00:00Z',status:'planifiee',summary:'Rapport conservé',photos:[{$opusAsset:{id:'image'}}],actualStart:'real',notes:'Notes'};
++ const state={writes:[],fail:null,prepare:0,admin:true};const dialog=document.getElementById('modal');dialog.close=()=>dialog.removeAttribute('open');
++ const ui=new OpsUI({graph:{},getUser:()=>({mail:'owner@test'}),getConfig:()=>({}),isAdmin:()=>state.admin,toast:()=>{},modal:(_,html)=>{dialog.innerHTML=html;dialog.setAttribute('open','');},prepareAppointmentWrite:async()=>{state.prepare++;}});
++ ui.data={clients:[client],visits:kind==='visits'?[record]:[],interventions:kind==='interventions'?[record]:[],events:[],people:[]};ui.section=kind;
++ ui.save=async name=>{if(state.fail)await state.fail(name);state.writes.push(name);};ui.renderVisits=async()=>{};ui.renderInterventions=async()=>{};
++ ui.openVisit=ui.openIntervention=()=>assert.fail('Must not open a report');ui.loadRecordPhotos=()=>assert.fail('Must not load report photos');ui.upsertLinkedEvent=()=>assert.fail('Must not change calendar');
++ const edit=(field,value)=>{const input=document.querySelector('[name="'+field+'"]');input.value=value;input.dispatchEvent(new dom.window.Event('input',{bubbles:true}));};
++ const submit=()=>document.getElementById('coordinateForm').onsubmit({preventDefault(){}});
++ return {ui,client,record,state,document,dialog,edit,submit};
++}
++for(const kind of ['visits','interventions'])test('client phone can be corrected directly and its identical contact follows without changing report or calendar: '+kind,async t=>{
++ const h=setup(t,kind),before=structuredClone(h.record);openCoordinateEditor(h.ui,'r',kind);assert.ok(h.document.getElementById('coordinateForm'));assert.equal(h.document.querySelector('#finishVisit,#finishInt'),null);
++ h.edit('phone','0612345678');await h.submit();assert.equal(h.ui.data.clients[0].phone,'0612345678');assert.equal(h.record.sitePhone,'0612345678');if(kind==='visits')assert.equal(h.record.phone,'0612345678');
++ const expected={...before,sitePhone:'0612345678',...(kind==='visits'?{phone:'0612345678'}:{})};delete expected.updatedAt;const after={...h.record};delete after.updatedAt;assert.deepEqual(after,expected);assert.deepEqual(h.state.writes,['clients',kind]);assert.equal(h.dialog.open,false);
++});
++test('a different site contact remains separate when the client phone changes',async t=>{
++ const h=setup(t);h.record.siteContact='Gardien';h.record.sitePhone='0799999999';h.record.phone='0799999999';const before=structuredClone(h.record);
++ openCoordinateEditor(h.ui,'r','visits');h.edit('phone','0612345678');await h.submit();assert.deepEqual(h.record,before);assert.deepEqual(h.state.writes,['clients']);assert.equal(h.ui.data.clients[0].phone,'0612345678');
++});
++test('a contact-only correction and a new contact value preserve all client properties',async t=>{
++ const h=setup(t),before=structuredClone(h.client);openCoordinateEditor(h.ui,'r','visits');h.edit('sitePhone','0788888888');h.edit('phone','0612345678');await h.submit();assert.equal(h.record.sitePhone,'0788888888');assert.equal(h.ui.data.clients[0].phone,'0612345678');assert.deepEqual(h.ui.data.clients[0].sites,before.sites);assert.equal(h.ui.data.clients[0].custom,'keep');
++});
++test('refresh merges only edited fields and preserves a newer report and client metadata',async t=>{
++ const h=setup(t);h.ui.c.prepareAppointmentWrite=async()=>{h.ui.data.clients=[{...h.client,custom:'new metadata'}];h.ui.data.visits=[{...h.record,summary:'New report',status:'terminee'}];};openCoordinateEditor(h.ui,'r','visits');h.edit('sitePhone','0788888888');await h.submit();assert.equal(h.ui.data.visits[0].summary,'New report');assert.equal(h.ui.data.visits[0].status,'terminee');assert.equal(h.ui.data.clients[0].custom,'new metadata');assert.deepEqual(h.state.writes,['visits']);
++});
++test('changed owner or concurrently changed phone is rejected with the correction still displayed',async t=>{
++ const h=setup(t);openCoordinateEditor(h.ui,'r','visits');h.edit('sitePhone','0788888888');h.ui.c.prepareAppointmentWrite=async()=>{h.record.sitePhone='0711111111';};await h.submit();assert.equal(h.record.sitePhone,'0711111111');assert.equal(h.document.querySelector('[name=sitePhone]').value,'0788888888');assert.match(h.document.querySelector('[role=status]').textContent,/autre appareil/);assert.equal(h.state.writes.length,0);
++});
++test('a partial failure retains input and rolls back the contact; retry does not duplicate the client',async t=>{
++ const h=setup(t),before=structuredClone(h.record);let fail=true;h.state.fail=async kind=>{if(kind==='visits'&&fail)throw Error('Réseau');};openCoordinateEditor(h.ui,'r','visits');h.edit('phone','0612345678');await h.submit();assert.deepEqual(h.record,before);assert.equal(h.ui.data.clients[0].phone,'0612345678');assert.match(h.document.querySelector('[role=status]').textContent,/fiche client est enregistrée/);fail=false;await h.submit();assert.equal(h.ui.data.clients.length,1);assert.equal(h.record.phone,'0612345678');
++});
++test('blank legacy fields do not block a phone correction; cancel writes nothing',async t=>{
++ const h=setup(t);h.client.email='invalid legacy email';h.client.billingAddress='';openCoordinateEditor(h.ui,'r','visits');h.edit('sitePhone','0788888888');await h.submit();assert.equal(h.record.sitePhone,'0788888888');assert.deepEqual(h.state.writes,['visits']);h.state.writes=[];openCoordinateEditor(h.ui,'r','visits');h.edit('phone','different');await h.document.getElementById('cancelCoordinates').onclick();assert.deepEqual(h.state.writes,[]);
++});
++test('an existing client missing from cache is not recreated and technicians do not gain edit access',t=>{
++ const h=setup(t);h.ui.data.clients=[];openCoordinateEditor(h.ui,'r','visits');assert.equal(h.document.getElementById('coordinateForm'),null);h.state.admin=false;assert.equal(coordinateButton(h.ui,h.record,'visits'),'');
++});
++test('the list and calendar open the small coordinate form instead of a report',async t=>{
++ const h=setup(t);const root=h.document.getElementById('visitsPage');root.innerHTML=coordinateButton(h.ui,h.record,'visits');bindCoordinateButtons(h.ui,root);root.querySelector('button').click();assert.ok(h.document.getElementById('coordinateForm'));
++ h.ui.teamNames=()=>'';h.ui.data.events=[{id:'e',kind:'visit',linkId:'r',start:h.record.plannedStart,end:h.record.plannedEnd,teamIds:[]}];await previewEvent(h.ui,'e');const button=h.dialog.querySelector('[data-coordinate-record]');assert.ok(button);button.click();assert.ok(h.document.getElementById('coordinateForm'));assert.equal(h.state.writes.length,0);
++});
+diff --git a/tests/mailbox-search.test.mjs b/tests/mailbox-search.test.mjs
+new file mode 100644
+index 0000000..bafe427
+--- /dev/null
++++ b/tests/mailbox-search.test.mjs
+@@ -0,0 +1,60 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFile} from 'node:fs/promises';
++import vm from 'node:vm';
++import {JSDOM} from 'jsdom';
++import {buildMessageQuery,supplierOf} from '../commandes/outlook.js';
++const params=options=>new URL(buildMessageQuery(options),'https://graph.microsoft.com/v1.0/').searchParams;
++test('supplier search is sent to Outlook, includes Difam and CDO, and is not limited to loaded mail',()=>{
++ for(const supplier of ['Rexel','YESSS','Difam','CDO']){const p=params({supplier});assert.equal(p.get('$search'),JSON.stringify('from:'+supplier));assert.equal(p.has('$orderby'),false);assert.equal(p.has('$filter'),false);}
++ assert.equal(supplierOf({from:{emailAddress:{address:'commandes@difam.fr'}}}),'Difam');assert.equal(supplierOf({from:{emailAddress:{address:'contact@cdo.fr'}}}),'CDO');
++ const p=params({query:'Nouveau fournisseur'});assert.equal(p.get('$search'),JSON.stringify('Nouveau fournisseur'));assert.equal(p.get('$top'),'50');
++});
++test('date restrictions are optional and both ends are validated before querying',()=>{
++ const all=params({});assert.equal(all.has('$filter'),false);assert.equal(all.has('$search'),false);assert.equal(all.get('$orderby'),'receivedDateTime desc');
++ assert.match(params({query:'Difam',since:'2026-01-01',until:'2026-10-29'}).get('$search'),/received>=01\/01\/2026 AND received<=10\/29\/2026/);
++ assert.match(params({until:'2026-10-29'}).get('$filter'),/receivedDateTime lt 2026-10-30T00:00:00.000Z/);
++ assert.throws(()=>buildMessageQuery({since:'2026-10-30',until:'2026-10-29'}),/date de fin/);assert.throws(()=>buildMessageQuery({since:'2026-02-30'}),/date valide/);
++});
++test('query text cannot inject URL parameters or disclose a token to a foreign endpoint',()=>{
++ const url=new URL(buildMessageQuery({query:'Difam &$top=999 # "test"'}),'https://graph.microsoft.com/v1.0/');assert.equal(url.hostname,'graph.microsoft.com');assert.equal(url.searchParams.get('$top'),'50');assert.equal(url.hash,'');assert.match(url.searchParams.get('$search'),/Difam/);
++});
++async function fixture(t){
++ const dom=new JSDOM('<section id="host"></section>',{url:'https://opus.test/commandes/'}),document=dom.window.document;
++ const calls=[],state={messages:[{id:'m1',subject:'Commande de fournisseur inconnu',bodyPreview:'Voir document',receivedDateTime:'2020-01-01',from:{emailAddress:{address:'achat@nouveau.example'}}}],next:'',imports:0};
++ class Client{async initialize(){}async loginPopup(){return {account:{username:'opuselec@hotmail.com'}};}async acquireTokenSilent(){return {accessToken:'test-token'};}async clearCache(){}}
++ const fakeFetch=async(url,options)=>{calls.push({url,options});const u=new URL(url);let body;
++ if(u.pathname.endsWith('/me'))body={mail:'opuselec@hotmail.com'};
++ else if(u.pathname.endsWith('/messages/m1'))body={...state.messages[0],body:{contentType:'text',content:'Articles de la commande'},hasAttachments:false};
++ else body={value:state.messages,...(state.next?{'@odata.nextLink':state.next}:{})};
++ return {ok:true,json:async()=>body};};
++ let source=await readFile(new URL('../commandes/outlook.js',import.meta.url),'utf8');source=source.replace(/^export /gm,'').replace("await import('../vendor/msal.js')","await Promise.resolve(TEST_MSAL)").replaceAll('import.meta.url',JSON.stringify('https://opus.test/commandes/outlook.js'));source+='\nglobalThis.mount=mountOutlook;';
++ const context=vm.createContext({TEST_MSAL:{PublicClientApplication:Client},document,localStorage:dom.window.localStorage,URL,URLSearchParams,AbortSignal,fetch:fakeFetch,Date,console,Blob,Uint8Array,atob,confirm:()=>true});vm.runInContext(source,context);
++ const host=document.getElementById('host');const instance=context.mount({host,authorize:async()=>{},download(){},onImport:()=>{state.imports++;}});instance.show(true);
++ host.querySelector('#mailClient').value='11111111-1111-1111-1111-111111111111';await host.querySelector('#mailConnect').onclick();calls.length=0;t.after(()=>dom.window.close());
++ return {dom,document,host,instance,calls,state,search:()=>host.querySelector('#mailRefresh').onclick()};
++}
++test('unknown suppliers and old messages are shown and each new search reaches the mailbox',async t=>{
++ const h=await fixture(t);assert.equal(h.host.querySelector('#mailSince').value,'');h.host.querySelector('#mailSearch').value='Difam';await h.search();
++ assert.match(new URL(h.calls[0].url).searchParams.get('$search'),/Difam/);assert.match(h.host.querySelector('#mailList').textContent,/nouveau.example/);assert.match(h.host.querySelector('#mailList').textContent,/2020/);assert.equal(h.state.imports,0);
++ h.host.querySelector('#mailSearch').value='CDO';await h.search();assert.equal(h.calls.length,2);assert.match(new URL(h.calls[1].url).searchParams.get('$search'),/CDO/);
++});
++test('server search results matching the full body are not filtered out by the preview or sender',async t=>{
++ const h=await fixture(t);h.host.querySelector('#mailSupplier').value='Difam';await h.host.querySelector('#mailSupplier').onchange();assert.equal(h.host.querySelectorAll('#mailList button').length,1);
++ await h.host.querySelector('#mailList button').onclick();assert.match(h.host.querySelector('#mailBody').textContent,/Articles de la commande/);assert.equal(h.state.imports,0);
++ await h.host.querySelector('#mailUse').onclick();assert.equal(h.state.imports,1);assert.equal(h.host.hidden,true);
++});
++test('pagination follows the server link and an invalid date retains the previous result without a request',async t=>{
++ const h=await fixture(t);h.state.next='https://graph.microsoft.com/v1.0/me/messages?$skiptoken=next';await h.search();assert.equal(h.host.querySelector('#mailMore').hidden,false);h.state.next='';h.state.messages=[{...h.state.messages[0],id:'m2'}];await h.host.querySelector('#mailMore').onclick();assert.match(h.calls[1].url,/skiptoken=next/);assert.equal(h.host.querySelectorAll('#mailList button').length,2);
++ h.host.querySelector('#mailSince').value='2026-10-30';h.host.querySelector('#mailUntil').value='2026-10-29';await h.search();assert.equal(h.calls.length,2);assert.match(h.host.querySelector('#mailStatus').textContent,/date de fin/);assert.equal(h.host.querySelectorAll('#mailList button').length,2);
++});
++
++test('switching order tabs and searching mail preserve the current bon and its approval',async t=>{
++ const dom=new JSDOM(await readFile(new URL('../commandes/index.html',import.meta.url),'utf8'),{url:'https://opus.test/commandes/'}),document=dom.window.document;t.after(()=>dom.window.close());
++ let source=await readFile(new URL('../commandes/app.js',import.meta.url),'utf8');source=source.replace(/^import .*;\n/gm,'').replace('connectionReady=init().catch','connectionReady=Promise.resolve().catch').replaceAll('import.meta.url',JSON.stringify('https://opus.test/commandes/app.js'));source+='\noutlook={show:force=>document.getElementById("outlookPage").hidden=!force};globalThis.selectTab=selectOrderTab;';
++ const context=vm.createContext({document,window:dom.window,navigator:{},location:dom.window.location,sessionStorage:dom.window.sessionStorage,URL,setTimeout,clearTimeout,console});vm.runInContext(source,context);
++ document.getElementById('number').value='Commande existante';document.getElementById('approved').checked=true;
++ for(const name of ['mail','depot','supplier']){context.selectTab(name);assert.equal(document.getElementById('outlookPage').hidden,name!=='mail');assert.equal(document.getElementById('depotPage').hidden,name!=='depot');assert.equal(document.getElementById('supplierPage').hidden,name!=='supplier');}
++ const search=document.createElement('input');document.getElementById('outlookPage').append(search);search.dispatchEvent(new dom.window.Event('input',{bubbles:true}));assert.equal(document.getElementById('approved').checked,true);assert.equal(document.getElementById('number').value,'Commande existante');
++ document.getElementById('number').dispatchEvent(new dom.window.Event('input',{bubbles:true}));assert.equal(document.getElementById('approved').checked,false);
++});
+diff --git a/tests/warm-start.integration.test.mjs b/tests/warm-start.integration.test.mjs
+index c2b76bb..5c71033 100644
+--- a/tests/warm-start.integration.test.mjs
++++ b/tests/warm-start.integration.test.mjs
+@@ -1,4 +1,4 @@
+-import {acquireSessionToken,requiresInteractiveAuth} from '../lib/auth-session.js';
++import {acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount} from '../lib/auth-session.js';
+ import {loadAppConfig} from '../lib/app-config.js';
+ import {CloudError} from '../lib/cloud.js';
+ import {ReportRecovery} from '../lib/report-recovery.js';
+@@ -14,7 +14,7 @@ test('Cached planning opens before Microsoft responds and updates after connecti
+  let connectRelease,loads=0,failCatalogue=false,failOperations=false;const connected=new Promise(r=>connectRelease=r);class Graph{async connect(){await connected;this.site={id:'site'};this.drive={id:'drive'};}async request(){return {id:'worker',displayName:'Worker',mail:'worker'};}async projects(){if(failCatalogue)throw Error('Catalogue indisponible');return {projects:[],categories:[],loose:[]};}}
+  class UI extends OpsUI{constructor(ctx){super(ctx);this.repo={init:async()=>{},loadAll:async()=>{loads++;if(failOperations)throw Error('Network down');return data();}};}}
+  let source=await readFile(new URL('../app.js',import.meta.url),'utf8');source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace(/const \{OpsUI\}=await import\('\.\/lib\/ops-ui\.js\?v=[^']+'\);/,'').replace('init().catch(err);','');source+='\nconfig=TEST_CONFIG;globalThis.hooks={connectCloud,resumeCloud,reconnectReport,prepareAppointmentWrite,ensureReportReady,setAuth:value=>msal=value,getUI:()=>opsUI};';
+- const context=vm.createContext({TEST_CONFIG:config,acquireSessionToken,requiresInteractiveAuth,CloudError,ReportRecovery,installResumeSync,localStorage:dom.window.localStorage,WarmCache,OpsUI:UI,Graph,Journal:class{},LocalStore:Store,CATEGORIES:[],norm:s=>s,structuredClone,URL,URLSearchParams,location:dom.window.location,history:dom.window.history,document:dom.window.document,window:dom.window,navigator:{onLine:true},console,setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout});vm.runInContext(source,context);
++ const context=vm.createContext({TEST_CONFIG:config,acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount,CloudError,ReportRecovery,installResumeSync,localStorage:dom.window.localStorage,WarmCache,OpsUI:UI,Graph,Journal:class{},LocalStore:Store,CATEGORIES:[],norm:s=>s,structuredClone,URL,URLSearchParams,location:dom.window.location,history:dom.window.history,document:dom.window.document,window:dom.window,navigator:{onLine:true},console,setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout});vm.runInContext(source,context);
+  await context.hooks.connectCloud({homeAccountId:'account-a'});assert.ok(document.querySelector('.hourGrid'));assert.equal(context.hooks.getUI().cacheMode,true);assert.equal(loads,0);assert.match(document.getElementById('syncNotice').textContent,/mémorisées/);
+  connectRelease();await context.hooks.resumeCloud();assert.equal(loads,1);assert.equal(context.hooks.getUI().cacheMode,false);assert.equal(document.getElementById('syncNotice').hidden,true);
+  failCatalogue=true;await context.hooks.resumeCloud();assert.equal(context.hooks.getUI().cacheMode,false);assert.equal(context.hooks.getUI().needsRefresh,false);assert.match(document.getElementById('syncNotice').textContent,/Planning actualisé/);failCatalogue=false;
+@@ -77,7 +77,7 @@ test('legacy config and duplicate Roberto records do not block Brahim on the fir
+  // Exercise the real bootstrap/config merge, stubbing only interactive identity
+  // setup; authentication is covered independently by the session/bridge tests.
+  source+='\nauthInit=async()=>{};globalThis.hooks={init,connectCloud,resumeCloud,getUI:()=>opsUI,getConfig:()=>config};';
+- const context=vm.createContext({loadAppConfig,acquireSessionToken,requiresInteractiveAuth,CloudError,ReportRecovery,installResumeSync,localStorage:dom.window.localStorage,WarmCache,OpsUI:UI,Graph,Journal:class{},LocalStore:Store,CATEGORIES:[],norm:s=>s,structuredClone,URL,URLSearchParams,location:dom.window.location,history:dom.window.history,document:dom.window.document,window:dom.window,navigator:{onLine:true},console,setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout,
++ const context=vm.createContext({loadAppConfig,acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount,CloudError,ReportRecovery,installResumeSync,localStorage:dom.window.localStorage,WarmCache,OpsUI:UI,Graph,Journal:class{},LocalStore:Store,CATEGORIES:[],norm:s=>s,structuredClone,URL,URLSearchParams,location:dom.window.location,history:dom.window.history,document:dom.window.document,window:dom.window,navigator:{onLine:true},console,setInterval:()=>1,clearInterval(){},setTimeout,clearTimeout,
+   fetch:async url=>({json:async()=>url==='./config.json'?structuredClone(published):{}})});
+  vm.runInContext(source,context);await context.hooks.init();
+  assert.ok(context.hooks.getConfig().defaultPeople.some(p=>p.name==='CHATTI Brahim'));
