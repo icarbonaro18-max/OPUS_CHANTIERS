@@ -1,14 +1,49 @@
-OPUS CHANTIERS 3.6.2 — 29 octobre 2026
+OPUS CHANTIERS 3.6.4 — CONTENU A DEPOSER A LA RACINE DU DEPOT
 
-1. Modifier les coordonnées client et le contact depuis les interventions, visites/devis et rendez-vous, sans rapport.
-2. Onglet E-mails fournisseurs : recherche dans Outlook par fournisseur ou texte libre, avec Difam, CDO et les autres fournisseurs.
-3. Correctif de connexion 3.6.1 conservé.
+Cette archive contient directement app.js, index.html, lib/, api/, server/, etc.
+Déposer son CONTENU EXTRAIT à la racine du dépôt existant, en remplaçant les
+fichiers de même chemin. Ne pas déposer le ZIP ou son dossier parent dans le
+dépôt. Aucun dossier fichiers/ et aucun patch à appliquer.
 
-Base : version 3.6.0 publiée, commit 6fe1c0f.
-505 tests passent, compilation réussie.
-Cette mise à jour n’est pas encore publiée sur Vercel.
+CYCLE CONFIRME
+15 jours dans Terminés, puis 30 jours dans Archives avant suppression.
+Soit 45 jours après la fin au minimum. Les modifications et rendez-vous futurs
+peuvent différer le nettoyage. Les archives sans date connue commencent un
+nouveau délai de 30 jours au premier passage.
 
-Appliquer le patch dans le dépôt, ou reprendre les fichiers de fichiers/ aux mêmes emplacements. Exécuter npm test puis utiliser le déploiement Vercel habituel. Conserver les autres changements si la branche a évolué.
-Cette archive est un correctif et non une application autonome. Ne pas la déposer dans les documents d’un chantier.
+Le traitement retire le dossier du chantier et allège ses rapports dans les
+listes générales. Les horaires utiles au suivi et à la paie restent conservés.
+Les tablettes nettoient leurs copies à la prochaine synchronisation.
+Les brouillons et PDF non envoyés restent conservés.
 
-Détail et recette : fichiers/docs/COORDONNEES_ET_EMAILS_3_6_2.md
+La suppression des dossiers passe par la corbeille SharePoint, sans la vider.
+Les photos mutualisées hors du dossier et les sauvegardes restent conservées.
+
+PUBLICATION
+1. Sur GitHub, branche main, Add file / Upload files : déposer le contenu
+   extrait au niveau où app.js et vercel.json existent déjà.
+2. Enregistrer le commit et attendre le déploiement Vercel Ready.
+3. Vérifier Version 3.6.4 sur le site et APP_VERSION='3.6.4-archives' dans app.js.
+4. Mettre à jour tous les appareils, sans effacer leurs données ou brouillons.
+   Après publication confirmée seulement, si l'ancienne interface reste,
+   utiliser https://opus-chantiers.vercel.app/reparer.html, fermer les autres
+   fenêtres OPUS et Relancer sans effacer mes brouillons.
+5. Activer le service serveur décrit dans docs/ARCHIVAGE_AUTOMATIQUE_3_6_4.md :
+   identité Microsoft avec droits sur le site, variables serveur Vercel,
+   secret de tâche et OPUS_RETENTION_ENABLED=true, puis redéployer.
+   Le code prévoit un passage chaque jour à 03:00 UTC, application fermée.
+   Publier uniquement les fichiers sans configurer le service ne l'active pas.
+
+Cette livraison réunit les corrections de connexion 3.6.1, les coordonnées
+client et la recherche e-mails fournisseurs 3.6.2, ainsi que la performance et
+la copie SD supplémentaire 3.6.3. Remplacer ces fichiers conserve les autres
+sources du dépôt. Ne pas installer un ancien paquet par-dessus.
+
+La mise à jour et le nettoyage n'ont pas été déployés ou activés depuis cette
+session. Aucune donnée réelle n'a été supprimée.
+
+Après mise à jour des appareils, utiliser aussi Stockage > Sauvegarder et
+alléger les rapports sur le PC administrateur pour réduire les listes lourdes.
+
+Validation et limites : docs/VALIDATION_3_6_4.json
+Guide : docs/ARCHIVAGE_AUTOMATIQUE_3_6_4.md

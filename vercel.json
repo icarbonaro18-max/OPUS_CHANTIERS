@@ -19,6 +19,16 @@
     },
     "api/notification-cron.js": {
       "maxDuration": 60
+    },
+    "api/retention-cron.js": {
+      "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/retention-cron",
+      "schedule": "0 3 * * *"
+    }
+  ],
+  "fluid": true
 }

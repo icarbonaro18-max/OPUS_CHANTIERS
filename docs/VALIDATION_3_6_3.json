@@ -1,0 +1,16 @@
+{
+  "version": "3.6.3-performance",
+  "date": "2026-10-29",
+  "base_commit": "6fe1c0f3df7c2c1316ecaf71155acc377302250a",
+  "observed_remote_commit": "d2880852a7c08d03319c1d7685a8f809768bb108",
+  "production_observed": "3.6.0-stockage",
+  "production_updated": false,
+  "production_data_modified": false,
+  "tests": {"command": "npm test", "passed": 521, "failed": 0},
+  "build": "passed",
+  "source_and_build_runtime_files_compared": true,
+  "sharepoint_metadata_bytes": {"interventions": 43538547, "visits": 16769544},
+  "sd_backup": "additional copy; browser feature detection; real device validation pending",
+  "automatic_deletion": "not activated; clarify 30 days from completion or archive",
+  "real_tablet_benchmarks": "not performed"
+}

@@ -1,6 +1,6 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.6.0-stockage';
+const CACHE=PREFIX+'3.6.4-archives';
 const SCOPE=new URL(self.registration.scope);
 let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
@@ -43,3 +43,14 @@ self.addEventListener('push',event=>event.waitUntil((async()=>{
  await self.registration.showNotification(String(p.title||'OPUS · Rappel').slice(0,160),{body:String(p.body||'Un rendez-vous approche.').slice(0,700),icon:new URL('icon-192.png',SCOPE).href,tag:String(p.tag||'opus-reminder'),data:{route:safeRoute},actions:safeRoute?[{action:'route',title:'Ouvrir l’itinéraire'}]:[]});
 })()));
 self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const route=event.notification.data?.route;let target=SCOPE.href;if(route){try{const u=new URL(route);if(u.origin==='https://www.google.com'&&u.pathname==='/maps/dir/')target=u.href;}catch{}}await self.clients.openWindow(target);})());});
+
+// A manual update only switches the shell when this is the sole OPUS window.
+self.addEventListener('message',event=>{
+ if(event.data?.type!=='OPUS_ACTIVATE'||!event.source?.url)return;
+ const source=new URL(event.source.url);if(source.origin!==SCOPE.origin||!source.pathname.startsWith(SCOPE.pathname))return;
+ event.waitUntil((async()=>{
+  const clients=(await self.clients.matchAll({type:'window',includeUncontrolled:true})).filter(client=>{const u=new URL(client.url);return u.origin===SCOPE.origin&&u.pathname.startsWith(SCOPE.pathname);});
+  if(clients.some(client=>client.id!==event.source.id)){event.ports[0]?.postMessage({ok:false,message:'Fermez les autres fenêtres OPUS puis réessayez la mise à jour.'});return;}
+  event.ports[0]?.postMessage({ok:true});await self.skipWaiting();
+ })());
+});

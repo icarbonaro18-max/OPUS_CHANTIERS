@@ -1,6 +1,8 @@
+import {openDeviceStorage} from './lib/device-storage.js';
+import {installAppUpdates} from './lib/app-update.js';
 import {openStorageHealth} from './lib/storage-health.js';
 import {loadAppConfig,deviceConfigOverrides} from './lib/app-config.js';
-import {acquireSessionToken,requiresInteractiveAuth} from './lib/auth-session.js';
+import {acquireSessionToken,requiresInteractiveAuth,runAuthInteraction,selectSessionAccount} from './lib/auth-session.js';
 import {syncPrivateNotifications} from './lib/notifications-ui.js';
 import {ReportRecovery} from './lib/report-recovery.js';
 import {installResumeSync} from './lib/resume-sync.js';
@@ -20,7 +22,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.0-stockage';
+const APP_VERSION='3.6.4-archives';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -37,9 +39,10 @@ let reportRecovery=null,lastSyncAt=0;
 let warmCache=null,cloudReady=false,resumeBusy=null,refreshBusy=null,cacheSnapshot=null,personnelSynced=false,pendingInitialRoute='';
 const pendingReplies=new Map();let modalCleanup=null;
 const ATTESTATION_SYNC_MS=15*60*1000;
+let authInitTask=null,authBusy=false,authBlocked=false;
 let flushTask=null,pdfOutboxTask=null,modulePdf=null;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').hidden=true,7000);}
-function err(e){console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
+function err(e){if(e?.code==='auth_interaction_blocked'||e?.errorCode==='interaction_in_progress'){authBlocked=true;status('Connexion Microsoft bloquée');syncNotice(e.message);}console.error(e?.name,e?.status||'',e?.message||'');toast(e?.message||String(e));}
 function modal(title,html){if(opsUI?.activeReportRecovery?.form?.isConnected){void opsUI.activeReportRecovery.flush(true).catch(err);}if(modalCleanup){modalCleanup();modalCleanup=null;}$('modalTitle').textContent=title;$('modalBody').innerHTML=html;if(!$('modal').open)$('modal').showModal();}
 $('modalClose').onclick=()=>$('modal').close();
 $('modal').addEventListener('submit',e=>{
@@ -63,6 +66,10 @@ function formFields(data,list=fields){return list.map(([k,l])=>`<div class="${k=
 function readFields(data,list=fields){const result=clone(data);for(const[k]of list)result[k]=$('f-'+k).value.trim();return result;}
 async function authInit(){
  if(!config.clientId)return;
+ if(!authInitTask)authInitTask=authInitNow().catch(error=>{authInitTask=null;throw error;});
+ return authInitTask;
+}
+async function authInitNow(){
  const M=await import('./vendor/msal.js').catch(()=>{throw new Error('Le module Microsoft doit être installé par le déploiement GitHub Actions. Voir le guide inclus dans le ZIP.');});
  msal=new M.PublicClientApplication({auth:{clientId:config.clientId,authority:`https://login.microsoftonline.com/${config.tenant}`,redirectUri:new URL('./auth.html',location.href).href,postLogoutRedirectUri:new URL('./',location.href).href},cache:{cacheLocation:'localStorage'}});
  await msal.initialize();const response=await msal.handleRedirectPromise();
@@ -71,8 +78,9 @@ async function authInit(){
  if(account){msal.setActiveAccount(account);await connectCloud(account);}
 }
 async function token(options={}){
- try{return await acquireSessionToken(msal,config.scopes,options);}
+ try{return await acquireSessionToken(msal,config.scopes,{...options,expectedHomeAccountId:appAccount});}
  catch(e){
+  if(e.authErrorCode==='interaction_in_progress')authBlocked=true;
   if(requiresInteractiveAuth(e)){
    status('Validation Microsoft nécessaire');$('login').textContent='Renouveler la connexion';
    syncNotice('Microsoft demande une validation de connexion. Votre fiche reste ouverte et votre brouillon est conservé.');
@@ -93,16 +101,47 @@ async function connectPrivateCalendar(interactive=false){
  privateCalendarLoading=loadPrivateCalendar(interactive).finally(()=>{privateCalendarLoading=null;});return privateCalendarLoading;
 }
 async function loadPrivateCalendar(interactive){
- const account=msal.getActiveAccount(),scopes=['Files.ReadWrite.AppFolder'];
+ const account=selectSessionAccount(msal,appAccount),scopes=['Files.ReadWrite.AppFolder'];
+ if(!account)throw new CloudError('Reconnectez votre compte Microsoft pour ouvrir l’agenda privé.',401,'auth_required');
  async function privateToken(options={}){return acquireSessionToken(msal,scopes,{...options,account});}
- try{await privateToken();}catch(e){if(!interactive||!requiresInteractiveAuth(e))throw e;const result=await msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href});if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
+ try{await privateToken();}catch(e){if(!interactive||!requiresInteractiveAuth(e))throw e;const result=await interactiveAuth(()=>msal.acquireTokenPopup({scopes,account,redirectUri:new URL('./auth.html',location.href).href}));if(result.account?.homeAccountId!==account.homeAccountId)throw Error('Reconnectez le même compte administrateur.');}
  const next=new PrivateCalendar(new Graph(privateToken),user.id);
  await next.load();privateCalendarSession=next;
  next.onChange=async()=>{await syncPrivateNotifications(opsUI,next);try{await warmCache?.privateWrite(next);}catch{toast('Agenda privé enregistré, copie hors ligne non actualisée.');}};await next.onChange();
  if(opsUI){opsUI.privateCalendar=next;if(opsUI.section==='calendar'&&!$('modal').open)await opsUI.renderCalendar();}
  return next;
 }
-async function login(){if(!config.clientId){setup();return;}if(!msal)await authInit();if(!msal)throw Error('Connexion non initialisée.');await opsUI?.activeReportRecovery?.flush(true);await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});}
+function setAuthBusy(busy){
+ authBusy=busy;
+ for(const element of document.querySelectorAll('#login,#changeAccount,#logout,[data-auth-reconnect],[data-auth-repair]'))element.disabled=busy;
+}
+function interactiveAuth(operation){return runAuthInteraction(msal,operation,setAuthBusy);}
+async function persistBeforeAuth(){
+ await opsUI?.activeReportRecovery?.flush(true);
+ if(live){await requestFrame('opus-capture');await queueChain;}
+}
+async function login(){
+ if(!config.clientId){setup();return;}
+ await authInit();
+ return interactiveAuth(async()=>{await persistBeforeAuth();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});
+}
+async function recoverAuth(){
+ if(!msal)await authInit();else if(authInitTask)await authInitTask;
+ const expected=appAccount;
+ const result=await interactiveAuth(async()=>{
+  await persistBeforeAuth();
+  const account=selectSessionAccount(msal,expected);
+  // Explicit user recovery only: MSAL cancels the previous bridge monitor and
+  // replaces its interaction marker. No token, draft or account cache is erased.
+  const response=await msal.acquireTokenPopup({scopes:config.scopes,...(account?{account}:{prompt:'select_account',loginHint:user?.mail||user?.userPrincipalName}),overrideInteractionInProgress:true});
+  if(!response?.account)throw Error('Microsoft n’a renvoyé aucun compte. Réessayez la connexion.');
+  if(expected&&response.account.homeAccountId!==expected){const old=selectSessionAccount(msal,expected);msal.setActiveAccount(old);throw Error('Reconnectez le même compte Microsoft que celui de la fiche ouverte.');}
+  msal.setActiveAccount(response.account);authBlocked=false;return response;
+ });
+ if(!user||!g){await connectCloud(result.account);return;}
+ if($('modal').open&&$('changeAccount'))$('modal').close();
+ await reconnectReport();
+}
 async function connectCloud(account){
  appAccount=account.homeAccountId;store=new LocalStore(config.clientId+':'+appAccount);warmCache=new WarmCache(store,appAccount,config);
  reportRecovery=new ReportRecovery(store,localStorage,config.clientId+':'+appAccount);cacheSnapshot=await warmCache.read();g=new Graph(token);journal=new Journal(g,{assetStore:store});
@@ -113,7 +152,14 @@ async function connectCloud(account){
  status('Connexion à la bibliothèque…');
  const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);user=profile;cloudReady=true;await activate();
 }
-function syncNotice(text){let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}el.textContent=text;el.hidden=!text;if(text&&user&&!DEMO){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);}}
+function syncNotice(text){
+ let el=$('syncNotice');if(!el){el=document.createElement('div');el.id='syncNotice';el.setAttribute('role','status');$('mainNav').before(el);}
+ el.textContent=text;el.hidden=!text;
+ if(text&&user&&!DEMO){
+  const b=document.createElement('button');b.type='button';b.className='secondary';b.dataset.authReconnect='1';b.disabled=authBusy;b.textContent='Actualiser / reconnecter';b.onclick=()=>reconnectReport().catch(err);el.append(' ',b);
+  if(authBlocked){const repair=document.createElement('button');repair.type='button';repair.className='secondary';repair.dataset.authRepair='1';repair.disabled=authBusy;repair.textContent='Relancer la connexion bloquée';repair.onclick=()=>recoverAuth().catch(err);el.append(' ',repair);}
+ }
+}
 function cachedNotice(){
  const when=cacheSnapshot?.savedAt?new Date(cacheSnapshot.savedAt).toLocaleString('fr-FR'):'';
  syncNotice((navigator.onLine?'Actualisation en cours':'Hors ligne')+' · Données mémorisées'+(when?' le '+when:'')+' · Les fiches de contrôle préparées peuvent être saisies sur cet appareil ; leur envoi attend le réseau.');
@@ -143,7 +189,7 @@ async function resumeCloud({forceUploads=false}={}){
   }
   await refresh();
   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError){void flushPdfOutbox().catch(err);void flush({force:forceUploads}).catch(err);if(isAdmin())void connectPrivateCalendar(false).catch(()=>{});}
- }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
+ }catch(e){if(opsUI?.cacheMode&&cacheSnapshot)cachedNotice();else status(authBlocked?'Connexion Microsoft bloquée':requiresInteractiveAuth(e)?'Validation Microsoft nécessaire':'Connexion à réessayer');syncNotice('Actualisation différée · '+e.message);}
  }).finally(()=>{resumeBusy=null;});return resumeBusy;
 }
 
@@ -172,14 +218,15 @@ async function openRecoveredTarget(target){
  if(target.kind==='visits'){await opsUI.openVisit(target.id);if(target.detail)await opsUI.editVisitTask(target.id,target.index??null);}
  else{await opsUI.openIntervention(target.id);if(target.detail)await opsUI.editInterventionItem(target.id,target.index??null);}
 }
-async function reconnectReport(){
+async function reconnectReport(){return interactiveAuth(()=>reconnectReportNow());}
+async function reconnectReportNow(){
  await opsUI?.activeReportRecovery?.flush(true);
  if(navigator.onLine===false)throw Error('Pas de réseau. Gardez votre brouillon et réessayez dès le retour de la connexion.');
  // Keep the dialog intact while testing the session. Persist before any redirect.
  try{await (g.accessToken?g.accessToken():token());}catch(e){
   if(!requiresInteractiveAuth(e))throw e;
   // Keep the active form mounted even when Microsoft genuinely requires interaction.
-  const response=await msal.acquireTokenPopup({scopes:config.scopes,account:msal.getActiveAccount(),loginHint:user?.mail||user?.userPrincipalName,...(e.claims?{claims:e.claims}:{})});
+  const response=await msal.acquireTokenPopup({scopes:config.scopes,account:selectSessionAccount(msal,appAccount),loginHint:user?.mail||user?.userPrincipalName,...(e.claims?{claims:e.claims}:{})});
   if(response.account?.homeAccountId!==appAccount)throw Error('Reconnectez le même compte Microsoft pour conserver cette fiche.');
   msal.setActiveAccount(response.account);
  }
@@ -270,10 +317,22 @@ async function refreshNow({skipOps=false}={}){
   const [catalogResult,applied]=await Promise.all([g.projects().then(value=>({value}),error=>({error})),opsUI&&!skipOps?opsUI.reload({background:true}).then(applied=>{if(applied){g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;lastSyncAt=Date.now();}return applied;}):Promise.resolve(true)]);
   const nextCatalog=catalogResult.value||catalog;
   if($('modal').open||live||applied===false){status(opsUI?.cacheMode?'Données mémorisées':'Microsoft 365 connecté',!opsUI?.cacheMode);syncNotice('La fenêtre en cours est conservée · l’actualisation des listes reprendra après sa fermeture.');return;}
-  catalog=nextCatalog;g.readOnlyCache=false;await store.set('catalog',catalog);
+  catalog=nextCatalog;g.readOnlyCache=false;
+  let retentionNotice='';const purged=(opsUI?.data.projectTracking||[]).filter(row=>row.retentionPurgedAt);
+  if(purged.length){
+   catalog={...catalog,projects:catalog.projects.filter(p=>!purged.some(row=>row.id===p.id))};
+   try{const {cleanPurgedLocal}=await import('./lib/project-retention.js');
+   const result=await cleanPurgedLocal(store,purged,{activeRecords:[...(opsUI?.data.interventions||[]),...(opsUI?.data.visits||[])].filter(row=>!row.retentionPurgedAt)});
+   if(result.cleaned.length){for(const j of [journal,opsUI?.repo.mediaJournal])if(j){j.docCache.clear();j.directoryCache.clear();j.media.memory.clear();j.media.memoryBytes=0;j.media.uploads.clear();j.media.directories.clear();}}
+   if(selected&&purged.some(row=>row.id===selected.id)){selected=null;showDashboard();toast('Ce chantier a atteint son délai de conservation et a été retiré de l’application.');}
+   if(result.deferred.length)retentionNotice='Un chantier supprimé possède encore une saisie non envoyée sur cet appareil. Elle est conservée dans les envois en attente.';
+   }catch(error){console.warn('Nettoyage local différé',error.message);retentionNotice='Données actualisées · Nettoyage des anciennes copies locales à réessayer.';}
+  }
+  await store.set('catalog',catalog);
   lastSyncAt=Date.now();if(opsUI){opsUI.needsRefresh=false;opsUI.refreshPending=false;}status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
   $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
   if(catalogResult.error)syncNotice('Planning actualisé · Liste des chantiers à réessayer.');
+  else if(retentionNotice)syncNotice(retentionNotice);
   // Apply personnel updates before caching and drawing the refreshed calendar.
   if(opsUI&&!opsUI.cacheMode&&!opsUI.dataLoadError&&!personnelSynced&&!$('modal').open)personnelSynced=await opsUI.syncPersonnel();
   await rememberWarm();renderProjects();
@@ -356,6 +415,7 @@ async function createProjectFromVisit(v){
  await queueSave(folder.id,'fiche',null,m,[]);await flush();await refresh();return folder;
 }
 // Immutable revision outbox: local acknowledgements are explicit; remote acknowledgement only after Graph success.
+async function storedKeys(targetStore,prefix){return typeof targetStore.keys==='function'?targetStore.keys(prefix):(await targetStore.all(prefix)).map(row=>row.key);}
 function draftKey(p,k,r){return `draft:${p}:${k}:${r||'fiche'}`;}
 function serializeLocal(write){return queueChain=queueChain.catch(()=>{}).then(write);}
 async function queueSave(projectId,kind,recordId,payload,parents,{deferRemote=false}={}){
@@ -384,7 +444,8 @@ async function flushPdfOutbox({notify=false}={}){
  if(!store||!g||g.readOnlyCache||(!navigator.onLine&&!DEMO))return;
  const targetStore=store,targetGraph=g;
  pdfOutboxTask=(async()=>{
-  for(const {key,value:row} of await targetStore.all('pdfoutbox:')){
+  for(const key of await storedKeys(targetStore,'pdfoutbox:')){
+   const row=await targetStore.get(key);if(!row)continue;
    if(store!==targetStore||g!==targetGraph||(!navigator.onLine&&!DEMO))break;
    let stage='accès au dossier PDF';
    try{
@@ -419,8 +480,8 @@ async function flush({force=false}={}){
  flushBusy=true;clearTimeout(flushRetry);
  flushTask=(async()=>{let failed=false;
   try{
-   for(const entry of await targetStore.all('draft:')){
-    const d=await serializeLocal(()=>targetStore.get(entry.key));
+   for(const key of await storedKeys(targetStore,'draft:')){
+    const d=await serializeLocal(()=>targetStore.get(key));
     if(!d||(!force&&Number(d.nextRemoteAt||0)>Date.now()))continue;
     inflight=d;
     const sameLive=()=>store===targetStore&&live?.projectId===d.projectId&&live.recordId===d.recordId;
@@ -430,9 +491,9 @@ async function flush({force=false}={}){
      // Graph runs outside the local queue. Its acknowledgement and a new edit
      // must share that queue so an older upload never removes newer work.
      const fresh=await serializeLocal(async()=>{
-      const latest=await targetStore.get(entry.key);
-      if(latest?.revision===d.revision)await targetStore.remove(entry.key);
-      else if(latest){latest.parents=[d.revision];if(latest.nextRemoteAt)latest.nextRemoteAt=Date.now()+ATTESTATION_SYNC_MS;await targetStore.set(entry.key,latest);}
+      const latest=await targetStore.get(key);
+      if(latest?.revision===d.revision)await targetStore.remove(key);
+      else if(latest){latest.parents=[d.revision];if(latest.nextRemoteAt)latest.nextRemoteAt=Date.now()+ATTESTATION_SYNC_MS;await targetStore.set(key,latest);}
       if(store===targetStore&&d.kind==='fiche'&&selected?.id===d.projectId)metaParents=[d.revision];
       if(sameLive())live.parents=[d.revision];
       return latest;
@@ -443,8 +504,8 @@ async function flush({force=false}={}){
    }
   }finally{
    inflight=null;
-   if(store===targetStore){await updatePending();const pending=await targetStore.all('draft:');
-    if(pending.length){const next=Math.min(...pending.map(({value:d})=>Number(d.nextRemoteAt||0)));flushRetry=setTimeout(()=>flush({force:failed&&force}).catch(err),failed?30000:Math.max(1000,next-Date.now()));}
+   if(store===targetStore){await updatePending();const pending=await storedKeys(targetStore,'draft:');
+    if(pending.length){let next=Infinity;for(const key of pending){const draft=await targetStore.get(key);if(draft)next=Math.min(next,Number(draft.nextRemoteAt||0));}if(Number.isFinite(next))flushRetry=setTimeout(()=>flush({force:failed&&force}).catch(err),failed?30000:Math.max(1000,next-Date.now()));}
    }
   }
  })();
@@ -630,16 +691,27 @@ function setup(){modal('Connexion Microsoft 365 · configuration unique',`<div c
  const read=()=>{const id=$('clientId').value.trim(),tenant=$('tenant').value.trim();if(!/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id))throw Error('Saisissez l’ID client fourni par Microsoft Entra.');if(!/^[a-z0-9.-]+$/i.test(tenant)||tenant==='common'||tenant==='consumers')throw Error('Indiquez l’annuaire professionnel OPUS ELEC.');return {...config,clientId:id,tenant,aiEndpoint:$('aiEndpoint')?.value.trim()||''};};
  $('configForm').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('opus-cloud-config-v3',JSON.stringify(deviceConfigOverrides(read())));location.href=new URL('./',location.href).href;}catch(e){err(e);}};bind('exportConfig',()=>download(new Blob([JSON.stringify(read(),null,2)],{type:'application/json'}),'config.json'));
 }
+bind('deviceStorage',async()=>{
+ await persistBeforeAuth();
+ await openDeviceStorage({store,modal,navigator,window,textStorage:localStorage,reportPrefix:reportRecovery?.prefix||'',onRestored:async()=>{await updatePending();offerRecoveredReport();}});
+});
 bind('storageHealth',()=>openStorageHealth({graph:g,store,isAdmin,modal,repository:()=>opsUI?.repo,
  verify:async()=>{if(!isAdmin())throw Error('Action réservée à l’administrateur.');const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);if(profile.id!==user.id)throw Error('Reconnectez le compte initial.');cloudReady=true;g.readOnlyCache=false;status('Microsoft 365 connecté',true);},
  completed:async()=>{if(opsUI){await opsUI.reload({background:false});opsUI.needsRefresh=false;opsUI.refreshPending=false;}await rememberWarm();status('Microsoft 365 connecté',true);syncNotice('');}
 }));
 bind('settings',setup);bind('login',login);
-async function logoutCurrent(){await opsUI?.activeReportRecovery?.flush(true);setRoute();if(DEMO){location.href='./';return;}await msal.logoutRedirect({account:msal.getActiveAccount(),postLogoutRedirectUri:new URL('./',location.href).href});}
-bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{await opsUI?.activeReportRecovery?.flush(true);if(DEMO){$('modal').close();return;}setRoute();await msal.loginRedirect({scopes:config.scopes,prompt:'select_account'});});bind('logout',logoutCurrent);});
+async function logoutCurrent(){
+ if(DEMO){location.href='./';return;}
+ if(authInitTask)await authInitTask;
+ return interactiveAuth(async()=>{await persistBeforeAuth();setRoute();await msal.logoutRedirect({account:selectSessionAccount(msal,appAccount),postLogoutRedirectUri:new URL('./',location.href).href});});
+}
+bind('userBtn',async()=>{await opsUI?.activeReportRecovery?.flush(true);const waiting=(await store.all('draft:')).length;modal('Votre session OPUS CHANTIERS',`<p class="muted">Version ${APP_VERSION}</p><p><strong>${esc(user.displayName)}</strong><br>${esc(user.mail||user.userPrincipalName||'')}</p><p class="muted">Vous pouvez changer de compte sans perdre les brouillons : ils restent conservés sur cet appareil dans l’espace du compte actuel.</p>${waiting?`<div class="warning"><strong>${waiting} envoi(s) en attente.</strong><br>Ils seront repris automatiquement lors de la prochaine connexion de ${esc(user.displayName)}.</div>`:''}<div class="actionRow"><button id="changeAccount">Changer de compte</button><button type="button" data-auth-repair>Relancer la connexion bloquée</button><button id="retryBeforeLogout" class="secondary">Réessayer les envois</button><button id="logout" class="secondary">Se déconnecter</button></div>`);bind('retryBeforeLogout',async()=>{await flush({force:true});$('modal').close();toast('Tentative d’envoi terminée.');});bind('changeAccount',async()=>{if(DEMO){$('modal').close();return;}await login();});const repair=$('modalBody').querySelector('[data-auth-repair]');if(repair)repair.onclick=()=>recoverAuth().catch(err);setAuthBusy(authBusy);bind('logout',logoutCurrent);});
 async function init(){
  if($('version'))$('version').textContent='Version '+APP_VERSION.split('-')[0];
- if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+ if('serviceWorker'in navigator)void installAppUpdates({navigator,document,location,beforeUpdate:async()=>{
+  if(live||$('modal').open||!$('viewer').hidden)throw Error('Revenez au chantier après avoir fermé le formulaire ou l’aperçu, puis appliquez la mise à jour.');
+  await queueChain;
+ },onError:err}).catch(e=>console.warn('Vérification de mise à jour différée',e.message));
  let settingsStorage;try{settingsStorage=localStorage;}catch{}
  config=loadAppConfig(await(await fetch('./config.json',{cache:'no-store'})).json(),settingsStorage);
  modules=await(await fetch('./lib/modules.json')).json();
@@ -651,7 +723,11 @@ async function init(){
 init().catch(err);
 
 let progressSyncTask=null;
-async function moveProgressStage(p,code){const cat=catalog.categories.find(c=>c.name.trim().startsWith(code));if(!cat)throw Error('Rubrique '+code+' introuvable.');await g.moveProject(await g.item(p.id),cat);p.category=code;p.categoryFolder=cat;}
+async function moveProgressStage(p,code){
+ const cat=catalog.categories.find(c=>c.name.trim().startsWith(code));if(!cat)throw Error('Rubrique '+code+' introuvable.');
+ await g.moveProject(await g.item(p.id),cat);p.category=code;p.categoryFolder=cat;
+ if(code==='99'&&opsUI){const before=opsUI.data.projectTracking||[],old=before.find(row=>row.id===p.id)||{id:p.id},row={...old,archivedAt:new Date().toISOString()};delete row.retentionPlan;delete row.retentionError;const next=[...before.filter(item=>item.id!==p.id),row];await opsUI.repo.save('projectTracking',next);opsUI.data.projectTracking=next;}
+}
 async function syncProjectStages(){
  if(!opsUI)return;if(progressSyncTask)return progressSyncTask;
  progressSyncTask=(async()=>{

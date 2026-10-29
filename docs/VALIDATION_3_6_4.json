@@ -1,0 +1,18 @@
+{
+  "version": "3.6.4-archives",
+  "date": "2026-10-29",
+  "base_commit": "6fe1c0f3df7c2c1316ecaf71155acc377302250a",
+  "observed_remote_commit": "d2880852a7c08d03319c1d7685a8f809768bb108",
+  "retention_policy": {"archive_after_quiet_days": 15, "delete_after_archive_days": 30, "minimum_days_after_completion": 45, "daily_schedule_utc": "0 3 * * *"},
+  "legacy_archives_without_date": "start a new 30-day archive clock",
+  "tests": {"command": "npm test", "passed": 543, "failed": 0},
+  "build": "passed",
+  "retention_tests_added": 22,
+  "checks": ["exact deadlines", "unknown archive date migration", "nested file changes", "future appointments", "conditional delete", "durable resume after interrupted index writes", "concurrent report changes retained", "restored folder held for review", "shared media references preserved", "payroll facts preserved", "local cache cleanup", "pending drafts and PDFs retained", "endpoint authentication", "disabled and incomplete configuration fail closed", "daily Vercel configuration", "source and built runtime files compared"],
+  "production_code_published_by_session": false,
+  "production_service_activated_by_session": false,
+  "production_files_deleted": 0,
+  "actual_cron_and_tablet_validation": "not performed",
+  "microsoft_deletion": "recycle bin; no permanent purge",
+  "external_shared_media_and_backups": "not purged"
+}
