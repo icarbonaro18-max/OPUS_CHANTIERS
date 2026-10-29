@@ -1,0 +1,14 @@
+{
+  "version": "3.6.5-enregistrement",
+  "date": "2026-10-29",
+  "deployment_base_commit": "5901c2f99f0249229cb89e4be8f3167ff93c974c",
+  "tests": {"command": "npm test", "passed": 555, "failed": 0, "added": 12},
+  "build": "passed",
+  "production_published_by_session": false,
+  "production_data_changed_by_session": false,
+  "actual_storage_optimization_executed": false,
+  "production_metadata_read": {"interventions_bytes": 43539434, "visits_bytes": 16770547},
+  "checks": ["confirmed saves do not await cache or global classification", "remote errors remain errors", "setup checkpoint before write", "local checkpoint failure blocks write", "new client reused on retry", "stable form identity recovery", "remote refresh before recovery", "calendar confirmed before checkpoint removal", "visit checkpoint", "attachment filenames and bytes retained", "complete external copy before optimization without an extra SharePoint backup", "failed or incomplete external backup prevents source modification"],
+  "current_old_window_fields_recovered": false,
+  "actual_device_timing_validation": "pending storage optimization and live-device recipe"
+}

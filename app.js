@@ -22,7 +22,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.4-archives';
+const APP_VERSION='3.6.5-enregistrement';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -344,7 +344,7 @@ async function refreshNow({skipOps=false}={}){
    if(location.hash===pendingInitialRoute&&!$('modal').open&&!live)await restoreRoute();
    pendingInitialRoute='';
   }
-  if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages().catch(e=>console.warn('Classement différé',e.message));
+  if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages({archive:true}).catch(e=>console.warn('Classement différé',e.message));
  }catch(e){
   if(opsUI?.hasLoadedRemote){status('Actualisation différée');syncNotice('Dernières données conservées · Actualisation à réessayer : '+e.message);}
   else if(cacheSnapshot){g.readOnlyCache=true;cachedNotice();syncNotice('Données mémorisées · Actualisation impossible : '+e.message);}
@@ -728,7 +728,7 @@ async function moveProgressStage(p,code){
  await g.moveProject(await g.item(p.id),cat);p.category=code;p.categoryFolder=cat;
  if(code==='99'&&opsUI){const before=opsUI.data.projectTracking||[],old=before.find(row=>row.id===p.id)||{id:p.id},row={...old,archivedAt:new Date().toISOString()};delete row.retentionPlan;delete row.retentionError;const next=[...before.filter(item=>item.id!==p.id),row];await opsUI.repo.save('projectTracking',next);opsUI.data.projectTracking=next;}
 }
-async function syncProjectStages(){
+async function syncProjectStages({archive=false}={}){
  if(!opsUI)return;if(progressSyncTask)return progressSyncTask;
  progressSyncTask=(async()=>{
   for(const p of catalog.projects){
@@ -738,7 +738,7 @@ async function syncProjectStages(){
     if(stage==='02'&&p.category==='01')await verifyPlannedProject(opsUI,p.id);
     else await moveProgressStage(p,stage);
    }
-   if(p.category==='04'&&isAdmin()){
+   if(archive&&p.category==='04'&&isAdmin()){
     await ensureCompletionClock(opsUI,p);const checked=opsUI.archiveChecks||(opsUI.archiveChecks=new Map());
     if(Date.now()-(checked.get(p.id)||0)>3600000){checked.set(p.id,Date.now());try{if(await canAutoArchive(opsUI,p))await moveProgressStage(p,'99');}catch(e){toast('Archivage différé pour '+p.name+' : '+e.message);}}
    }
@@ -760,7 +760,6 @@ async function ensureProjectReview(id){
 
 async function ensurePlannedProject(id){
  if(!opsUI?.canPlan())throw Error('Planification non autorisée');
- if(progressSyncTask)try{await progressSyncTask;}catch{}
  const result=await verifyPlannedProject(opsUI,id);renderProjects();
  if(selected?.id===id){selected=catalog.projects.find(p=>p.id===id);$('projectCategory').textContent=catLabel(selected.category).toUpperCase();}
  return result;

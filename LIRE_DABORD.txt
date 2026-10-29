@@ -1,49 +1,46 @@
-OPUS CHANTIERS 3.6.4 — CONTENU A DEPOSER A LA RACINE DU DEPOT
+OPUS CHANTIERS 3.6.5 — CORRECTIF ENREGISTREMENT
 
-Cette archive contient directement app.js, index.html, lib/, api/, server/, etc.
-Déposer son CONTENU EXTRAIT à la racine du dépôt existant, en remplaçant les
-fichiers de même chemin. Ne pas déposer le ZIP ou son dossier parent dans le
-dépôt. Aucun dossier fichiers/ et aucun patch à appliquer.
+Base : 3.6.4 publiée, commit GitHub 5901c2f.
+Cette archive met à jour le dépôt existant. Déposer son CONTENU EXTRAIT
+(app.js, index.html, lib/, etc.) directement à la racine, en remplaçant les
+fichiers de même chemin. Ni dossier fichiers/, ni patch à appliquer.
+Les autres fichiers du dépôt et la configuration serveur restent en place.
 
-CYCLE CONFIRME
-15 jours dans Terminés, puis 30 jours dans Archives avant suppression.
-Soit 45 jours après la fin au minimum. Les modifications et rendez-vous futurs
-peuvent différer le nettoyage. Les archives sans date connue commencent un
-nouveau délai de 30 jours au premier passage.
+AVANT DE FERMER LA FENETRE ACTUELLEMENT BLOQUEE
+Copier ses textes et coordonnées pour conserver la saisie. Le mécanisme de
+copie ajouté par cette version ne peut pas protéger rétroactivement une fiche
+encore ouverte en 3.6.4. Ne pas effacer les données du site.
 
-Le traitement retire le dossier du chantier et allège ses rapports dans les
-listes générales. Les horaires utiles au suivi et à la paie restent conservés.
-Les tablettes nettoient leurs copies à la prochaine synchronisation.
-Les brouillons et PDF non envoyés restent conservés.
+CORRECTIONS
+L'enregistrement n'attend plus la copie du cache ou le parcours des archives
+de tous les autres chantiers. La fiche et son calendrier restent confirmés
+avant l'annonce finale. Le formulaire affiche l'étape réelle.
+Une copie locale des prochaines fiches est enregistrée avant l'envoi.
+En cas d'interruption, Reprendre apparaît dans Interventions / Visites-Devis.
+La reprise relit le serveur et réutilise la fiche/client déjà confirmé.
 
-La suppression des dossiers passe par la corbeille SharePoint, sans la vider.
-Les photos mutualisées hors du dossier et les sauvegardes restent conservées.
+POUR REDUIRE REELLEMENT LES DELAIS
+Les listes existantes pèsent encore environ 43,5 Mo et 16,8 Mo.
+Après publication et mise à jour des appareils, sur le PC administrateur :
+Stockage > Sauvegarder et alléger les rapports.
+Choisir l'emplacement de la copie : disque externe, carte SD, dossier réseau,
+ou dossier synchronisé iCloud Drive déjà configuré dans Windows, si disponible.
+La copie est vérifiée avant l'allègement. La synchronisation cloud dépend du
+logiciel du fournisseur ; OPUS confirme l'écriture dans le dossier choisi.
+Cette copie concerne les listes avant optimisation, pas tous les dossiers PDF.
+La copie Microsoft 365 reste proposée si le choix d'un dossier est indisponible.
+Cette opération conserve les données et une sauvegarde puis sépare les photos.
+Relever les tailles avant/après et vérifier un ancien rapport avec ses photos.
+Le correctif seul ne réduit pas la taille actuelle de ces listes.
 
 PUBLICATION
-1. Sur GitHub, branche main, Add file / Upload files : déposer le contenu
-   extrait au niveau où app.js et vercel.json existent déjà.
-2. Enregistrer le commit et attendre le déploiement Vercel Ready.
-3. Vérifier Version 3.6.4 sur le site et APP_VERSION='3.6.4-archives' dans app.js.
-4. Mettre à jour tous les appareils, sans effacer leurs données ou brouillons.
-   Après publication confirmée seulement, si l'ancienne interface reste,
-   utiliser https://opus-chantiers.vercel.app/reparer.html, fermer les autres
-   fenêtres OPUS et Relancer sans effacer mes brouillons.
-5. Activer le service serveur décrit dans docs/ARCHIVAGE_AUTOMATIQUE_3_6_4.md :
-   identité Microsoft avec droits sur le site, variables serveur Vercel,
-   secret de tâche et OPUS_RETENTION_ENABLED=true, puis redéployer.
-   Le code prévoit un passage chaque jour à 03:00 UTC, application fermée.
-   Publier uniquement les fichiers sans configurer le service ne l'active pas.
+1. Déposer le contenu extrait à la racine du dépôt GitHub et enregistrer.
+2. Attendre Vercel Ready et vérifier 3.6.5-enregistrement dans app.js.
+3. Une fois les saisies conservées, fermer les autres fenêtres OPUS.
+4. Si nécessaire, ouvrir https://opus-chantiers.vercel.app/reparer.html dans
+   le même navigateur/profil que l'application et Relancer sans effacer
+   mes brouillons.
 
-Cette livraison réunit les corrections de connexion 3.6.1, les coordonnées
-client et la recherche e-mails fournisseurs 3.6.2, ainsi que la performance et
-la copie SD supplémentaire 3.6.3. Remplacer ces fichiers conserve les autres
-sources du dépôt. Ne pas installer un ancien paquet par-dessus.
-
-La mise à jour et le nettoyage n'ont pas été déployés ou activés depuis cette
-session. Aucune donnée réelle n'a été supprimée.
-
-Après mise à jour des appareils, utiliser aussi Stockage > Sauvegarder et
-alléger les rapports sur le PC administrateur pour réduire les listes lourdes.
-
-Validation et limites : docs/VALIDATION_3_6_4.json
-Guide : docs/ARCHIVAGE_AUTOMATIQUE_3_6_4.md
+555 tests réussis et compilation réussie. Cette livraison n'a pas été publiée
+par cette session. Aucune donnée réelle n'a été optimisée ou modifiée ici.
+Guide : docs/CORRECTIF_ENREGISTREMENT_3_6_5.md

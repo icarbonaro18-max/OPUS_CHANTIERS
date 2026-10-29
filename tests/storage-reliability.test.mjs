@@ -38,6 +38,17 @@ test('an unconfirmed backup prevents any replacement of the original collection'
  const rows=[record(1)],{g,file,repo}=await fixture(rows);g.failBackup=true;await assert.rejects(repo.optimizeMedia('interventions'),/copie de sécurité/);assert.deepEqual(await g.json(file.id),rows);assert.equal(g.writes,0);
 });
 
+function externalFolder({fail=false,truncate=false}={}){
+ const files=new Map();return {name:'Sauvegardes externes',files,async getFileHandle(name){let pending;return {createWritable:async()=>({write:async blob=>{if(fail)throw Error('Support externe indisponible');pending=blob;},close:async()=>files.set(name,truncate?pending.slice(0,1):pending),abort:async()=>{pending=null;}}),getFile:async()=>files.get(name)};}};
+}
+test('optimization confirms a full external backup before changing the collection without duplicating it in SharePoint',async()=>{
+ const rows=[record(1)],{g,file,repo}=await fixture(rows),directory=externalFolder();
+ const result=await repo.optimizeMedia('interventions',{backupDirectory:directory});assert.equal(result.backupLocation,'external');assert.deepEqual(JSON.parse(await directory.files.get(result.backup).text()),rows);assert.equal(await g.named(g.system.id,'SAUVEGARDES_AVANT_OPTIMISATION'),null);assert.equal(hasInlineImages(await g.json(file.id)),false);
+});
+test('a full, disconnected or incomplete external destination prevents changing the source',async()=>{
+ for(const options of [{fail:true},{truncate:true}]){const rows=[record(1)],{g,file,repo}=await fixture(rows);await assert.rejects(repo.optimizeMedia('interventions',{backupDirectory:externalFolder(options)}));assert.deepEqual(await g.json(file.id),rows);assert.equal(g.writes,0);}
+});
+
 test('a concurrent technician save blocks optimization from replacing that save',async()=>{
  const rows=[record(1)],{g,file,repo}=await fixture(rows);g.beforeWrite=async()=>{g.beforeWrite=null;const current=g.items.get(file.id);current.blob=new Blob([JSON.stringify([{...rows[0],notes:'Nouvelle saisie du technicien'}])]);current.eTag='newer-version';};
  await assert.rejects(repo.optimizeMedia('interventions'),/autre tablette/);assert.equal((await g.json(file.id))[0].notes,'Nouvelle saisie du technicien');assert.equal(hasInlineImages(await g.json(file.id)),true);assert.equal(g.writes,0);
