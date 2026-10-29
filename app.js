@@ -1,3 +1,4 @@
+import {canViewStorage,refreshStorageGauge} from './lib/storage-overview.js';
 import {openDeviceStorage} from './lib/device-storage.js';
 import {installAppUpdates} from './lib/app-update.js';
 import {openStorageHealth} from './lib/storage-health.js';
@@ -16,13 +17,13 @@ import {showProjectScreen} from './lib/project-navigation.js';
 import {verifyPlannedProject} from './lib/planning-confirmation.js';
 import {displayDocumentCounts} from './lib/document-counts.js';
 import {autoFillCoordinates} from './lib/project-autofill.js';
-import {mountCompleteProject,ensureCompletionClock,canAutoArchive} from './lib/project-lifecycle.js';
+import {mountCompleteProject,ensureCompletionClock} from './lib/project-lifecycle.js';
 import {importSheet} from './lib/chantier-sheet.js';
 import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.6-archives-onedrive';
+const APP_VERSION='3.6.7-onedrive-15jours';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -277,7 +278,7 @@ async function prepareAppointmentWrite(){
 installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.refreshPending=true;if(!$('modal').open)syncNotice('Vérification du planning au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async options=>{if(user&&!DEMO)await resumeCloud(options);},onError:err});
 
 async function activate({cached=null}={}){
- $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('storageHealth').hidden=!isAdmin()||DEMO;$('newProject').hidden=!isAdmin();
+ $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('storageHealth').hidden=!canViewStorage(user,config)||DEMO;void refreshStorageGauge($('storageHealth'),{user,config,navigator}).catch(()=>{});$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.6.0');
   opsUI=new OpsUI({graph:g,localStore:store,connectPrivateCalendar,cacheSavedKind:async(kind,rows)=>{try{await warmCache?.savedKind(kind,rows);}catch{toast('Enregistré dans Microsoft 365, mais la copie hors ligne n’a pas pu être actualisée.');}},getUser:()=>user,getConfig:()=>config,isAdmin,modal,toast,download,projectMeta:async id=>(await journal.load(id,'fiche',null)).data||{},previewProjectMeta,getCatalog:()=>catalog,showDashboard,openProject,openDocument,openAlertDocument:async item=>showBlob(await g.bytes(item.id),item.name),refreshProjects:refresh,createProjectFromVisit,syncProjectStages,ensureProjectReview,ensurePlannedProject,reportRecovery,ensureReportReady,reconnectReport,prepareAppointmentWrite,saveReportDraft:x=>reportRecovery.save(x),loadReportDraft:id=>reportRecovery.load(id),clearReportDraft:async id=>{if(opsUI?.activeReportRecovery?.id===id)await opsUI.activeReportRecovery.saved();else await reportRecovery.clear(id);offerRecoveredReport();}});
@@ -319,7 +320,7 @@ async function refreshNow({skipOps=false}={}){
   if($('modal').open||live||applied===false){status(opsUI?.cacheMode?'Données mémorisées':'Microsoft 365 connecté',!opsUI?.cacheMode);syncNotice('La fenêtre en cours est conservée · l’actualisation des listes reprendra après sa fermeture.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;
   let retentionNotice='';const purged=(opsUI?.data.projectTracking||[]).filter(row=>row.retentionPurgedAt);
-  const archivedInterventions=(opsUI?.data.interventions||[]).filter(row=>row.appArchivedAt);
+  const archivedInterventions=[...(opsUI?.data.interventions||[]),...(opsUI?.data.visits||[])].filter(row=>row.appArchivedAt);
   if(purged.length||archivedInterventions.length){
    catalog={...catalog,projects:catalog.projects.filter(p=>!purged.some(row=>row.id===p.id))};
    try{const {cleanPurgedLocal}=await import('./lib/project-retention.js');
@@ -329,6 +330,7 @@ async function refreshNow({skipOps=false}={}){
    if(result.deferred.length)retentionNotice='Un dossier archivé dans OneDrive possède encore une saisie non envoyée sur cet appareil. Elle est conservée dans les envois en attente.';
    }catch(error){console.warn('Nettoyage local différé',error.message);retentionNotice='Données actualisées · Nettoyage des anciennes copies locales à réessayer.';}
   }
+  void refreshStorageGauge($('storageHealth'),{user,config,navigator}).catch(()=>{});
   await store.set('catalog',catalog);
   lastSyncAt=Date.now();if(opsUI){opsUI.needsRefresh=false;opsUI.refreshPending=false;}status(DEMO?'Démonstration locale':'Microsoft 365 connecté',true);syncNotice('');
   $('lastRefresh').textContent=`Dernière actualisation : ${new Date().toLocaleTimeString('fr-FR')} · ${user.displayName}`;
@@ -356,11 +358,12 @@ async function refreshNow({skipOps=false}={}){
 let automaticArchiveTask=null,lastAutomaticArchive=0;
 async function maybeArchiveInterventions(){
  if(automaticArchiveTask||!isAdmin()||!g?.drive?.id||!store||!cloudReady||opsUI?.cacheMode||live||$('modal').open||navigator.onLine===false||Date.now()-lastAutomaticArchive<600000)return;
- if(!(opsUI?.data.interventions||[]).some(row=>!row.projectId&&!row.appArchivedAt&&['terminee','facturee'].includes(row.status)))return;
+ if(![...(opsUI?.data.interventions||[]),...(opsUI?.data.visits||[])].some(row=>!row.appArchivedAt&&['terminee','facturee','convertie'].includes(row.status))&&!catalog.projects.some(p=>['04','99'].includes(p.category)))return;
  const graph=g,targetStore=store;lastAutomaticArchive=Date.now();
- automaticArchiveTask=(async()=>{const {archiveModeEnabled,runDeviceArchive,interventionArchiveDue}=await import('./lib/archive-maintenance.js');if(!archiveModeEnabled(targetStore,graph,localStorage)||!opsUI.data.interventions.some(row=>row.pdfFileId&&interventionArchiveDue(row,new Date(),opsUI.data.events)))return;
+ automaticArchiveTask=(async()=>{const {archiveModeEnabled,runDeviceArchive,reportArchiveDue}=await import('./lib/archive-maintenance.js');if(!archiveModeEnabled(targetStore,graph,localStorage))return;
+ const {deletionDate}=await import('./lib/project-retention.js');const due=['interventions','visits'].some(kind=>opsUI.data[kind].some(row=>row.pdfFileId&&reportArchiveDue(row,new Date(),opsUI.data.events,kind)))||catalog.projects.some(p=>{if(!['04','99'].includes(p.category))return false;const row=opsUI.data.projectTracking.find(row=>row.id===p.id);return !row?.retentionPurgedAt&&(!deletionDate(row)||Date.now()>=Date.parse(deletionDate(row)));});if(!due)return;
   const result=await runDeviceArchive(graph,{check:()=>{if(g!==graph||store!==targetStore||!cloudReady||$('modal').open||live||navigator.onLine===false)throw Object.assign(Error('Le travail en cours est prioritaire.'),{code:'archive_pause'});}});
-  if(result.archived&&g===graph&&store===targetStore&&!$('modal').open)await refresh();
+  if((result.archived||result.projectsArchived||result.initialized)&&g===graph&&store===targetStore&&!$('modal').open)await refresh();
  })();try{await automaticArchiveTask;}finally{automaticArchiveTask=null;}
 }
 function renderProjects(){
@@ -707,9 +710,9 @@ bind('deviceStorage',async()=>{
  await persistBeforeAuth();
  await openDeviceStorage({store,modal,navigator,window,textStorage:localStorage,reportPrefix:reportRecovery?.prefix||'',onRestored:async()=>{await updatePending();offerRecoveredReport();}});
 });
-bind('storageHealth',()=>openStorageHealth({graph:g,store,isAdmin,modal,repository:()=>opsUI?.repo,
- verify:async()=>{if(!isAdmin())throw Error('Action réservée à l’administrateur.');const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);if(profile.id!==user.id)throw Error('Reconnectez le compte initial.');cloudReady=true;g.readOnlyCache=false;status('Microsoft 365 connecté',true);},
- completed:async()=>{if(opsUI){await opsUI.reload({background:false});opsUI.needsRefresh=false;opsUI.refreshPending=false;}await rememberWarm();status('Microsoft 365 connecté',true);syncNotice('');}
+bind('storageHealth',()=>openStorageHealth({graph:g,store,isAdmin:()=>canViewStorage(user,config),modal,data:()=>opsUI?.data||{},repository:()=>opsUI?.repo,
+ verify:async()=>{if(!canViewStorage(user,config))throw Error('Stockage réservé au compte Ignazio.');const [,profile]=await Promise.all([g.connect(config),g.request('/me?$select=id,displayName,mail,userPrincipalName')]);if(profile.id!==user.id)throw Error('Reconnectez le compte initial.');cloudReady=true;g.readOnlyCache=false;status('Microsoft 365 connecté',true);},
+ completed:async()=>{if(opsUI){await opsUI.reload({background:false});opsUI.needsRefresh=false;opsUI.refreshPending=false;}await refresh();await rememberWarm();void refreshStorageGauge($('storageHealth'),{user,config,navigator}).catch(()=>{});status('Microsoft 365 connecté',true);syncNotice('');}
 }));
 bind('settings',setup);bind('login',login);
 async function logoutCurrent(){
@@ -750,10 +753,7 @@ async function syncProjectStages({archive=false}={}){
     if(stage==='02'&&p.category==='01')await verifyPlannedProject(opsUI,p.id);
     else await moveProgressStage(p,stage);
    }
-   if(archive&&p.category==='04'&&isAdmin()){
-    await ensureCompletionClock(opsUI,p);const checked=opsUI.archiveChecks||(opsUI.archiveChecks=new Map());
-    if(Date.now()-(checked.get(p.id)||0)>3600000){checked.set(p.id,Date.now());try{if(await canAutoArchive(opsUI,p))await moveProgressStage(p,'99');}catch(e){toast('Archivage différé pour '+p.name+' : '+e.message);}}
-   }
+
   }
   renderProjects();if(selected)$('projectCategory').textContent=catLabel(selected.category).toUpperCase();
  })();

@@ -7,10 +7,11 @@ function setup(admin=true){
  const dom=new JSDOM('<main id="officePage"></main><main id="interventionsPage"></main><div id="modal"></div>',{url:'https://opus.example'});
  for(const k of ['window','document','localStorage'])globalThis[k]=dom.window[k];
  const projects=[{id:'p',name:'001191 SJE PARIS 07',category:'04'},{id:'review',name:'À contrôler',category:'03'},{id:'arch',name:'Ancien chantier',category:'99'},{id:'paid',name:'Déjà facturé',category:'04'}],opened=[],messages=[];
- const ui=new OpsUI({graph:{},isAdmin:()=>admin,getConfig:()=>({}),getUser:()=>({displayName:'Ignazio'}),getCatalog:()=>({projects}),toast:m=>messages.push(m),modal:(_,h)=>document.getElementById('modal').innerHTML=h,openAlertDocument:async x=>opened.push(x),projectMeta:async()=>({})});
+ const navigation=[];dom.window.open=()=>{const target={location:{},close(){}};navigation.push(target);return target;};
+ const ui=new OpsUI({graph:{item:async id=>({id,webUrl:'https://opuselec.sharepoint.com/pdf/'+id})},isAdmin:()=>admin,getConfig:()=>({siteHost:'opuselec.sharepoint.com'}),getUser:()=>({displayName:'Ignazio'}),getCatalog:()=>({projects}),toast:m=>messages.push(m),modal:(_,h)=>document.getElementById('modal').innerHTML=h,openAlertDocument:async x=>opened.push(x),projectMeta:async()=>({})});
  ui.data.interventions=[{id:'i',number:'INT-0002',title:'Dépannage',status:'en_cours',clientName:'TRIBECA',teamIds:[],photos:[],reportItems:[]},{id:'done',number:'INT-0003',clientName:'Client',status:'terminee'},{id:'draft',number:'INT-0029',projectId:'p',projectName:projects[0].name,status:'en_cours'},{id:'report',number:'INT-0011',projectId:'p',projectName:projects[0].name,status:'terminee',pdfSavedAt:'2026-09-19',pdfFileId:'pdf'},{id:'trash',projectId:'p',status:'terminee',reportDeletedAt:'2026-09-19'}];
  ui.data.visits=[{id:'v',number:'VIS-1',clientName:'Visite cliente',status:'terminee'}];ui.data.projectTracking=[{id:'paid',invoicedAt:'2026-09-19'}];
- ui.save=async()=>{};ui.repo.save=async()=>{};return {ui,projects,opened,messages};
+ ui.save=async()=>{};ui.repo.save=async()=>{};return {ui,projects,opened,messages,navigation};
 }
 test('project reports stay out of independent tabs, counts and material targets without removing stored records',async()=>{
  const {ui}=setup();const before=JSON.stringify(ui.data.interventions);await ui.renderInterventions();
@@ -19,13 +20,13 @@ test('project reports stay out of independent tabs, counts and material targets 
  assert.deepEqual(interventionTargets(ui.data.interventions).map(t=>t.linkId),['i']);assert.equal(JSON.stringify(ui.data.interventions),before);
 });
 test('office includes finished projects once per affair, independent invoices and all three report kinds',async()=>{
- const {ui,opened}=setup();await ui.renderOffice();
+ const {ui,navigation}=setup();await ui.renderOffice();
  assert.deepEqual([...document.querySelectorAll('[data-project-invoice]')].map(b=>b.dataset.projectInvoice),['p','arch']);
  assert.deepEqual([...document.querySelectorAll('[data-intervention-invoice]')].map(b=>b.dataset.interventionInvoice),['done']);
  assert.equal(document.getElementById('officeReportList'),null);document.getElementById('openOfficeReports').click();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,4);
  const type=document.getElementById('officeReportType');type.value='project';type.onchange();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,2);
  const search=document.getElementById('officeReportSearch');search.value='0011';search.oninput();assert.equal(document.querySelectorAll('#officeReportList [data-open-report-pdf]').length,1);
- await document.querySelector('[data-open-report-pdf]').onclick();assert.equal(opened[0].id,'pdf');
+ await document.querySelector('[data-open-report-pdf]').onclick();assert.equal(navigation[0].location.href,'https://opuselec.sharepoint.com/pdf/pdf');
  let id;ui.openIntervention=async v=>{id=v;};search.value='0029';search.oninput();await document.querySelector('[data-open-report]').onclick();assert.equal(id,'draft');
  search.value='';search.oninput();type.value='visit';type.onchange();ui.openVisit=async v=>{id=v;};await document.querySelector('[data-open-report]').onclick();assert.equal(id,'v');
 });

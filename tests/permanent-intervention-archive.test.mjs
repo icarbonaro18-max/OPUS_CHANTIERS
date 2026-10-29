@@ -9,8 +9,9 @@ import {isIndependentIntervention,officeReports} from '../lib/work-records.js';
 import {payrollRows} from '../lib/workforce.js';
 import {cleanPurgedLocal} from '../lib/project-retention.js';
 
-const now=new Date('2026-10-29T10:00:00Z'),completed='2026-10-28T10:00:00Z';
+const now=new Date('2026-10-29T10:00:00Z'),completed='2026-10-14T10:00:00Z';
 class Drive{
+ async projects(){return {projects:[],categories:[]};}
  constructor(){this.rows=new Map();this.serial=0;this.writes=0;this.beforeWrite=null;this.drive={id:'drive'};}
  meta(row){const {blob,...rest}=row;return structuredClone(rest);}
  put(parent,name,blob=null){const id='file-'+(++this.serial),row={id,name,parentReference:{id:parent},eTag:'tag-'+this.serial,size:blob?.size||0,webUrl:'https://opuselec.sharepoint.com/archive/'+id,blob,...(blob?{file:{}}:{folder:{}})};this.rows.set(id,row);return this.meta(row);}
@@ -32,7 +33,7 @@ async function fixture(){
  const system=await graph.folder('root','_OPUS_SYSTEM'),file=graph.put(system.id,'interventions.json',new Blob([JSON.stringify([row,{id:'active',status:'planifiee',photos:['keep']}])])),repo=new OpsRepository(graph);await repo.init();
  return {graph,repo,row,file,pdf,image,order};
 }
-test('the intervention clock is exactly 24 hours after confirmed completion and recent edits defer it',()=>{
+test('the intervention clock is exactly 15 days after confirmed completion and recent edits defer it',()=>{
  const row={id:'one',status:'terminee',completionRecordedAt:completed};assert.equal(interventionArchiveDue(row,new Date(+now-1)),false);assert.equal(interventionArchiveDue(row,now),true);
  assert.equal(interventionArchiveDue({...row,updatedAt:new Date(+now-1000).toISOString()},now),false);assert.equal(interventionArchiveDue({...row,projectId:'project'},now),false);assert.equal(interventionArchiveDue({...row,status:'en_cours'},now),false);assert.equal(interventionArchiveDue({id:'old',status:'terminee'},now),false);
  assert.equal(interventionArchiveDue(row,now,[{kind:'intervention',linkId:'one',end:new Date(+now+1000).toISOString()}]),false);
@@ -44,7 +45,7 @@ test('a permanent archive contains a checked PDF, standalone photos, source atta
 test('an already confirmed permanent archive is reused after a lost final response without another copy',async()=>{
  const f=await fixture(),first=await preservePermanentRecord(f.graph,f.repo,f.row,{requirePdf:true,now}),count=f.graph.rows.size,second=await preservePermanentRecord(f.graph,f.repo,f.row,{requirePdf:true,now:new Date(+now+1000)});assert.equal(first.manifestId,second.manifestId);assert.equal(f.graph.rows.size,count);
 });
-test('after 24 hours the app record becomes light only after permanent verification, preserving payroll and invoice fields',async()=>{
+test('after 15 days the app record becomes light only after permanent verification, preserving payroll and invoice fields',async()=>{
  const f=await fixture(),before={people:[{id:'worker',name:'Worker',active:true,weeklyTarget:39}],events:[],visits:[],closures:[],interventions:[f.row]},payroll=payrollRows(before,'2026-10');
  const result=await archiveCompletedInterventions(f.graph,f.repo,{now});assert.equal(result.archived,1);const rows=await f.graph.json(f.file.id),row=rows[0];assert.ok(row.appArchivedAt);assert.equal(row.photos,undefined);assert.equal(row.reportItems,undefined);assert.equal(row.invoiceNumber,'FACT-80');assert.equal(row.billingAgreement,'Accord client');assert.equal(rows[1].photos[0],'keep');assert.equal(isIndependentIntervention(row),false);assert.deepEqual(officeReports({interventions:[row],visits:[]}),[]);assert.deepEqual(payrollRows({...before,interventions:[row]},'2026-10'),payroll);assert.ok(await f.graph.item(f.pdf.id));
  const again=await archiveCompletedInterventions(f.graph,f.repo,{now});assert.equal(again.archived,0);
@@ -93,4 +94,11 @@ test('automatic archive activation is isolated by both account and document libr
 test('overlapping archive attempts keep separate immutable copies and their receipts stay valid',async()=>{
  const f=await fixture();const root=await f.graph.folder('root','ARCHIVES_PERMANENTES_OPUS'),reports=await f.graph.folder(root.id,'RAPPORTS'),year=await f.graph.folder(reports.id,'2026');await f.graph.folder(year.id,f.row.number+'_'+f.row.id);
  const [a,b]=await Promise.all([preservePermanentRecord(f.graph,f.repo,f.row,{requirePdf:true,now}),preservePermanentRecord(f.graph,f.repo,f.row,{requirePdf:true,now})]);assert.notEqual(a.folderId,b.folderId);await verifyPermanentArchive(f.graph,a);await verifyPermanentArchive(f.graph,b);const count=f.graph.rows.size;const reused=await preservePermanentRecord(f.graph,f.repo,f.row,{requirePdf:true,now});assert.ok([a.manifestId,b.manifestId].includes(reused.manifestId));assert.equal(f.graph.rows.size,count);
+});
+
+test('completed visits are compacted in one batch only after their preparation attachment is copied',async()=>{
+ const f=await fixture(),visit={...f.row,id:'visit-one',number:'VIS-2026-0080',quoteNumber:'D-80',attachments:[{fileId:f.order.id,name:'preparation.pdf'}]};delete visit.sourceDocuments;
+ await f.graph.writeJson(f.repo.root.id,'visits.json',[visit]);f.graph.writes=0;
+ const result=await archiveCompletedInterventions(f.graph,f.repo,{kind:'visits',now});assert.equal(result.archived,1);assert.equal(f.graph.writes,1);
+ const rows=await f.repo.load('visits',[]);assert.equal(rows[0].quoteNumber,'D-80');assert.equal(rows[0].photos,undefined);const manifest=await verifyPermanentArchive(f.graph,rows[0].permanentArchive);assert.ok(manifest.files.some(file=>file.sourceId===f.order.id));assert.equal((await f.repo.load('interventions',[]))[0].appArchivedAt,undefined);
 });

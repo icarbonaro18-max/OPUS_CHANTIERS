@@ -1,3 +1,4 @@
+import {canViewStorage,refreshStorageGauge} from '../lib/storage-overview.js';
 import {runAuthInteraction,selectSessionAccount} from '../lib/auth-session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,7 +39,7 @@ async function harness(t,{online=true,sha=hash}={}){
  let source=await readFile(new URL('../app.js',import.meta.url),'utf8');
  source=source.replace(/^import .*;\n/gm,'').replace('installAddressSuggestions();','').replace(/const \{OpsUI\}=await import\('\.\/lib\/ops-ui\.js\?v=[^']+'\);/,'').replace('init().catch(err);','');
  source+='\nmsal={};store=TEST_STORE;journal=TEST_JOURNAL;g={readOnlyCache:false};user={id:"tech",displayName:"Technicien"};globalThis.hooks={loadWithLocalFallback,queueSave,flush,flushPdfOutbox,draftKey,requestFrame,pendingReplies,activate,resumeCloud,setRoute,routeState,chooseRevision,reconnectReport,getUI:()=>opsUI,getLive:()=>live,setLive:value=>live=value,queued:()=>queueChain,configureProject:(project,metadata)=>{selected=project;meta=metadata;config={adminUsers:[]};modules={baes:{title:"Attestation BAES",prefix:"BAES"}};catalog={projects:[project],categories:[],loose:[]};},setGraph:value=>g=value};';
- const context=vm.createContext({runAuthInteraction,selectSessionAccount,TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
+ const context=vm.createContext({canViewStorage,refreshStorageGauge,runAuthInteraction,selectSessionAccount,TEST_STORE:store,TEST_JOURNAL:journal,OpsUI:UI,CATEGORIES:[],progress:()=>({urgent:false}),targetStage:p=>p.category,progressPanel(){},showProjectScreen(){},mountCompleteProject(){},queuePickupRead:async()=>{},loadOrders:async()=>({supplier:[],depot:[]}),loadPickupStates:async()=>[],pickupCount:()=>0,pickupBadge:()=>'',requiresInteractiveAuth:()=>false,installResumeSync:()=>()=>{},Date:Clock,sha,uid:()=>String(++nextId).padStart(32,'0'),norm:s=>s,
   structuredClone,URL,URLSearchParams,Blob,parseRevision,safeName:s=>String(s).replace(/["*:<>?/\\|]/g,'-'),location:dom.window.location,history:dom.window.history,localStorage:dom.window.localStorage,document:dom.window.document,window:dom.window,navigator,
   console:{log(){},warn(){},error(){}},setInterval:()=>0,clearInterval(){},setTimeout:(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,at:now+delay});return id;},clearTimeout:id=>timers.delete(id)});
  vm.runInContext(source,context);

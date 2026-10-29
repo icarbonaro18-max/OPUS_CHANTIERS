@@ -1,3 +1,5 @@
+> Historique : la règle de 24 h et les anciens délais chantier sont remplacés par 15 jours en version 3.6.7. Consulter ONEDRIVE_15_JOURS_3_6_7.md pour l’activation actuelle.
+
 # OPUS CHANTIERS 3.6.6 — interventions visibles 24 h, archives OneDrive permanentes
 
 Règle demandée par Ignazio le 29 octobre 2026 : après sa fin, une intervention reste un jour dans les listes de travail. Elle est ensuite retirée de ces listes seulement après confirmation d'une copie permanente complète dans OneDrive. La suppression de l'affichage ne doit plus entraîner la suppression des documents Microsoft 365.

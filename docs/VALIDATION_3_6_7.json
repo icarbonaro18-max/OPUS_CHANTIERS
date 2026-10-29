@@ -1,0 +1,22 @@
+{
+  "version": "3.6.7-onedrive-15jours",
+  "tests": 579,
+  "passed": 579,
+  "failed": 0,
+  "command": "npm test",
+  "productionObserved": "3.6.6-archives-onedrive",
+  "preparedNotDeployed": true,
+  "productionDataChanged": false,
+  "policy": {
+    "finishedInterventionsDays": 15,
+    "finishedVisitsDays": 15,
+    "completedProjectsDays": 15,
+    "oneDriveDeleted": false
+  },
+  "limits": [
+    "Automated tests use simulated Microsoft services",
+    "No actual tablet benchmark",
+    "No production archive run or server configuration",
+    "Browser storage estimate is not total disk space or RAM"
+  ]
+}

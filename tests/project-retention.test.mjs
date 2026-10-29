@@ -6,7 +6,7 @@ import {OpsRepository} from '../lib/ops.js';
 import {runRetention,scheduledRetention} from '../server/project-retention.js';
 import {createHandler} from '../api/retention-cron.js';
 
-const now=new Date('2026-09-15T10:00:00Z'),old='2026-08-01T10:00:00Z',archive='2026-08-16T10:00:00Z';
+const now=new Date('2026-08-31T10:00:00Z'),old='2026-08-01T10:00:00Z',archive='2026-08-16T10:00:00Z';
 function fixture(){
  const records={clients:[],people:[],events:[],closures:[],projectTracking:[{id:'p',completedAt:old,archivedAt:archive}],interventions:[{id:'r',projectId:'p',number:'INT-2026-0001',status:'terminee',actualStart:old,actualEnd:'2026-08-01T12:00:00Z',teamIds:['worker'],photos:['data:image/jpeg;base64,'+'a'.repeat(100000)],summary:'Rapport lourd',extra:{$opusAsset:{id:'asset'}}},{id:'other',projectId:'active',photos:['keep']}],visits:[]};
  const categories=[{id:'c04',name:'04 - TERMINES'},{id:'c99',name:'99 - ARCHIVES'}];
@@ -26,9 +26,9 @@ function fixture(){
  return {graph,repo,records,project,photo,deleted,saved,archiveRecord,verifyArchive,setLock:value=>lock=value,setExists:value=>exists=value};
 }
 
-test('deletion is 30 full days after archive and never before 45 days after completion',()=>{
- assert.equal(deletionDate({completedAt:old,archivedAt:archive}),'2026-09-15T10:00:00.000Z');
- assert.equal(deletionDate({completedAt:archive,archivedAt:archive}),'2026-09-30T10:00:00.000Z');assert.equal(deletionDate({completedAt:old}),null);
+test('withdrawal is fifteen days after completion with archive date as fallback',()=>{
+ assert.equal(deletionDate({completedAt:old,archivedAt:archive}),'2026-08-16T10:00:00.000Z');
+ assert.equal(deletionDate({completedAt:archive,archivedAt:archive}),'2026-08-31T10:00:00.000Z');assert.equal(deletionDate({completedAt:old}),'2026-08-16T10:00:00.000Z');assert.equal(deletionDate({}),null);
 });
 test('the exact deadline preserves project files and withdraws heavy content while keeping other projects and time facts',async()=>{
  const f=fixture(),result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now});assert.equal(result.purged,1);assert.deepEqual(f.deleted,[]);assert.equal((await f.graph.item('p')).id,'p');
@@ -38,12 +38,12 @@ test('the exact deadline preserves project files and withdraws heavy content whi
 test('one second before the deadline does not delete anything',async()=>{
  const f=fixture(),result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now:new Date(+now-1000)});assert.equal(result.purged,0);assert.equal(f.deleted.length,0);
 });
-test('an archive without a known date gets a fresh 30-day clock instead of immediate deletion',async()=>{
- const f=fixture();delete f.records.projectTracking[0].archivedAt;const result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now});assert.equal(result.initialized,1);assert.equal(f.records.projectTracking[0].archivedAt,now.toISOString());assert.equal(f.deleted.length,0);
+test('an archive without a known date gets a fresh fifteen-day clock instead of immediate deletion',async()=>{
+ const f=fixture();delete f.records.projectTracking[0].archivedAt;delete f.records.projectTracking[0].completedAt;const result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now});assert.equal(result.initialized,1);assert.equal(f.records.projectTracking[0].completedAt,now.toISOString());assert.equal(f.deleted.length,0);
 });
-test('a project moves from completed to archive after fifteen days and receives the actual move date',async()=>{
+test('a completed project leaves the app after fifteen days while its original OneDrive folder is preserved',async()=>{
  const f=fixture();f.project.category='04';f.project.categoryFolder={id:'c04',name:'04 - TERMINES'};f.project.parentReference.id='c04';delete f.records.projectTracking[0].archivedAt;f.project.lastModifiedDateTime=old;f.photo.lastModifiedDateTime=old;
- const result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now:new Date('2026-08-16T12:00:00Z')});assert.equal(result.archived,1);assert.equal(f.records.projectTracking[0].archivedAt,'2026-08-16T12:00:00.000Z');assert.equal(f.deleted.length,0);
+ const result=await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now:new Date('2026-08-16T12:00:00Z')});assert.equal(result.purged,1);assert.ok(f.records.projectTracking[0].retentionPurgedAt);assert.equal(f.deleted.length,0);
 });
 test('a recently modified nested file and a future appointment each defer deletion',async()=>{
  const f=fixture();f.photo.lastModifiedDateTime='2026-09-01T10:00:00Z';await runRetention(f.graph,{repo:f.repo,archiveRecord:f.archiveRecord,verifyArchive:f.verifyArchive,now});assert.equal(f.deleted.length,0);

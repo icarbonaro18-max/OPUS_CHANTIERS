@@ -57,7 +57,7 @@ test('office actions remain administrator-only',async()=>{
 });
 test('Roberto can complete an independent report with photos, see confirmation and open completed interventions; failure does not complete',async()=>{
  const {ui}=setup(false);const x={id:'i',number:'INT-1',status:'planifiee',photos:['data:image/png;base64,eA=='],reportItems:[]};ui.data.interventions=[x];let fail=true,archives=0;ui.saveInterventionPackage=async()=>{if(fail)throw Error('Réseau');archives++;return {folder:'INTERVENTIONS'};};
- await ui.openIntervention(x.id);assert.equal(document.getElementById('finishInterventionButton').textContent,'Enregistrer dans OPUS et terminer');assert.equal(document.getElementById('deleteIntReport'),null);
+ await ui.openIntervention(x.id);assert.equal(document.getElementById('finishInterventionButton').textContent,'Intervention complétée — enregistrer dans OneDrive');assert.equal(document.getElementById('deleteIntReport'),null);
  document.getElementById('aStart').value='2026-09-21T08:00';await finishAndExport(ui,x,{ask:async()=> '2026-09-21T10:00'});assert.equal(x.status,'planifiee');assert.equal(document.getElementById('seeCompletedInterventions'),null);assert.match(document.getElementById('reportSaveStatus').textContent,/PDF non archivé/);
  fail=false;await finishAndExport(ui,x,{ask:async()=> '2026-09-21T10:00'});assert.equal(archives,1);assert.equal(x.status,'terminee');assert.match(document.getElementById('reportSaveStatus').textContent,/Intervention achevée/);await document.getElementById('seeCompletedInterventions').onclick();assert.equal(ui.section,'interventions');assert.equal(ui.interventionView,'completed');assert.ok(document.querySelector('[data-int="i"]'));
 });

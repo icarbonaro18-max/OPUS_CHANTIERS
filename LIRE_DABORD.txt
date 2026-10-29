@@ -1,51 +1,18 @@
-OPUS CHANTIERS 3.6.6 — INTERVENTIONS 24 H / ARCHIVES ONEDRIVE PERMANENTES
+OPUS CHANTIERS — mise à jour 3.6.7-onedrive-15jours
 
-REGLE
-Une intervention terminée ou facturée devient éligible après 24 heures.
-Elle quitte les listes seulement après confirmation dans OneDrive du PDF,
-des photos, des pièces connues et d'une fiche complète.
-Une copie manquante, une modification ou un conflit maintient la fiche visible.
-Les heures et informations nécessaires à la facturation restent conservées.
+Importer le contenu de ce ZIP directement à la RACINE du dépôt existant.
+Remplacer les fichiers de même nom. Garder tous les autres fichiers.
+Ne pas importer dans un sous-dossier fichiers/.
 
-AUCUNE PURGE AUTOMATIQUE DES DOCUMENTS ONEDRIVE
-Les archives permanentes et les documents d'origine ne sont pas supprimés.
-Les chantiers gardent leurs délais 15 + 30 jours pour le retrait des listes,
-mais leur dossier OneDrive est désormais conservé à son emplacement.
-Cette règle remplace l'ancienne suppression de dossiers prévue en 3.6.4.
+Après déploiement : contrôler 3.6.7 sur tous les appareils, sans effacer les données du site.
+Puis, avec le compte Ignazio : Stockage → Activer le retrait après 15 jours · conserver dans OneDrive.
 
-INSTALLATION
-1. Déposer le CONTENU EXTRAIT à la racine du dépôt GitHub existant.
-   Remplacer les fichiers de même chemin. Aucun dossier fichiers/ ni patch.
-2. Attendre Vercel Ready et vérifier 3.6.6-archives-onedrive dans app.js.
-3. Mettre à jour TOUS les appareils avant l'activation. Conserver les saisies
-   avant toute relance. Ne pas effacer les données du site.
-4. Si nécessaire, après conservation des saisies, ouvrir reparer.html dans
-   le même navigateur/profil que l'application installée et relancer.
+Nouveautés : jauge de stockage réservée à Ignazio ; boutons Brouillon / grand bouton vert OneDrive ;
+PDF de visite envoyé lors de sa validation ; liens Aller sur OneDrive ; retrait des dossiers terminés
+après 15 jours et seulement après vérification OneDrive. Aucun document OneDrive n’est supprimé.
+Les brouillons et PDF non envoyés restent protégés. Les traces de numérotation, paie et facturation restent légères.
 
-ACTIVATION SIMPLE AU BUREAU
-Compte administrateur > Stockage >
-Activer et archiver les interventions de plus de 24 h.
+Le mode PC nécessite une application ouverte et connectée. Aucun traitement de production n’a été activé ici.
+Pour les listes de photos historiques très lourdes : Stockage → Sauvegarder et alléger les rapports.
 
-Ce bouton utilise la connexion Microsoft actuelle, archive le lot et active
-la suite automatique sur ce PC. Pas de nouveau secret Microsoft nécessaire.
-Le contrôle se fait au fil des actualisations, au maximum toutes les dix
-minutes, tant que l'application est ouverte et connectée. Les formulaires
-ouverts sont prioritaires et interrompent le traitement avant la mise à jour
-de la liste. Le mode peut être suspendu dans le même panneau Stockage.
-
-Quand tous les appareils sont fermés, une tâche serveur est nécessaire.
-Le guide inclus explique les variables et le marqueur supplémentaire :
-OPUS_RETENTION_POLICY=permanent-onedrive-v1.
-L'ancien réglage de suppression ne suffit pas à activer la nouvelle règle.
-
-Les archives se trouvent dans la bibliothèque Microsoft 365 actuelle :
-ARCHIVES_PERMANENTES_OPUS / RAPPORTS / année / numéro_identifiant.
-Le Bureau donne aussi accès au PDF permanent et aux données à facturer.
-
-Cette livraison conserve les corrections d'enregistrement, de connexion,
-de coordonnées, de fournisseurs et de sauvegarde externe précédentes.
-Elle met à jour la 3.6.5 publiée. Les autres fichiers du dépôt restent en place.
-571 tests réussis et compilation réussie. Pas encore publié ou activé depuis
-cette session ; aucune intervention réelle n'a été retirée ici.
-
-Guide : docs/ARCHIVES_PERMANENTES_ONEDRIVE_3_6_6.md
+Guide : docs/ONEDRIVE_15_JOURS_3_6_7.md

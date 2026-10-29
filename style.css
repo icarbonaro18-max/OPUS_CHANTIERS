@@ -195,3 +195,6 @@
 .hourHead .schoolCalendarBadges,.monthCell .schoolCalendarBadges{max-height:42px;overflow-y:auto;overscroll-behavior:contain}
 .hourHead .schoolCalendarBadges{margin-bottom:0}
 @media(max-width:700px){.schoolCalendarBadge{font-size:9px;padding:2px 3px}}
+
+/* Clear completion action for tablet reports. */
+.simpleReport .reportSend>button.completeOneDrive[type=submit]{background:#087f3e;color:#fff;border:2px solid #066631;font-size:1.1rem;font-weight:700;min-height:64px;padding:16px 24px;white-space:normal;flex:1 1 280px}.simpleReport .reportSend>button.completeOneDrive[type=submit]:hover{background:#066631}.simpleReport .reportSend>button.completeOneDrive[type=submit]:disabled{opacity:.65}.draftExplanation{background:#edf5fb;padding:14px;border-radius:10px;line-height:1.5}
