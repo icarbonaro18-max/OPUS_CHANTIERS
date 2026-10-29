@@ -1,5 +1,7 @@
 # OPUS CHANTIERS 3.6.4 — 15 jours Terminés puis 30 jours Archives
 
+DOCUMENT HISTORIQUE : la version 3.6.6 remplace la suppression des dossiers OneDrive par une conservation permanente. Consulter ARCHIVES_PERMANENTES_ONEDRIVE_3_6_6.md avant toute activation. Les anciens réglages ne déclenchent pas la nouvelle politique sans son marqueur explicite.
+
 Choix confirmé par Ignazio le 29 octobre 2026 : suppression 30 jours après l'archivage, soit 45 jours après la fin au minimum. Cette livraison conserve toutes les corrections 3.6.1 à 3.6.3. Elle est préparée et testée ; elle n'est pas publiée et le service serveur n'a pas été activé dans cette session. Aucun dossier réel n'a été supprimé.
 
 ## Comportement

@@ -1,0 +1,17 @@
+{
+  "version": "3.6.6-archives-onedrive",
+  "date": "2026-10-29",
+  "deployment_base_commit": "8acc688049f2041a16b11687d9ca4b2a228d629f",
+  "tests": {"command": "npm test", "passed": 571, "failed": 0},
+  "build": "passed",
+  "intervention_policy": "withdraw from work lists after 24 hours only after a verified permanent OneDrive archive",
+  "project_policy": "15 days completed, 30 days archived, source OneDrive folder preserved",
+  "permanent_archive": ["PDF", "standalone photos", "full self-contained JSON snapshot", "known source attachments and imported PDFs", "verified manifest"],
+  "business_files_deleted_by_maintenance": false,
+  "batch_index_write": "one conditional write after archive verification",
+  "desktop_activation": "Storage panel; isolated by account and drive; periodic while app remains open",
+  "closed_app_execution": "requires configured service and permanent-onedrive-v1 policy marker",
+  "production_published_by_session": false,
+  "production_archive_executed_by_session": false,
+  "real_tablet_and_Microsoft365_recipe": "pending"
+}

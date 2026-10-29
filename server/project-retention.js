@@ -1,3 +1,5 @@
+import {archiveCompletedInterventions} from './intervention-retention.js';
+import {preservePermanentRecord,verifyPermanentArchive} from './permanent-archive.js';
 import {createHash} from 'node:crypto';
 import {Graph} from '../lib/cloud.js';
 import {OpsRepository} from '../lib/ops.js';
@@ -19,14 +21,16 @@ async function acquireLock(graph,root,now){
  catch(error){if(error.status===409)return null;throw error;}
 }
 
-export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(graph),budgetMs=200000,limit=10}={}){
+export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(graph),budgetMs=150000,limit=100,archiveRecord=preservePermanentRecord,verifyArchive=verifyPermanentArchive}={}){
  const started=Date.now(),check=()=>{if(Date.now()-started>budgetMs)throw Object.assign(Error('Traitement reporté à la prochaine exécution.'),{code:'retention_budget'});};
  await repo.init();const lock=await acquireLock(graph,repo.root.id,now);if(!lock)return {busy:true};
  let data;const summary={archived:0,purged:0,initialized:0,deferred:0,conflicts:0};
  const saveRow=async row=>{const next=[...data.projectTracking.filter(x=>x.id!==row.id),row];await repo.save('projectTracking',next);data.projectTracking=next;return row;};
  const ui=()=>({data,c:{isAdmin:()=>true,graph}});
  const finish=async row=>{
-  const plan=row.retentionPlan;if(!plan)throw Error('Plan de suppression absent.');
+  const plan=row.retentionPlan;if(!plan?.archives)throw Error('Plan de conservation permanente absent.');
+  const source=await graph.item(row.id);if(source.parentReference?.id!==plan.sourceParent||source.eTag!==plan.sourceTag)throw Object.assign(Error('Le dossier OneDrive a changé ; conservation dans l’application maintenue.'),{code:'retention_conflict'});
+  for(const archive of plan.archives)await verifyArchive(graph,archive,{check});
   // Re-read after a restart or lost response. Conditional writes preserve any
   // newer work and permit resuming after one collection has already succeeded.
   for(const kind of ['interventions','visits']){
@@ -35,16 +39,15 @@ export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(
     if(!linked(record,row.id))return record;
     if(record.retentionPurgedAt===plan.at)return record;
     if(plan.signatures[kind][record.id]!==hash(record))throw Object.assign(Error('Une fiche a changé pendant le nettoyage ; contrôle au bureau requis.'),{code:'retention_conflict'});
-    changed=true;return compactReport(record,plan.at);
+    const archive=plan.reportArchives?.[kind+':'+record.id];changed=true;return compactReport({...record,...(archive?{appArchivedAt:plan.at,permanentArchive:archive}:{})},plan.at);
    });
    if(changed)await repo.save(kind,next);data[kind]=next;
   }
-  const done={...row,retentionPurgedAt:plan.at,retentionCacheIds:plan.cacheIds};delete done.retentionPlan;delete done.retentionError;await saveRow(done);summary.purged++;
+  const done={...row,projectName:row.projectName||source.name||row.id,retentionPurgedAt:plan.at,retentionCacheIds:plan.cacheIds,permanentArchive:{folderId:row.id,webUrl:source.webUrl||'',reports:plan.archives}};delete done.retentionPlan;delete done.retentionError;await saveRow(done);summary.purged++;
  };
  try{
-  check();data=await repo.loadAll();const catalog=await graph.projects();
-  // Pending operations take priority, including a deletion whose HTTP response
-  // or final index update was lost. Missing unrelated folders are never purged.
+  check();data=await repo.loadAll();const interventionResult=await archiveCompletedInterventions(graph,repo,{now,limit,check,archiveRecord,verifyArchive});summary.interventionsArchived=interventionResult.archived;summary.deferred+=interventionResult.deferred;check();data=await repo.loadAll();const catalog=await graph.projects();
+  // Pending index reductions take priority. Permanent source folders are never deleted.
   const pending=data.projectTracking.filter(row=>row.retentionPlan&&!row.retentionPurgedAt);
   const ids=new Set(pending.map(row=>row.id));
   const projects=[...pending.map(row=>catalog.projects.find(p=>p.id===row.id)||{id:row.id,category:'missing'}),...catalog.projects.filter(p=>!ids.has(p.id)&&['04','99'].includes(p.category)).sort((a,b)=>stamp(data.projectTracking.find(r=>r.id===a.id)?.archivedAt)-stamp(data.projectTracking.find(r=>r.id===b.id)?.archivedAt))];
@@ -54,11 +57,7 @@ export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(
    if(row.retentionPurgedAt)continue; // A restored folder requires a deliberate office decision.
    if(row.retentionError){summary.conflicts++;continue;}
    try{
-    if(project.category==='missing'){
-     if(row.retentionPlan){let item;try{item=await graph.item(project.id);}catch(error){if(error.status!==404)throw error;}
-      if(item)throw Object.assign(Error('Le dossier a changé de rubrique pendant le nettoyage.'),{code:'retention_conflict'});await finish(row);
-     }continue;
-    }
+    if(project.category==='missing'){if(row.retentionPlan)throw Object.assign(Error('Le dossier OneDrive est introuvable. Aucune donnée supplémentaire n’est retirée de l’application.'),{code:'retention_conflict'});continue;}
     if(project.category==='04'){
      if(row.retentionPlan)throw Object.assign(Error('Le chantier a été rouvert pendant le nettoyage.'),{code:'retention_conflict'});
      if(!stamp(row.completedAt)){await saveRow({...row,completedAt:now.toISOString()});summary.initialized++;continue;}
@@ -69,7 +68,8 @@ export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(
      }continue;
     }
     if(project.category!=='99')throw Object.assign(Error('Le chantier a été rouvert pendant le nettoyage.'),{code:'retention_conflict'});
-    if(row.retentionPlan?.phase==='folder-removed')throw Object.assign(Error('Le dossier a été restauré après sa suppression. Le nettoyage est suspendu.'),{code:'retention_conflict'});
+    if(row.retentionPlan?.phase==='folder-removed')throw Object.assign(Error('Ancien plan de suppression suspendu : vérifier la présence des originaux dans OneDrive.'),{code:'retention_conflict'});
+    if(row.retentionPlan?.phase==='source-preserved'){await finish(row);continue;}
     if(!stamp(row.archivedAt)){await saveRow({...row,archivedAt:now.toISOString()});summary.initialized++;continue;}
     if(+now<Date.parse(deletionDate(row))){summary.deferred++;continue;}
     const inspect=()=>inspectQuietProject(ui(),project,now,{days:RETENTION.archiveRetentionDays,anchor:row.archivedAt,check});
@@ -79,14 +79,13 @@ export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(
     const archive=catalog.categories.find(c=>c.name.trim().startsWith('99'));
     if(!quiet.root?.eTag||quiet.root.parentReference?.id!==archive?.id)throw Error('Classement Archives non confirmé.');
     {
-     const signatures={interventions:{},visits:{}},cacheIds=new Set(quiet.cacheIds);
-     for(const kind of Object.keys(signatures))for(const record of data[kind].filter(r=>linked(r,row.id))){signatures[kind][record.id]=hash(record);assetIds(record,cacheIds);}
-     row=await saveRow({...row,retentionPlan:{at:now.toISOString(),phase:'prepared',signatures,cacheIds:[...cacheIds]}});
+     const signatures={interventions:{},visits:{}},cacheIds=new Set(quiet.cacheIds),archives=[],reportArchives={};
+     for(const kind of Object.keys(signatures))for(const record of data[kind].filter(r=>linked(r,row.id))){signatures[kind][record.id]=hash(record);assetIds(record,cacheIds);const saved=await archiveRecord(graph,repo,record,{kind,now,check});archives.push(saved);reportArchives[kind+':'+record.id]=saved;}
+     row=await saveRow({...row,retentionPlan:{at:now.toISOString(),phase:'prepared',signatures,cacheIds:[...cacheIds],archives,reportArchives,sourceParent:quiet.root.parentReference.id,sourceTag:quiet.root.eTag}});
     }
     // Writing the journal must not hide a change made to a nested document.
     const verify=await inspect();if(!verify.eligible||verify.fingerprint!==quiet.fingerprint){summary.deferred++;continue;}
-    check();await graph.deleteItem(project.id,{'If-Match':verify.root.eTag});
-    row=await saveRow({...row,retentionPlan:{...row.retentionPlan,phase:'folder-removed'}});await finish(row);
+    check();row=await saveRow({...row,retentionPlan:{...row.retentionPlan,phase:'source-preserved'}});await finish(row);
    }catch(error){
     if(error.code==='retention_budget')throw error;
     if(error.code==='retention_conflict'){
@@ -104,6 +103,7 @@ export async function runRetention(graph,{now=new Date(),repo=new OpsRepository(
 export function retentionConfigured(env){return ['RETENTION_TENANT_ID','RETENTION_CLIENT_ID','RETENTION_CLIENT_SECRET','RETENTION_DRIVE_ID','RETENTION_SITE_HOST','RETENTION_SITE_PATH'].every(key=>typeof env[key]==='string'&&env[key].trim());}
 export async function scheduledRetention(env,{fetcher=fetch,runner=runRetention}={}){
  if(env.OPUS_RETENTION_ENABLED!=='true')return {disabled:true};
+ if(env.OPUS_RETENTION_POLICY!=='permanent-onedrive-v1')return {disabled:true,reason:'permanent_archive_policy_not_activated'};
  if(!retentionConfigured(env))throw Error('Service de conservation non configuré.');
  if(!/^[a-z0-9.-]+\.sharepoint\.com$/i.test(env.RETENTION_SITE_HOST)||!env.RETENTION_SITE_PATH.startsWith('/sites/'))throw Error('Site de conservation invalide.');
  let cachedToken=null,expiresAt=0;

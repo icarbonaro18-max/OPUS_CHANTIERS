@@ -1,46 +1,51 @@
-OPUS CHANTIERS 3.6.5 — CORRECTIF ENREGISTREMENT
+OPUS CHANTIERS 3.6.6 — INTERVENTIONS 24 H / ARCHIVES ONEDRIVE PERMANENTES
 
-Base : 3.6.4 publiée, commit GitHub 5901c2f.
-Cette archive met à jour le dépôt existant. Déposer son CONTENU EXTRAIT
-(app.js, index.html, lib/, etc.) directement à la racine, en remplaçant les
-fichiers de même chemin. Ni dossier fichiers/, ni patch à appliquer.
-Les autres fichiers du dépôt et la configuration serveur restent en place.
+REGLE
+Une intervention terminée ou facturée devient éligible après 24 heures.
+Elle quitte les listes seulement après confirmation dans OneDrive du PDF,
+des photos, des pièces connues et d'une fiche complète.
+Une copie manquante, une modification ou un conflit maintient la fiche visible.
+Les heures et informations nécessaires à la facturation restent conservées.
 
-AVANT DE FERMER LA FENETRE ACTUELLEMENT BLOQUEE
-Copier ses textes et coordonnées pour conserver la saisie. Le mécanisme de
-copie ajouté par cette version ne peut pas protéger rétroactivement une fiche
-encore ouverte en 3.6.4. Ne pas effacer les données du site.
+AUCUNE PURGE AUTOMATIQUE DES DOCUMENTS ONEDRIVE
+Les archives permanentes et les documents d'origine ne sont pas supprimés.
+Les chantiers gardent leurs délais 15 + 30 jours pour le retrait des listes,
+mais leur dossier OneDrive est désormais conservé à son emplacement.
+Cette règle remplace l'ancienne suppression de dossiers prévue en 3.6.4.
 
-CORRECTIONS
-L'enregistrement n'attend plus la copie du cache ou le parcours des archives
-de tous les autres chantiers. La fiche et son calendrier restent confirmés
-avant l'annonce finale. Le formulaire affiche l'étape réelle.
-Une copie locale des prochaines fiches est enregistrée avant l'envoi.
-En cas d'interruption, Reprendre apparaît dans Interventions / Visites-Devis.
-La reprise relit le serveur et réutilise la fiche/client déjà confirmé.
+INSTALLATION
+1. Déposer le CONTENU EXTRAIT à la racine du dépôt GitHub existant.
+   Remplacer les fichiers de même chemin. Aucun dossier fichiers/ ni patch.
+2. Attendre Vercel Ready et vérifier 3.6.6-archives-onedrive dans app.js.
+3. Mettre à jour TOUS les appareils avant l'activation. Conserver les saisies
+   avant toute relance. Ne pas effacer les données du site.
+4. Si nécessaire, après conservation des saisies, ouvrir reparer.html dans
+   le même navigateur/profil que l'application installée et relancer.
 
-POUR REDUIRE REELLEMENT LES DELAIS
-Les listes existantes pèsent encore environ 43,5 Mo et 16,8 Mo.
-Après publication et mise à jour des appareils, sur le PC administrateur :
-Stockage > Sauvegarder et alléger les rapports.
-Choisir l'emplacement de la copie : disque externe, carte SD, dossier réseau,
-ou dossier synchronisé iCloud Drive déjà configuré dans Windows, si disponible.
-La copie est vérifiée avant l'allègement. La synchronisation cloud dépend du
-logiciel du fournisseur ; OPUS confirme l'écriture dans le dossier choisi.
-Cette copie concerne les listes avant optimisation, pas tous les dossiers PDF.
-La copie Microsoft 365 reste proposée si le choix d'un dossier est indisponible.
-Cette opération conserve les données et une sauvegarde puis sépare les photos.
-Relever les tailles avant/après et vérifier un ancien rapport avec ses photos.
-Le correctif seul ne réduit pas la taille actuelle de ces listes.
+ACTIVATION SIMPLE AU BUREAU
+Compte administrateur > Stockage >
+Activer et archiver les interventions de plus de 24 h.
 
-PUBLICATION
-1. Déposer le contenu extrait à la racine du dépôt GitHub et enregistrer.
-2. Attendre Vercel Ready et vérifier 3.6.5-enregistrement dans app.js.
-3. Une fois les saisies conservées, fermer les autres fenêtres OPUS.
-4. Si nécessaire, ouvrir https://opus-chantiers.vercel.app/reparer.html dans
-   le même navigateur/profil que l'application et Relancer sans effacer
-   mes brouillons.
+Ce bouton utilise la connexion Microsoft actuelle, archive le lot et active
+la suite automatique sur ce PC. Pas de nouveau secret Microsoft nécessaire.
+Le contrôle se fait au fil des actualisations, au maximum toutes les dix
+minutes, tant que l'application est ouverte et connectée. Les formulaires
+ouverts sont prioritaires et interrompent le traitement avant la mise à jour
+de la liste. Le mode peut être suspendu dans le même panneau Stockage.
 
-555 tests réussis et compilation réussie. Cette livraison n'a pas été publiée
-par cette session. Aucune donnée réelle n'a été optimisée ou modifiée ici.
-Guide : docs/CORRECTIF_ENREGISTREMENT_3_6_5.md
+Quand tous les appareils sont fermés, une tâche serveur est nécessaire.
+Le guide inclus explique les variables et le marqueur supplémentaire :
+OPUS_RETENTION_POLICY=permanent-onedrive-v1.
+L'ancien réglage de suppression ne suffit pas à activer la nouvelle règle.
+
+Les archives se trouvent dans la bibliothèque Microsoft 365 actuelle :
+ARCHIVES_PERMANENTES_OPUS / RAPPORTS / année / numéro_identifiant.
+Le Bureau donne aussi accès au PDF permanent et aux données à facturer.
+
+Cette livraison conserve les corrections d'enregistrement, de connexion,
+de coordonnées, de fournisseurs et de sauvegarde externe précédentes.
+Elle met à jour la 3.6.5 publiée. Les autres fichiers du dépôt restent en place.
+571 tests réussis et compilation réussie. Pas encore publié ou activé depuis
+cette session ; aucune intervention réelle n'a été retirée ici.
+
+Guide : docs/ARCHIVES_PERMANENTES_ONEDRIVE_3_6_6.md

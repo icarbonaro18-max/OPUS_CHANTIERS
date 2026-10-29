@@ -22,7 +22,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.5-enregistrement';
+const APP_VERSION='3.6.6-archives-onedrive';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -319,13 +319,14 @@ async function refreshNow({skipOps=false}={}){
   if($('modal').open||live||applied===false){status(opsUI?.cacheMode?'Données mémorisées':'Microsoft 365 connecté',!opsUI?.cacheMode);syncNotice('La fenêtre en cours est conservée · l’actualisation des listes reprendra après sa fermeture.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;
   let retentionNotice='';const purged=(opsUI?.data.projectTracking||[]).filter(row=>row.retentionPurgedAt);
-  if(purged.length){
+  const archivedInterventions=(opsUI?.data.interventions||[]).filter(row=>row.appArchivedAt);
+  if(purged.length||archivedInterventions.length){
    catalog={...catalog,projects:catalog.projects.filter(p=>!purged.some(row=>row.id===p.id))};
    try{const {cleanPurgedLocal}=await import('./lib/project-retention.js');
-   const result=await cleanPurgedLocal(store,purged,{activeRecords:[...(opsUI?.data.interventions||[]),...(opsUI?.data.visits||[])].filter(row=>!row.retentionPurgedAt)});
+   const result=await cleanPurgedLocal(store,[...purged,...archivedInterventions],{activeRecords:[...(opsUI?.data.interventions||[]),...(opsUI?.data.visits||[])].filter(row=>!row.retentionPurgedAt)});
    if(result.cleaned.length){for(const j of [journal,opsUI?.repo.mediaJournal])if(j){j.docCache.clear();j.directoryCache.clear();j.media.memory.clear();j.media.memoryBytes=0;j.media.uploads.clear();j.media.directories.clear();}}
-   if(selected&&purged.some(row=>row.id===selected.id)){selected=null;showDashboard();toast('Ce chantier a atteint son délai de conservation et a été retiré de l’application.');}
-   if(result.deferred.length)retentionNotice='Un chantier supprimé possède encore une saisie non envoyée sur cet appareil. Elle est conservée dans les envois en attente.';
+   if(selected&&purged.some(row=>row.id===selected.id)){selected=null;showDashboard();toast('Ce chantier a été retiré de l’application ; son dossier reste conservé dans OneDrive.');}
+   if(result.deferred.length)retentionNotice='Un dossier archivé dans OneDrive possède encore une saisie non envoyée sur cet appareil. Elle est conservée dans les envois en attente.';
    }catch(error){console.warn('Nettoyage local différé',error.message);retentionNotice='Données actualisées · Nettoyage des anciennes copies locales à réessayer.';}
   }
   await store.set('catalog',catalog);
@@ -344,12 +345,23 @@ async function refreshNow({skipOps=false}={}){
    if(location.hash===pendingInitialRoute&&!$('modal').open&&!live)await restoreRoute();
    pendingInitialRoute='';
   }
+  void maybeArchiveInterventions().catch(error=>console.warn('Archivage OneDrive différé',error.message));
   if(opsUI&&!skipOps&&!opsUI.cacheMode)void syncProjectStages({archive:true}).catch(e=>console.warn('Classement différé',e.message));
  }catch(e){
   if(opsUI?.hasLoadedRemote){status('Actualisation différée');syncNotice('Dernières données conservées · Actualisation à réessayer : '+e.message);}
   else if(cacheSnapshot){g.readOnlyCache=true;cachedNotice();syncNotice('Données mémorisées · Actualisation impossible : '+e.message);}
   else{status('Actualisation à réessayer');throw e;}
  }
+}
+let automaticArchiveTask=null,lastAutomaticArchive=0;
+async function maybeArchiveInterventions(){
+ if(automaticArchiveTask||!isAdmin()||!g?.drive?.id||!store||!cloudReady||opsUI?.cacheMode||live||$('modal').open||navigator.onLine===false||Date.now()-lastAutomaticArchive<600000)return;
+ if(!(opsUI?.data.interventions||[]).some(row=>!row.projectId&&!row.appArchivedAt&&['terminee','facturee'].includes(row.status)))return;
+ const graph=g,targetStore=store;lastAutomaticArchive=Date.now();
+ automaticArchiveTask=(async()=>{const {archiveModeEnabled,runDeviceArchive,interventionArchiveDue}=await import('./lib/archive-maintenance.js');if(!archiveModeEnabled(targetStore,graph,localStorage)||!opsUI.data.interventions.some(row=>row.pdfFileId&&interventionArchiveDue(row,new Date(),opsUI.data.events)))return;
+  const result=await runDeviceArchive(graph,{check:()=>{if(g!==graph||store!==targetStore||!cloudReady||$('modal').open||live||navigator.onLine===false)throw Object.assign(Error('Le travail en cours est prioritaire.'),{code:'archive_pause'});}});
+  if(result.archived&&g===graph&&store===targetStore&&!$('modal').open)await refresh();
+ })();try{await automaticArchiveTask;}finally{automaticArchiveTask=null;}
 }
 function renderProjects(){
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${catalog.projects.filter(p=>p.category===c).length}</strong><small>${l}</small></div>`).join('');
