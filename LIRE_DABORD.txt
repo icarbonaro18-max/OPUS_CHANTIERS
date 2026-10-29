@@ -1,18 +1,19 @@
-OPUS CHANTIERS — mise à jour 3.6.7-onedrive-15jours
+OPUS CHANTIERS 3.6.8-calendrier
 
-Importer le contenu de ce ZIP directement à la RACINE du dépôt existant.
-Remplacer les fichiers de même nom. Garder tous les autres fichiers.
-Ne pas importer dans un sous-dossier fichiers/.
+Déposer le contenu du ZIP à la RACINE du dépôt existant.
+Remplacer les fichiers de même nom. Conserver les autres fichiers.
+Ne pas créer de sous-dossier fichiers/.
 
-Après déploiement : contrôler 3.6.7 sur tous les appareils, sans effacer les données du site.
-Puis, avec le compte Ignazio : Stockage → Activer le retrait après 15 jours · conserver dans OneDrive.
+Correction ciblée : le calendrier n’attend plus la réécriture de toute la liste des rapports.
+La sauvegarde avant allègement utilise désormais une copie directement dans Microsoft 365,
+puis contrôle son contenu. Une opération non confirmée ne remplace pas les données.
 
-Nouveautés : jauge de stockage réservée à Ignazio ; boutons Brouillon / grand bouton vert OneDrive ;
-PDF de visite envoyé lors de sa validation ; liens Aller sur OneDrive ; retrait des dossiers terminés
-après 15 jours et seulement après vérification OneDrive. Aucun document OneDrive n’est supprimé.
-Les brouillons et PDF non envoyés restent protégés. Les traces de numérotation, paie et facturation restent légères.
+Après publication : contrôler 3.6.8, puis Stockage → Sauvegarder et alléger les rapports.
+Les deux fichiers de travail font encore 44 Mo et 18 Mo. Ils ne sont pas déjà allégés.
+Deux copies de sécurité ont été réalisées et vérifiées dans Microsoft 365.
+Le nouveau bouton doit encore être testé après publication.
 
-Le mode PC nécessite une application ouverte et connectée. Aucun traitement de production n’a été activé ici.
-Pour les listes de photos historiques très lourdes : Stockage → Sauvegarder et alléger les rapports.
+Ne pas recréer un rendez-vous bloqué avant de vérifier s’il existe déjà au calendrier.
+Ne pas effacer les données locales ni les brouillons pour faire une mise à jour.
 
-Guide : docs/ONEDRIVE_15_JOURS_3_6_7.md
+Guide : docs/CORRECTIF_CALENDRIER_ET_SAUVEGARDE_3_6_8.md

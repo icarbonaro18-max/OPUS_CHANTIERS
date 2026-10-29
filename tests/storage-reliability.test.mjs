@@ -75,3 +75,12 @@ test('a failed photo read does not poison retries or erase its original referenc
  const g=new Drive(),file=g.put('photos','photo',new Blob(['image'],{type:'image/jpeg'})),j=new Journal(g,{assetStore:localStore()}),value={photo:{$opusAsset:{id:file.id,mime:'image/jpeg'}}};let fail=true;const read=g.bytes.bind(g);g.bytes=async id=>{if(fail)throw Error('Réseau interrompu');return read(id);};
  await assert.rejects(j.hydrate(value),/Réseau/);assert.equal(hasMediaReferences(value),true);fail=false;assert.match((await j.hydrate(value)).photo,/^data:image\/jpeg/);
 });
+
+test('optimization can use a verified server-side copy without re-uploading the legacy collection',async()=>{
+ const rows=[record(1)],{g,file,repo}=await fixture(rows);let serverCopies=0;g.backupCopy=async(source,parent,name)=>{assert.equal(source.id,file.id);serverCopies++;return g.put(parent,name,g.items.get(source.id).blob);};
+ const result=await repo.optimizeMedia('interventions');assert.equal(serverCopies,1);assert.equal(result.changed,true);assert.equal(hasInlineImages(await g.json(file.id)),false);
+});
+test('a server-side safety copy that differs from the original prevents every source replacement',async()=>{
+ const rows=[record(1)],{g,file,repo}=await fixture(rows);g.backupCopy=async(source,parent,name)=>g.put(parent,name,new Blob([JSON.stringify([{...rows[0],notes:'Different copy'}])]));
+ await assert.rejects(repo.optimizeMedia('interventions'),/diffère/);assert.equal(g.writes,0);assert.deepEqual(await g.json(file.id),rows);
+});

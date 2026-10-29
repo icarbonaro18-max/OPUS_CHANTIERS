@@ -1,0 +1,13 @@
+{
+  "version": "3.6.8-calendrier",
+  "tests": 587,
+  "passed": 587,
+  "failed": 0,
+  "productionObserved": "3.6.7-onedrive-15jours",
+  "productionOptimizationAttempt": "Failed with Microsoft malformed request; no source replacement confirmed",
+  "sourceInterventionsBytes": 44011107,
+  "sourceVisitsBytes": 17964199,
+  "safetyCopiesCreatedAndMetadataHashesMatched": true,
+  "newCodePublished": false,
+  "newOptimizationExecutedInProduction": false
+}
