@@ -115,3 +115,18 @@ test('token failures are not treated as retryable HTTP transport failures',async
  let calls=0,fetches=0;const graph=new Graph(async()=>{calls++;throw Object.assign(Error('temporarily unavailable'),{code:'token_unavailable',status:0});},async()=>{fetches++;return new Response('{}');});
  await assert.rejects(graph.request('/me'),e=>e.code==='token_unavailable');assert.equal(calls,1);assert.equal(fetches,0);
 });
+
+test('lost JSON save response is reconciled by reading back without repeating the PUT',async()=>{
+ const calls=[],wanted=[{id:'a',notes:'Saved'}];
+ const g=new Graph(async()=>'token',async(url,options)=>{calls.push(options.method||'GET');if(options.method==='PUT')throw Object.assign(Error('lost response'),{name:'TimeoutError'});return new Response('{}');});g.drive={id:'drive'};
+ g.named=async()=>({id:'file',eTag:'confirmed'});g.json=async()=>wanted;
+ const saved=await g.writeJson('root','interventions.json',wanted,{'If-Match':'old'});assert.equal(saved.eTag,'confirmed');assert.deepEqual(calls,['PUT']);
+});
+test('different remote content after a lost response does not produce a false save confirmation',async()=>{
+ let puts=0;const g=new Graph(async()=>'token',async()=>{puts++;throw Object.assign(Error('lost response'),{name:'TimeoutError'});});g.drive={id:'drive'};g.named=async()=>({id:'file',eTag:'new'});g.json=async()=>[{id:'a',notes:'Other device'}];
+ await assert.rejects(g.writeJson('root','interventions.json',[{id:'a',notes:'Local'}]),e=>e.code==='network_timeout');assert.equal(puts,1);
+});
+test('a definitive permission rejection is not converted into a readback success',async()=>{
+ const g=new Graph(async()=>'token',async()=>new Response('{}',{status:403}));g.drive={id:'drive'};g.named=async()=>{assert.fail('must not read back an access rejection');};
+ await assert.rejects(g.writeJson('root','x.json',{}),e=>e.status===403);
+});

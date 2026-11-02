@@ -1,0 +1,17 @@
+{
+  "version": "3.6.9",
+  "tests": {
+    "passed": 603,
+    "failed": 0,
+    "command": "npm test",
+    "includes_build": true
+  },
+  "clean_dependency_install": true,
+  "production_code_deployed": false,
+  "production_data_optimization_confirmed": {
+    "interventions_bytes": 301731,
+    "visits_bytes": 126808
+  },
+  "local_draft_INT_2026_0081_validated": false,
+  "physical_per_record_storage_implemented": false
+}

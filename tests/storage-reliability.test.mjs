@@ -84,3 +84,35 @@ test('a server-side safety copy that differs from the original prevents every so
  const rows=[record(1)],{g,file,repo}=await fixture(rows);g.backupCopy=async(source,parent,name)=>g.put(parent,name,new Blob([JSON.stringify([{...rows[0],notes:'Different copy'}])]));
  await assert.rejects(repo.optimizeMedia('interventions'),/diffère/);assert.equal(g.writes,0);assert.deepEqual(await g.json(file.id),rows);
 });
+
+test('a legacy collection cannot grow again when a photo is saved without running manual optimization',async()=>{
+ const rows=[record(1)],{g,file,repo}=await fixture(rows);const loaded=await repo.load('interventions');loaded.push(record(2));await repo.save('interventions',loaded);
+ const stored=await g.json(file.id);assert.equal(hasInlineImages(stored),false);assert.equal(stored.length,2);assert.deepEqual(await repo.hydrateRecord(stored[1]),rows.length&&record(2));
+});
+test('repository merges a definitive conflict on a different record using the new ETag',async()=>{
+ const rows=[{id:'a',number:'INT-1',notes:'A'},{id:'b',number:'INT-2',notes:'B'}],{g,file,repo}=await fixture(rows);const loaded=await repo.load('interventions');loaded[0].notes='Local';
+ g.beforeWrite=async()=>{g.beforeWrite=null;const remote=g.items.get(file.id);remote.blob=new Blob([JSON.stringify([rows[0],{...rows[1],notes:'Remote'}])]);remote.eTag='other-device';};
+ await repo.save('interventions',loaded);const saved=await g.json(file.id);assert.equal(saved[0].notes,'Local');assert.equal(saved[1].notes,'Remote');assert.equal(loaded[1].notes,'Remote');assert.equal(g.writes,1);
+});
+test('repository does not overwrite two different edits of the same record',async()=>{
+ const {g,file,repo}=await fixture([{id:'a',notes:'Original'}]);const loaded=await repo.load('interventions');loaded[0].notes='Local';
+ g.beforeWrite=async()=>{g.beforeWrite=null;const remote=g.items.get(file.id);remote.blob=new Blob([JSON.stringify([{id:'a',notes:'Remote'}])]);remote.eTag='other';};
+ await assert.rejects(repo.save('interventions',loaded),e=>e.status===412);assert.equal((await g.json(file.id))[0].notes,'Remote');assert.equal(loaded[0].notes,'Local');assert.equal(g.writes,0);
+});
+
+test('overlapping saves in the same session cannot silently overwrite each other and the guard releases',async()=>{
+ const {repo}=await fixture([{id:'a'}]);let finish;repo.saveConfirmed=async()=>new Promise(resolve=>{finish=resolve;});
+ const first=repo.save('interventions',[{id:'a',notes:'First'}]);await assert.rejects(repo.save('interventions',[{id:'a',notes:'Second'}]),/déjà en cours/);finish({id:'ok'});await first;
+ repo.saveConfirmed=async()=>({id:'next'});assert.equal((await repo.save('interventions',[])).id,'next');
+});
+test('a second concurrent edit during conflict recovery stops safely without another retry',async()=>{
+ const {g,file,repo}=await fixture([{id:'a',notes:'A'},{id:'b',notes:'B'}]);const loaded=await repo.load('interventions');loaded[0].notes='Local';let attempts=0;
+ g.beforeWrite=async()=>{const remote=g.items.get(file.id);remote.blob=new Blob([JSON.stringify([{id:'a',notes:'A'},{id:'b',notes:'Remote '+(++attempts)}])]);remote.eTag='concurrent-'+attempts;};
+ await assert.rejects(repo.save('interventions',loaded),e=>e.status===412);assert.equal(attempts,2);assert.equal(g.writes,0);assert.equal((await g.json(file.id))[1].notes,'Remote 2');
+});
+
+test('a refresh while photos are packed cannot lend its new ETag to stale record edits',async()=>{
+ const {g,file,repo}=await fixture([{id:'a',notes:'Original'}]);const loaded=await repo.load('interventions');loaded[0].notes='Local';
+ repo.mediaJournal.pack=async rows=>{const remote=g.items.get(file.id);remote.blob=new Blob([JSON.stringify([{id:'a',notes:'Other tablet'}])]);remote.eTag='new';repo.versions.set('interventions','new');return rows;};
+ await assert.rejects(repo.save('interventions',loaded),e=>e.status===412);assert.equal(g.writes,0);assert.equal((await g.json(file.id))[0].notes,'Other tablet');
+});

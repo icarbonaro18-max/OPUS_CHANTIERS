@@ -1,0 +1,9 @@
+OPUS CHANTIERS 3.6.9 — FIABILITE DES SAUVEGARDES
+
+1. Décompressez cette archive.
+2. Déposez son contenu à la racine du dépôt OPUS_CHANTIERS : les fichiers app.js, package.json, etc. remplacent ceux de même nom ; les dossiers lib/, tests/, docs/ sont conservés comme dossiers. Ne déposez pas l'archive ZIP elle-même dans le dépôt.
+3. Attendez que le déploiement Vercel soit réussi.
+4. Actualisez OPUS et vérifiez Version 3.6.9. Ne supprimez pas le cache ni les brouillons.
+5. Reprenez INT-2026-0081, sans créer une seconde intervention. Sa validation doit encore être vérifiée sur l'appareil où se trouve le brouillon.
+
+L'allègement des données est déjà effectué dans Microsoft 365. Cette archive apporte les protections supplémentaires. Le détail, les preuves et les limites figurent dans docs/FIABILITE_3_6_9.md.
