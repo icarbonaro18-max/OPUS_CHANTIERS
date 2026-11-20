@@ -928,7 +928,7 @@ async function pdfPrepareJpeg(dataUrl,opts={}){
 }
 class OpusPdfDocument{
   constructor(){
-    this.objects=[null];this.pageIds=[];
+    this.objects=[null];this.pageIds=[];this.jpegObjects=new WeakMap();
     this.catalogId=this.reserve();this.pagesId=this.reserve();
     this.fontRegularId=this.addAscii('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
     this.fontBoldId=this.addAscii('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
@@ -942,7 +942,8 @@ class OpusPdfDocument{
     const tail=pdfAscii('\nendstream');return this.add(pdfConcat([head,bytes,tail]));
   }
   addJpeg(image){
-    return this.addStream(`/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`,image.bytes);
+    if(this.jpegObjects.has(image))return this.jpegObjects.get(image);
+    const objectId=this.addStream(`/Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`,image.bytes);this.jpegObjects.set(image,objectId);return objectId;
   }
   addPage(page){
     const content=pdfAscii(page.commands.join('\n'));

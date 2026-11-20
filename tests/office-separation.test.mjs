@@ -1,3 +1,5 @@
+import {openOfficeReports} from '../lib/office-reports.js';
+import {mountReviewInterventions} from '../lib/completion-workflow.js';
 import test from 'node:test';import assert from 'node:assert/strict';import {JSDOM} from 'jsdom';
 import {OpsUI} from '../lib/ops-ui.js';
 import {finishAndExport} from '../lib/intervention-flow.js';
@@ -19,11 +21,11 @@ test('project reports stay out of independent tabs, counts and material targets 
  assert.equal(document.querySelector('#intList [data-int]').dataset.int,'i');document.getElementById('intCompleted').click();assert.equal(document.querySelector('#intList [data-int]').dataset.int,'done');
  assert.deepEqual(interventionTargets(ui.data.interventions).map(t=>t.linkId),['i']);assert.equal(JSON.stringify(ui.data.interventions),before);
 });
-test('office includes finished projects once per affair, independent invoices and all three report kinds',async()=>{
+test('office excludes invoice controls while report browser still opens all three report kinds',async()=>{
  const {ui,navigation}=setup();await ui.renderOffice();
- assert.deepEqual([...document.querySelectorAll('[data-project-invoice]')].map(b=>b.dataset.projectInvoice),['p','arch']);
- assert.deepEqual([...document.querySelectorAll('[data-intervention-invoice]')].map(b=>b.dataset.interventionInvoice),['done']);
- assert.equal(document.getElementById('officeReportList'),null);document.getElementById('openOfficeReports').click();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,4);
+ assert.equal(document.querySelectorAll('[data-project-invoice]').length,0);
+ assert.equal(document.querySelectorAll('[data-intervention-invoice]').length,0);
+ assert.equal(document.getElementById('officeReportList'),null);openOfficeReports(ui);assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,4);
  const type=document.getElementById('officeReportType');type.value='project';type.onchange();assert.equal(document.querySelectorAll('#officeReportList [data-open-report]').length,2);
  const search=document.getElementById('officeReportSearch');search.value='0011';search.oninput();assert.equal(document.querySelectorAll('#officeReportList [data-open-report-pdf]').length,1);
  await document.querySelector('[data-open-report-pdf]').onclick();assert.equal(navigation[0].location.href,'https://opuselec.sharepoint.com/pdf/pdf');
@@ -38,15 +40,15 @@ test('project invoice persisted without losing tracking or changing reports; fai
  const before=JSON.stringify(ui.data.projectTracking);ui.repo.save=async()=>{throw Error('hors ligne');};await assert.rejects(invoiceProject(ui,projects[2]),/hors ligne/);assert.equal(JSON.stringify(ui.data.projectTracking),before);
  ui.c.isAdmin=()=>false;await assert.rejects(invoiceProject(ui,projects[2]),/administrateur/);await ui.renderOffice();assert.equal(document.getElementById('officePage').children.length,0);
 });
-test('independent final report completes intervention, switches tab and appears in office without moving a project',async()=>{
+test('independent final report completes intervention, switches tab and appears in control without moving a project',async()=>{
  const {ui}=setup();const x=ui.data.interventions[0];let archives=0,moves=0;ui.c.ensureProjectReview=async()=>moves++;ui.saveInterventionPackage=async()=>{archives++;return {folder:'INTERVENTIONS'};};
  await ui.openIntervention(x.id);document.getElementById('aStart').value='2026-09-19T08:00';document.getElementById('aWork').value='Dépannage terminé';await finishAndExport(ui,x,{ask:async()=> '2026-09-19T10:00'});
  assert.equal(x.status,'terminee');assert.equal(ui.interventionView,'completed');assert.equal(archives,1);assert.equal(moves,0);assert.equal(ui.data.interventions.length,5);
- await ui.renderOffice();assert.ok(document.querySelector('[data-intervention-invoice="i"]'));assert.equal(officeReports(ui.data).filter(r=>r.kind==='project').length,2);
+ await ui.renderOffice();assert.equal(document.querySelector('[data-intervention-invoice]'),null);const review=document.createElement('div');document.body.append(review);mountReviewInterventions(ui,review,'03');assert.ok(review.querySelector('[data-review-finish="i"]'));assert.equal(officeReports(ui.data).filter(r=>r.kind==='project').length,2);
 });
-test('office project link changes section; new calendar targets exclude reports while legacy appointment remains editable',async()=>{
+test('office does not duplicate project billing links; new calendar targets exclude reports while legacy appointment remains editable',async()=>{
  const {ui}=setup();const actions=[];ui.show=async section=>actions.push(section);ui.c.openProject=async id=>actions.push(id);await ui.renderOffice();
- await document.querySelector('[data-office-project="p"]').onclick();assert.deepEqual(actions,['projects','p']);
+ assert.equal(document.querySelector('[data-office-project]'),null);assert.deepEqual(actions,[]);
  await ui.planEvent();assert.equal(document.querySelector('#eventLink option[value="intervention|report"]'),null);assert.ok(document.querySelector('#eventLink option[value="intervention|i"]'));
  const e={id:'e',kind:'intervention',linkId:'report',start:'2026-09-19T08:00',end:'2026-09-19T10:00',teamIds:[]};const before=JSON.stringify(e);await ui.planEvent(e);assert.equal(document.getElementById('eventLink').value,'intervention|report');assert.equal(JSON.stringify(e),before);
 });

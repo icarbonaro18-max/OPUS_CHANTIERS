@@ -1,0 +1,27 @@
+OPUS CHANTIERS — 3.6.10 — 20 novembre 2026
+
+INSTALLATION
+Cette archive est un correctif de la version 3.6.9 publiée. Elle ne contient pas l’application complète.
+Extraire son contenu et remplacer les fichiers correspondants À LA RACINE du dépôt GitHub existant, en conservant les sous-dossiers lib, modules, tests et docs. Ne pas créer un dossier fichiers ou un dossier 3.6.10 dans le dépôt.
+Vercel doit exécuter npm run build et publier _site comme précédemment.
+Après déploiement réussi, appliquer la mise à jour proposée par OPUS, hors formulaire en cours. Vérifier l’affichage Version 3.6.10 sur chaque appareil. Ne pas effacer les données du navigateur ou désinstaller OPUS pour changer de version.
+Le correctif n’est pas publié automatiquement par cette livraison.
+
+UTILISATION
+Calendrier : vue Semaine du lundi au samedi pour tous les comptes. Les techniciens conservent leurs droits de consultation.
+Chantiers : Faire un rapport OU Terminer sans rapport → À contrôler. Un rapport de suivi quotidien ne clôture pas tout le chantier.
+Interventions : Faire un rapport OU Terminer sans rapport. Les interventions indépendantes terminées sont également affichées dans Chantiers → À contrôler.
+À contrôler : vérifier la facture dans Mediabat et le rapport ou les attestations, s’ils sont nécessaires, puis Contrôlé → Terminé. Aucun numéro de facture OPUS n’est nécessaire. Les interventions contrôlées apparaissent aussi dans Chantiers → Terminés et dans l’onglet Terminées des interventions.
+Annuler / supprimer : bouton sur la carte d’une intervention encore en cours. L’intervention non réalisée est retirée de la liste active et classée Annulées avec son motif. Le rendez-vous lié est libéré. Aucun rapport de fin, aucune facturation et aucun contrôle de travaux terminés ne sont créés. Des heures réelles déjà enregistrées empêchent une annulation automatique : faire vérifier la fiche au bureau.
+Visites : Devis effectué enregistre le numéro sur la fiche courante et clôture la visite, sans rouvrir un dossier déjà converti en chantier. Un rafraîchissement antérieur à la sauvegarde ne peut plus restaurer l’ancien état local.
+Bureau : heures et fiches de paie, clients et personnel. Suivi des factures dans Mediabat. Les anciens numéros déjà enregistrés ne sont pas supprimés.
+
+DONNÉES ET ARCHIVAGE
+La fin sans rapport conserve les notes et les photos existantes. Elle ne crée ni PDF fictif, ni horaires réalisés à partir des heures prévues. Les horaires réels restent à saisir/vérifier pour la paie.
+Une intervention en attente de contrôle ne disparaît plus par le nettoyage automatique. Après contrôle, le délai de 15 jours et les vérifications OneDrive s’appliquent. Une intervention explicitement terminée sans rapport peut être conservée par une archive JSON complète, avec ses photos et pièces existantes, sans exiger un PDF inexistant.
+Les fichiers et brouillons réels n’ont pas été modifiés lors de la préparation de ce correctif.
+
+VALIDATION
+Installation neuve des dépendances réussie. Compilation réussie. Suite finale : 626 tests, 626 réussites, aucun échec ni test ignoré.
+Vérifications réalisées sur une copie du code, avec services Microsoft simulés. La validation en production des comptes Microsoft et des appareils reste à faire après publication.
+Les tests historiques de purge des anciennes révisions ont été adaptés à la conservation permanente déjà en place. Le test du PDF BAES a révélé une recopie du même logo, corrigée par réutilisation de son objet image.

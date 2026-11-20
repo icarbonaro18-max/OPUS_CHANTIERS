@@ -29,12 +29,12 @@ class Drive{
 }
 async function fixture(){
  const graph=new Drive(),pdf=graph.put('originals','original.pdf',new Blob(['%PDF-1.4 rapport complet'],{type:'application/pdf'})),image=graph.put('originals','photo.jpg',new Blob(['photo bytes'],{type:'image/jpeg'})),order=graph.put('orders','ordre.pdf',new Blob(['%PDF-1.4 ordre service'],{type:'application/pdf'}));
- const row={id:'int-one',number:'INT-2026-0080',clientName:'Client',status:'terminee',completedAt:completed,completionRecordedAt:completed,updatedAt:completed,pdfSavedAt:completed,pdfFileId:pdf.id,pdfName:pdf.name,photos:[{dataUrl:{$opusAsset:{id:image.id,mime:'image/jpeg'}}}],reportItems:[{title:'Essai',observation:'Réalisé'}],sourceDocuments:[{id:order.id,name:order.name}],actualStart:'2026-10-28T08:00:00Z',actualEnd:completed,teamIds:['worker'],pauseHours:0,billingAgreement:'Accord client',invoiceNumber:'FACT-80',invoicedAt:completed};
+ const row={id:'int-one',number:'INT-2026-0080',clientName:'Client',status:'terminee',archivedAt:completed,completedAt:completed,completionRecordedAt:completed,updatedAt:completed,pdfSavedAt:completed,pdfFileId:pdf.id,pdfName:pdf.name,photos:[{dataUrl:{$opusAsset:{id:image.id,mime:'image/jpeg'}}}],reportItems:[{title:'Essai',observation:'Réalisé'}],sourceDocuments:[{id:order.id,name:order.name}],actualStart:'2026-10-28T08:00:00Z',actualEnd:completed,teamIds:['worker'],pauseHours:0,billingAgreement:'Accord client',invoiceNumber:'FACT-80',invoicedAt:completed};
  const system=await graph.folder('root','_OPUS_SYSTEM'),file=graph.put(system.id,'interventions.json',new Blob([JSON.stringify([row,{id:'active',status:'planifiee',photos:['keep']}])])),repo=new OpsRepository(graph);await repo.init();
  return {graph,repo,row,file,pdf,image,order};
 }
 test('the intervention clock is exactly 15 days after confirmed completion and recent edits defer it',()=>{
- const row={id:'one',status:'terminee',completionRecordedAt:completed};assert.equal(interventionArchiveDue(row,new Date(+now-1)),false);assert.equal(interventionArchiveDue(row,now),true);
+ const row={id:'one',status:'terminee',archivedAt:completed,completionRecordedAt:completed};assert.equal(interventionArchiveDue(row,new Date(+now-1)),false);assert.equal(interventionArchiveDue(row,now),true);
  assert.equal(interventionArchiveDue({...row,updatedAt:new Date(+now-1000).toISOString()},now),false);assert.equal(interventionArchiveDue({...row,projectId:'project'},now),false);assert.equal(interventionArchiveDue({...row,status:'en_cours'},now),false);assert.equal(interventionArchiveDue({id:'old',status:'terminee'},now),false);
  assert.equal(interventionArchiveDue(row,now,[{kind:'intervention',linkId:'one',end:new Date(+now+1000).toISOString()}]),false);
 });
@@ -101,4 +101,12 @@ test('completed visits are compacted in one batch only after their preparation a
  await f.graph.writeJson(f.repo.root.id,'visits.json',[visit]);f.graph.writes=0;
  const result=await archiveCompletedInterventions(f.graph,f.repo,{kind:'visits',now});assert.equal(result.archived,1);assert.equal(f.graph.writes,1);
  const rows=await f.repo.load('visits',[]);assert.equal(rows[0].quoteNumber,'D-80');assert.equal(rows[0].photos,undefined);const manifest=await verifyPermanentArchive(f.graph,rows[0].permanentArchive);assert.ok(manifest.files.some(file=>file.sourceId===f.order.id));assert.equal((await f.repo.load('interventions',[]))[0].appArchivedAt,undefined);
+});
+
+test('completed and controlled no-report case archives verified JSON and existing photos without requiring a fabricated PDF',async()=>{
+ const f=await fixture();f.row.completionWithoutReport=true;f.row.completionMode='withoutReport';delete f.row.pdfFileId;delete f.row.pdfSavedAt;delete f.row.pdfName;
+ await f.graph.writeJson(f.repo.root.id,'interventions.json',[f.row]);await f.repo.load('interventions');
+ const result=await archiveCompletedInterventions(f.graph,f.repo,{now});assert.equal(result.archived,1);
+ const rows=await f.repo.load('interventions'),saved=rows[0];assert.ok(saved.appArchivedAt);assert.equal(saved.completionWithoutReport,true);assert.equal(saved.permanentArchive.pdfId,null);
+ const archive=saved.permanentArchive,manifest=await verifyPermanentArchive(f.graph,archive),snapshot=await f.graph.json(archive.snapshotId);assert.ok(manifest.files.length>=2);assert.equal(snapshot.record.completionWithoutReport,true);assert.match(snapshot.record.photos[0].dataUrl,/^data:image\/jpeg;base64,/);
 });

@@ -75,7 +75,7 @@ test('three PDFs attach to existing IDs, preserve original bytes, photos, team, 
  for(const e of entries)assert.ok([...c.uploaded.values()].some(p=>p.bytes===('%PDF-1.7 original bytes with photos '+e.number)));
  assert.deepEqual(ui.data.visits,[{id:'visit'}]);assert.deepEqual(ui.data.events,[{id:'event'}]);
  await ui.renderInterventions();assert.equal(document.querySelectorAll('[data-int]').length,1);document.getElementById('intArchived').click();assert.equal(document.querySelectorAll('[data-int]').length,3);
- await ui.renderOffice();assert.ok(document.querySelector('[data-intervention-invoice="id6"]'));assert.ok(document.querySelector('[data-intervention-invoice="id10"]'));assert.equal(document.querySelector('[data-intervention-invoice="id7"]'),null);
+ await ui.renderOffice();assert.equal(document.querySelector('[data-intervention-invoice="id6"]'),null);assert.equal(ui.data.interventions.find(x=>x.id==='id6').status,'terminee');assert.equal(document.querySelector('[data-intervention-invoice="id10"]'),null);assert.equal(document.querySelector('[data-intervention-invoice="id7"]'),null);
  assert.equal(officeReports(ui.data).length,3);
  await importAndArchive(ui,entries);assert.equal(c.uploaded.size,3);assert.equal(c.rows[0].reportImports.length,1);assert.equal(c.rows.length,4);
 });
