@@ -1,0 +1,21 @@
+OPUS CHANTIERS — 3.6.12 — 20 novembre 2026
+
+FERMETURES D’ENTREPRISE VISIBLES
+Les périodes de fermeture déjà enregistrées dans OPUS sont maintenant dessinées dans la grille horaire des vues Jour et Semaine, pour tous les comptes.
+Bande rouge hachurée et mot FERMETURE en diagonale : 08:00–17:00 du lundi au jeudi, 08:00–16:00 le vendredi. Si une période enregistrée couvre un samedi ou dimanche consulté, la bande y est également affichée de 08:00 à 17:00.
+Un badge rouge FERMETURE figure sous la date. La vue Mois conserve la mention de fermeture et utilise un fond rouge hachuré.
+Les rendez-vous existants restent visibles au-dessus de la bande. Aucun rendez-vous fictif, aucune heure travaillée, aucune absence individuelle n’est créé par cet affichage.
+La période de fermeture est lue depuis les dates Du / Au inclus déjà enregistrées dans la gestion du personnel. Aucune date réelle n’a été ajoutée, modifiée ou déduite du seul « 25 » cité dans la demande.
+Cause corrigée : la nouvelle grille horaire utilisait les rendez-vous et les jours d’école, mais omettait le dessin des fermetures, déjà prises en compte par le contrôle des affectations.
+
+INSTALLATION
+Correctif cumulatif depuis la 3.6.9, incluant les améliorations 3.6.10 et le bouton de mise à jour 3.6.11.
+Extraire l’archive et remplacer les fichiers correspondants À LA RACINE du dépôt GitHub existant, en conservant lib, modules, tests et docs. Ne pas ajouter de dossier intermédiaire.
+Vercel doit compiler avec npm run build et publier _site. Après déploiement réussi, utiliser Mise à jour / Appliquer la mise à jour, puis vérifier Version 3.6.12.
+Si un formulaire ou aperçu est ouvert, conserver son brouillon et le fermer avant l’application de la mise à jour. Ne pas effacer le stockage du navigateur.
+Cette livraison ne publie pas automatiquement le site et ne modifie aucune donnée métier.
+
+VALIDATION
+Compilation réussie et 635 tests réussis, aucun échec, aucun test ignoré.
+Dont cinq tests de fermeture : dates inclusives, horaires du vendredi, visibilité administrateur/technicien sans rendez-vous, conservation des événements, échappement du libellé et continuité de la vue Mois / des contrôles d’affectation.
+Tests sur une copie du code avec services simulés. Le déploiement et la présence de la période de fermeture réelle sur les appareils restent à vérifier après publication.

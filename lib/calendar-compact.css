@@ -80,3 +80,13 @@ body.calendarScreen #mainNav button{min-width:0;padding:6px 10px;font-size:12px;
 /* Undo stays next to the calendar views, outside the settings drawer. */
 #calendarPage #calendarUndo[disabled]{opacity:.45;cursor:default}
 @media(max-width:600px){#calendarPage .calendarUndoLabel{display:none}}
+
+/* Company closures are a shared background, not appointments or worked hours. */
+#calendarPage .calendarClosureBand{position:absolute;left:0;right:0;z-index:1;pointer-events:none;overflow:hidden;box-sizing:border-box;border:2px solid #b91c1c;background:repeating-linear-gradient(135deg,#fecacae6 0px,#fecacae6 9px,#fca5a5e6 9px,#fca5a5e6 13px);color:#7f1d1d}
+#calendarPage .calendarClosureStamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-65deg);font-size:clamp(15px,2vw,25px);font-weight:900;letter-spacing:2px;white-space:nowrap;text-shadow:0 1px #fff9}
+#calendarPage .calendarClosureBand small{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:10px;font-weight:800}
+#calendarPage .calendarClosureBadge{color:#991b1b;background:#fee2e2;border:1px solid #b91c1c;border-radius:4px;padding:2px;font-size:9px;font-weight:900;overflow-wrap:anywhere}
+#calendarPage .hourDay .hourEvent{z-index:2}
+#calendarPage[data-view=day] .calendarClosureStamp{transform:translate(-50%,-50%) rotate(-20deg);font-size:clamp(22px,5vw,42px)}
+#calendarPage .monthCell.opusClosed{background:repeating-linear-gradient(135deg,#fff1f2 0px,#fff1f2 10px,#fee2e2 10px,#fee2e2 14px);border-color:#b91c1c}
+#calendarPage .monthCell .opusClosure{color:#991b1b;font-weight:900}

@@ -24,3 +24,30 @@ test('the waiting worker refuses to switch while another OPUS window is open',as
  clients=[clients[0],{id:'unrelated',url:'https://other.example/'}];handlers.message(event);await pending;assert.equal(activations,1);assert.equal(messages.at(-1).ok,true);
  handlers.message({...event,source:{id:'attacker',url:'https://other.example/'},waitUntil:()=>assert.fail('Foreign origin cannot activate')});
 });
+
+test('persistent header button checks for updates without closing or reloading an up-to-date app',async t=>{
+ const dom=new JSDOM('<body><header><div class="topright"></div></header></body>');t.after(()=>dom.window.close());let updates=0,reloads=0;
+ const registration={waiting:null,addEventListener(){},update:async()=>updates++},nav={serviceWorker:{controller:{},addEventListener(){},register:async()=>registration}};
+ await installAppUpdates({navigator:nav,document:dom.window.document,location:{reload:()=>reloads++}});
+ const b=dom.window.document.getElementById('appUpdateButton');assert.equal(b.parentElement.className,'topright');assert.equal(b.hidden,false);await b.onclick();assert.equal(updates,2);assert.equal(reloads,0);assert.match(dom.window.document.getElementById('appUpdate').textContent,/à jour/);assert.equal(b.disabled,false);
+});
+
+test('checking discovers a waiting update and activates it on the same explicit click without clearing draft storage',async t=>{
+ const dom=new JSDOM('<body></body>',{url:'https://opus.test'});t.after(()=>dom.window.close());dom.window.localStorage.setItem('saved-draft','rapport');
+ const previous=globalThis.MessageChannel;globalThis.MessageChannel=class{constructor(){this.port1={close(){}};this.port2={reply:data=>queueMicrotask(()=>this.port1.onmessage({data}))};}};t.after(()=>globalThis.MessageChannel=previous);
+ let updates=0,sends=0,checks=0,reloads=0;const listeners={};const registration={waiting:null,addEventListener(){},update:async()=>{if(++updates===2)registration.waiting={postMessage:(_,ports)=>{sends++;ports[0].reply({ok:true});}};}};
+ await installAppUpdates({navigator:{serviceWorker:{controller:{},addEventListener:(k,v)=>listeners[k]=v,register:async()=>registration}},document:dom.window.document,location:{reload:()=>reloads++},beforeUpdate:async()=>checks++});
+ await dom.window.document.getElementById('appUpdateButton').onclick();assert.equal(checks,1);assert.equal(sends,1);assert.equal(reloads,0);listeners.controllerchange();assert.equal(reloads,1);listeners.controllerchange();assert.equal(reloads,1);assert.equal(dom.window.localStorage.getItem('saved-draft'),'rapport');
+});
+
+test('a failed network check leaves a visible retry button and does not reload or delete local work',async t=>{
+ const dom=new JSDOM('<body></body>');t.after(()=>dom.window.close());let fail=false,reloads=0;const registration={waiting:null,addEventListener(){},update:async()=>{if(fail)throw Error('Réseau indisponible');}};
+ await installAppUpdates({navigator:{serviceWorker:{controller:{},addEventListener(){},register:async()=>registration}},document:dom.window.document,location:{reload:()=>reloads++}});fail=true;const b=dom.window.document.getElementById('appUpdateButton');await b.onclick();assert.match(dom.window.document.getElementById('appUpdate').textContent,/Réseau/);assert.equal(b.disabled,false);assert.equal(reloads,0);fail=false;await b.onclick();assert.match(dom.window.document.getElementById('appUpdate').textContent,/à jour/);
+});
+
+test('a newly downloaded build makes the header action available while the app stays open',async t=>{
+ const dom=new JSDOM('<body><header><div class="topright"></div></header></body>');t.after(()=>dom.window.close());const listeners={},state={};let reloads=0;
+ const worker={state:'installing',addEventListener:(k,v)=>state[k]=v};const registration={waiting:null,installing:null,addEventListener:(k,v)=>listeners[k]=v,update:async()=>{}};
+ await installAppUpdates({navigator:{serviceWorker:{controller:{},addEventListener(){},register:async()=>registration}},document:dom.window.document,location:{reload:()=>reloads++}});
+ registration.installing=worker;listeners.updatefound();const b=dom.window.document.getElementById('appUpdateButton');assert.equal(b.disabled,true);registration.waiting=worker;worker.state='installed';state.statechange();assert.equal(b.textContent,'Appliquer la mise à jour');assert.equal(b.disabled,false);assert.equal(reloads,0);
+});
