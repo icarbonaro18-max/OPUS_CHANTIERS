@@ -40,6 +40,19 @@ test('retention cannot hide a case still waiting for control; no-report completi
  const x={id:'i',status:'terminee',completedAt:'2026-09-01'};assert.equal(reportArchiveDue(x,new Date('2026-11-20')),false);assert.equal(reportArchiveDue({...x,archivedAt:'2026-09-02'},new Date('2026-11-20')),true);assert.equal(officeReports({interventions:[{...x,completionWithoutReport:true}]}).length,0);
 });
 
+test('a visit completed without a report remains available for a pending quote',()=>{
+ const now=new Date('2026-11-26');
+ const visit={id:'v',status:'terminee',completedAt:'2026-10-01',needsQuote:true,completionWithoutReport:true};
+ const due=record=>reportArchiveDue(record,now,[],'visits');
+ assert.equal(due(visit),false);
+ assert.equal(due({...visit,pdfFileId:'report',completionWithoutReport:false}),false);
+ assert.equal(due({...visit,needsQuote:false}),true);
+ assert.equal(due({...visit,quoteNumber:'D-42',updatedAt:'2026-11-25'}),false);
+ assert.equal(due({...visit,quoteNumber:'D-42',updatedAt:'2026-11-01'}),true);
+ assert.equal(officeReports({visits:[visit]}).length,0);
+ assert.equal(officeReports({visits:[{...visit,visitTasks:[{room:'Entrée',need:'Relevé de prises'}]}]}).length,1);
+});
+
 test('cancellation button on the card removes an unperformed case and its appointment without requesting invoice or report',async t=>{
  const {mountInterventionCompletion,showCancellation}=await import('../lib/completion-workflow.js');const ui=setup(t),dialog=document.getElementById('modal');dialog.close=()=>dialog.removeAttribute('open');ui.c.modal=(_,html)=>{dialog.innerHTML=html;dialog.setAttribute('open','');};ui.renderInterventions=async()=>{};
  const x={id:'i',status:'a_planifier',notes:'client sans retour'};ui.data.interventions=[x];ui.data.events=[{id:'e',kind:'intervention',linkId:'i',start:'2026-11-21T08:00:00Z',end:'2026-11-21T09:00:00Z',teamIds:[]}];

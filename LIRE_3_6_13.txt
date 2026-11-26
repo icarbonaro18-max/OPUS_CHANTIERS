@@ -1,0 +1,13 @@
+OPUS CHANTIERS 3.6.13
+Visites et devis · 26 novembre 2026
+
+Utiliser le nouveau parcours
+
+1. Dans Visites / Devis, ouvrir « Nouvelle visite ». Indiquer le client, le lieu et les horaires. Sous « Composer l’équipe », cocher la ou les personnes qui feront la visite, puis appuyer sur « Enregistrer la visite ». Le calendrier partagé reprend l’équipe choisie. Il reste possible d’affecter une équipe plus tard.
+2. Après le rendez-vous, appuyer sur « Visite effectuée » sur la carte ou depuis le rendez-vous du calendrier. La visite apparaît dans « Visites terminées ». On peut garder les photos sur le téléphone. Pour joindre des photos ou rédiger un rapport, utiliser « Fiche et rapport facultatif ».
+3. Au bureau, quand le devis est établi, appuyer sur « Devis effectué », saisir le numéro et valider. La visite apparaît dans « Devis effectués ».
+
+Installer sur la version 3.6.12
+
+Extraire cette archive et déposer son contenu à la racine du dépôt GitHub OPUS CHANTIERS existant, en conservant les sous-dossiers. Valider les modifications et attendre que Vercel termine le déploiement.
+Dans l’application, appuyer sur « Mise à jour », puis sur « Appliquer la mise à jour » si proposé. Vérifier que la version affichée est 3.6.13.

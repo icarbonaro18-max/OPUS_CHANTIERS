@@ -1,0 +1,33 @@
+{
+  "version": "3.6.13",
+  "base_version": "3.6.12",
+  "date": "2026-11-26",
+  "build": "passed",
+  "tests": {
+    "total": 647,
+    "passed": 647,
+    "failed": 0,
+    "skipped": 0
+  },
+  "parcours_mobile": "Chromium 390x844 Europe/Paris, création avec équipe, calendrier filtré, visite effectuée, devis, vérification après rechargement",
+  "environnement": "Données fictives et services Microsoft simulés",
+  "deployed": false,
+  "files": {
+    "LIRE_3_6_13.txt": "648d74570257667d5dafc8783d7e366e4f0f14e106eb961baf0e33e1cd88d15e",
+    "app.js": "85365dc6e15751015dc240792e1147a4d23c31a38c19a4df08279c59fd3b93f0",
+    "config.json": "1a1fdbd5b7760e89eadee46e1183dc14df5cbe561cbb52780510f9a3b0dcb57b",
+    "lib/calendar-preview.js": "6cc75958eca37295093a7359e8bf7c7fe92fe0e8d0935d7ca1f64c992d2d6787",
+    "lib/intervention-archive.js": "1a4b82096cf23de25fd1d9a10d217ed52e29d64ef81623799567eedcea787888",
+    "lib/ops-ui.js": "4f4552764dd53205794ff0228b14926588448a7a462ebc4ee04e80c482677131",
+    "lib/record-edit-state.js": "d09bf0e638cd1752cbc752d9d704024d91d0d63807ed92e3245de0a832beb93f",
+    "lib/setup-recovery.js": "f297436d0b5e8735c26a4ab145e29418c323ca9c6e100ee230f8d74c49eadea8",
+    "lib/visit-followup.js": "d651c91f4bdf3c084483820554349e96600e155797b4b1de364139c1570e12a2",
+    "lib/work-records.js": "ce12ffaf2e37c876d70c29f0e549e7aaf9088b4d00707dfbf40842b0aa46382d",
+    "package-lock.json": "656675a4de4a2145c7110a84000c3eb63befcc5cb433a90c09408c51139c146c",
+    "package.json": "f31478995b8d7cc5775786417619b64239493e9e5fd3142d7f4f5b5541530e6b",
+    "sw.js": "0637a613bc4638e15055b90d2ca5dd0524337cf3603395363646c33f9392c0a7",
+    "tests/appointment-corrections.test.mjs": "03559d1f8c229655b6be4eb830c4ec476280aeca677b114009b7d6072eeeabac",
+    "tests/completion-workflow.test.mjs": "f94d73b1f1d43b3bd16340c91edb244a3d7fce56d9b03ce1ede5ff162a2359eb",
+    "tests/visit-performed.test.mjs": "82f131e60571eaaf973ddf81240e5fed7a03e958b1041dd87cb251000e19fecc"
+  }
+}

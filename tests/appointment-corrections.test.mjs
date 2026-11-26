@@ -129,3 +129,85 @@ for(const kind of ['visits','interventions'])test('correcting a stale '+kind+' f
  const {ui,record,state}=setup(t,kind);if(kind==='visits')await ui.editVisit(record);else await ui.editIntervention(record);const form=document.getElementById(kind==='visits'?'visitForm':'intForm');document.getElementById(kind==='visits'?'vContactPhone':'iSitePhone').value='0612345678';
  ui.c.prepareAppointmentWrite=async()=>{ui.data[kind]=[];};await assert.rejects(form.onsubmit({preventDefault(){}}),/plus disponible/);assert.deepEqual(state.writes,[]);assert.equal(ui.data[kind].length,0);assert.equal(record.sitePhone,'0612345670');
 });
+
+const submitVisit=()=>document.getElementById('visitForm').onsubmit({preventDefault(){}});
+async function openNewVisit(ui,{dated=true}={}){
+ await ui.editVisit();
+ document.getElementById('vClient').value='c0';
+ document.getElementById('vMeetingAddress').value='7 rue du rendez-vous';
+ if(dated){
+  document.getElementById('vStart').value='2026-10-29T09:00';
+  document.getElementById('vEnd').value='2026-10-29T10:00';
+  document.getElementById('vEnd').dispatchEvent(new Event('change'));
+ }
+}
+
+test('new visit saves the selected team on one shared appointment from the creation form',async t=>{
+ const {ui,state}=setup(t);state.admin=false;state.manager=true;
+ ui.data.people.push({id:'q',name:'Sofia',active:true,weeklyTarget:39});
+ await openNewVisit(ui);
+ const choices=[...document.querySelectorAll('#vTeam [name=teamPerson]')];
+ assert.equal(choices.length,2);assert.ok(choices.every(input=>!input.disabled));
+ choices.forEach(input=>input.checked=true);
+ await submitVisit();
+ const visit=ui.data.visits.at(-1),events=ui.data.events.filter(event=>event.linkId===visit.id);
+ assert.deepEqual(visit.teamIds,['p','q']);assert.equal(visit.status,'planifiee');assert.equal(events.length,1);
+ assert.deepEqual(events[0].teamIds,visit.teamIds);assert.equal(events[0].teamSize,2);
+ assert.equal(events[0].start,visit.plannedStart);assert.equal(events[0].end,visit.plannedEnd);
+ assert.deepEqual(state.writes,['visits','events']);
+});
+
+test('a new visit can keep its team while awaiting a date, or keep a dated slot unassigned',async t=>{
+ const {ui}=setup(t);await openNewVisit(ui,{dated:false});
+ document.querySelector('#vTeam [value=p]').checked=true;await submitVisit();
+ const undated=ui.data.visits.at(-1);assert.equal(undated.status,'a_planifier');assert.deepEqual(undated.teamIds,['p']);assert.ok(!ui.data.events.some(event=>event.linkId===undated.id));
+ await openNewVisit(ui);await submitVisit();
+ const dated=ui.data.visits.at(-1);assert.equal(dated.status,'planifiee');assert.deepEqual(ui.data.events.find(event=>event.linkId===dated.id).teamIds,[]);
+});
+
+test('changing only the team updates the original calendar appointment and its headcount',async t=>{
+ const {ui,record}=setup(t);ui.data.people.push({id:'q',name:'Sofia',active:true,weeklyTarget:39});
+ await ui.editVisit(record);assert.ok(document.querySelector('#vTeam [value=p]').checked);
+ document.querySelector('#vTeam [value=q]').checked=true;
+ await submitVisit();
+ assert.deepEqual(record.teamIds,['p','q']);assert.equal(record.teamSize,2);
+ assert.equal(ui.data.events.length,1);assert.equal(ui.data.events[0].id,'appointment');
+ assert.deepEqual(ui.data.events[0].teamIds,record.teamIds);assert.equal(ui.data.events[0].teamSize,2);
+});
+
+test('visit creation rechecks availability and role on the refreshed schedule before saving',async t=>{
+ const {ui,state}=setup(t);await openNewVisit(ui);document.querySelector('#vTeam [value=p]').checked=true;
+ ui.c.prepareAppointmentWrite=async()=>{ui.data.people[0].absences=[{type:'conge',start:'2026-10-29',end:'2026-10-29'}];};
+ await assert.rejects(submitVisit(),/Congés|indisponible/);assert.deepEqual(state.writes,[]);
+ ui.c.prepareAppointmentWrite=async()=>{state.admin=false;};
+ await assert.rejects(submitVisit(),/réservée/);assert.deepEqual(state.writes,[]);
+});
+
+test('recovering an interrupted visit creation confirms the missing event once and restores the selected team',async t=>{
+ const {ui,state}=setup(t),store=new Map();
+ ui.c.localStore={set:async(key,value)=>store.set(key,structuredClone(value)),remove:async key=>store.delete(key)};
+ await openNewVisit(ui);document.querySelector('#vTeam [value=p]').checked=true;
+ state.fail=async key=>{if(key==='events')throw Error('Connexion interrompue');};
+ await assert.rejects(submitVisit(),/confirmer son affectation/);
+ const visit=ui.data.visits.at(-1),draft=store.get('setup-draft:visits:'+visit.id);
+ assert.ok(draft.planningPending);assert.ok(!ui.data.events.some(event=>event.linkId===visit.id));
+ state.fail=null;ui.data.visits=structuredClone(state.remote.visits);
+ await ui.editVisit(ui.data.visits.at(-1),null,draft);
+ assert.ok(document.querySelector('#vTeam [value=p]').checked);
+ await submitVisit();
+ assert.equal(ui.data.visits.filter(row=>row.id===visit.id).length,1);
+ const events=ui.data.events.filter(row=>row.linkId===visit.id);assert.equal(events.length,1);assert.deepEqual(events[0].teamIds,['p']);assert.equal(store.size,0);
+});
+
+test('assigning a team from an open visit form respects a newer appointment date',async t=>{
+ const {ui,record,state}=setup(t);ui.data.people.push({id:'q',name:'Sofia',active:true,weeklyTarget:39});
+ await ui.editVisit(record);document.querySelector('#vTeam [value=q]').checked=true;
+ const start=new Date('2026-10-29T14:00').toISOString(),end=new Date('2026-10-29T15:00').toISOString();
+ ui.c.prepareAppointmentWrite=async()=>{
+  ui.data.visits=[{...record,plannedStart:start,plannedEnd:end}];
+  ui.data.events=[{...ui.data.events[0],start,end}];
+ };
+ await submitVisit();assert.equal(state.remote.visits[0].plannedStart,start);
+ assert.equal(state.remote.events[0].start,start);assert.equal(state.remote.events[0].end,end);
+ assert.deepEqual(state.remote.events[0].teamIds,['p','q']);
+});
