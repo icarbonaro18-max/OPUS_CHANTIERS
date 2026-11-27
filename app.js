@@ -23,6 +23,7 @@ import {importSheet} from './lib/chantier-sheet.js';
 import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
+import {INSERM_1261_PROJECT_ID,INSERM_1261_SITES,preparerAttestation1261} from './lib/inserm-baes-1261.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const APP_VERSION='3.6.14-fiabilite';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
@@ -615,6 +616,32 @@ async function openDocument(item){const cacheKey='file:'+item.id+':'+(item.eTag|
  try{b=await g.bytes(item.id);if(b.size<25*1024*1024)await store.set(cacheKey,b);}catch(e){b=await store.get(cacheKey);if(!b)throw e;}
  await showBlob(b,item.name,item.file?.mimeType);
 }
+
+async function initializeInserm1261Records({fromCache=false}={}){
+ // Ne créer d'attestations que sur le bon chantier, avec un devis confirmé.
+ if(fromCache||!isAdmin()||!navigator.onLine||!selected||selected.id!==INSERM_1261_PROJECT_ID)return;
+ if(!/^(0*1261)$/.test(String(meta?.devis||'').trim())&&!/\b1261\b/.test(selected.name||''))return;
+ const projectId=selected.id;
+ const key='inserm1261-seeded:'+projectId;
+ if(await store.get(key))return;
+ const source=catalog.projects.find(p=>/001240|(?<!\d)1240(?!\d)/.test(p.name||'')&&/INSERM/i.test(p.name||''));
+ if(!source){console.warn('INSERM 1240 absent de la liste des chantiers. Aucune création réalisée.');return;}
+ const existing=new Set(attRecords.map(x=>x.ref));
+ for(const spec of INSERM_1261_SITES){
+  if(selected?.id!==projectId)return;
+  const ref='BAES-001261-'+spec.slug;
+  if(existing.has(ref))continue;
+  const sourceData=await journal.load(source.id,'attestations',spec.sourceRecordId,null,{hydrate:false});
+  if(!sourceData?.data?.state)throw Error('Le contrôle initial '+spec.sourceRef+' est introuvable dans Microsoft 365.');
+  const payload=preparerAttestation1261(spec,sourceData.data,user.displayName);
+  const recordId='baes1261_'+spec.slug.toLowerCase().replace(/[^a-z0-9]/g,'');
+  await queueSave(projectId,'attestations',recordId,payload,[]);
+  attRecords.push({id:recordId,...payload,heads:[],pending:true});
+  existing.add(ref);
+ }
+ if(INSERM_1261_SITES.every(s=>existing.has('BAES-001261-'+s.slug)))await store.set(key,true);
+}
+
 async function attestations(){
  let dirs=[],fromCache=false;const cachedDirs=await store.get('attdirs:'+selected.id);
  try{const result=await loadWithLocalFallback(async()=>{const d=await journal.directory(selected.id,'attestations',null);return d?(await g.children(d.id)).filter(x=>x.folder):[];},cachedDirs);dirs=result.value;fromCache=!result.remote;if(result.remote)await store.set('attdirs:'+selected.id,dirs);}catch(e){dirs=cachedDirs||[];fromCache=true;}
@@ -622,6 +649,7 @@ async function attestations(){
  const loadedRecords=await Promise.all(dirs.map(async d=>{const cached=await store.get('attmeta:'+selected.id+':'+d.name)||await store.get('att:'+selected.id+':'+d.name);try{const result=fromCache&&cached?{value:cached,remote:false}:await loadWithLocalFallback(()=>journal.load(selected.id,'attestations',d.name,null,{hydrate:false}),cached);if(result.remote)await store.set('attmeta:'+selected.id+':'+d.name,result.value);return result.value?.data?{id:d.name,...result.value.data,heads:result.value.heads,loaded:result.value,remote:true}:null;}catch{return null;}}));
  attRecords=loadedRecords.filter(Boolean);
  for(const{value:d}of await store.all(`draft:${selected.id}:attestations:`)){const idx=attRecords.findIndex(a=>a.id===d.recordId);const v={id:d.recordId,...d.payload,heads:d.parents.map(revision=>({revision})),pending:true,remote:idx>=0};if(idx>=0)attRecords[idx]={...attRecords[idx],...v};else attRecords.push(v);}
+ try{await initializeInserm1261Records({fromCache});}catch(error){console.warn('Préparation des attestations INSERM 1261',error);toast('Préparation INSERM 1261 incomplète : '+(error.message||error));}
  $('tabContent').innerHTML=`<section class="panel"><h2>Attestations de ce chantier</h2><p class="muted">Chaque dossier conserve ses propres formulaires, photos et signatures.</p>${attRecords.map(a=>`<div class="row"><div><h3>${esc(a.ref||a.id)} · ${esc(modules[a.moduleKey]?.title||a.moduleKey)}</h3>${a.context?.siteName?`<p><strong>${esc(a.context.siteName)}</strong><br>${esc(a.state?.adresse||a.context?.adresse||'')}<br>Technicien : ${esc(a.state?.technicien||a.context?.technician||'À renseigner')}</p>`:''}<p>${esc(a.pending?user.displayName:a.loaded?.doc?.author?.name||a.authorName||'')} · ${dateTime(a.updatedAt)}</p><span class="chip ${a.pending||a.heads.length>1?'warn':''}">${a.heads.length>1?'Versions à vérifier':a.pending?'Envoi en attente':'Enregistrée au chantier'}</span></div><div class="actionRow"><button data-att="${esc(a.id)}">Ouvrir</button>${a.remote?`<button data-history="${esc(a.id)}" class="secondary">Versions</button>`:''}<button data-delete-att="${esc(a.id)}" class="danger">Supprimer</button></div></div>`).join('')||'<p class="muted">Aucune attestation créée pour le moment.</p>'}</section><section class="panel"><h2>Créer une attestation</h2><p class="muted">Tous les formulaires sont disponibles. Ne remplissez que ceux utiles à ce chantier.</p><div class="moduleGrid">${Object.entries(modules).map(([key,m])=>`<article class="moduleCard"><div class="moduleMark" style="background:${m.color}">${esc(m.badge)}</div><h3>${esc(m.title)}</h3><p>${esc(m.subtitle)}</p><button data-new-att="${key}" class="secondary">+ Créer</button></article>`).join('')}</div></section>`;
  document.querySelectorAll('[data-new-att]').forEach(b=>b.onclick=()=>openAttestation(null,b.dataset.newAtt).catch(err));
  document.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>openAttestation(b.dataset.att).catch(err));
