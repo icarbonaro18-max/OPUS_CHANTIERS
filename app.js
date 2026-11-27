@@ -25,7 +25,7 @@ import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 import {INSERM_1261_PROJECT_ID,INSERM_1261_SITES,preparerAttestation1261} from './lib/inserm-baes-1261.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.14-fiabilite';
+const APP_VERSION='3.6.15-baes-1261';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
