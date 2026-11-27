@@ -86,6 +86,11 @@ button{touch-action:manipulation}
 .photo-preview img{width:100%;height:100%;object-fit:contain;display:none;position:absolute;inset:0}
 .photo-empty{text-align:center;color:#7a8794;padding:20px;line-height:1.4}
 .photo-empty strong{display:block;font-size:14px;color:#56616d;margin-bottom:5px}
+.photo-before{border-bottom:1px solid var(--line);padding:10px;background:#f3f6f9}
+.photo-before strong{display:block;font-size:12px;margin-bottom:5px;color:#155083}
+.photo-before img{max-width:100%;height:150px;object-fit:contain;background:white;border:1px solid #d8e2eb;border-radius:5px}
+.b1261-context{background:#f6f9fd;border:1px solid #cbddeb;padding:10px;border-radius:8px;font-size:12px;white-space:pre-line}
+.b1261-context b{color:#123f6f}
 .photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .photo-actions label,.photo-actions button{border:0;border-radius:8px;padding:10px 8px;text-align:center;font-weight:700;font-size:12px;cursor:pointer;min-height:42px}
 .camera-btn{background:var(--blue);color:white}
@@ -405,7 +410,7 @@ function createBaesCard(data={}){
   const id=data.id||uid();
   const index=container.children.length+1;
   const card=document.createElement('section');
-  card.className='baes-card'; card.dataset.id=id; card.dataset.photo=data.photo||'';
+  card.className='baes-card'; card.dataset.id=id; card.dataset.photo=data.photo||''; card.dataset.photoAvant=typeof data.photoAvant==='string'?data.photoAvant:'';card.dataset.historique=data.historique||'';card.dataset.interventionPrevue=data.interventionPrevue||'';
   card.innerHTML=`
    <div class="baes-head">
     <div class="baes-number">BAES n° <span class="number-label">${index}</span></div>
@@ -428,11 +433,14 @@ function createBaesCard(data={}){
        <div class="test-row header"><div class="test-label">Vérification</div><div>OK</div><div>N.OK</div><div>N.T</div><div>S.O</div></div>
        ${testDefinitions.map(([key,label,def])=>`<div class="test-row"><div class="test-label">${label}</div>${radioOptions(`${id}_${key}`,data.tests?.[key]||'')}</div>`).join('')}
       </div>
-      <div class="field"><label>Observation propre à ce BAES</label><textarea class="f-observation" placeholder="Défaut constaté, action réalisée, réserve, remplacement à prévoir...">${esc(data.observation||'')}</textarea></div>
+      <div class="b1261-context" ${!data.historique?'hidden':''}><b>Constat initial (devis 1240) :</b> ${esc(data.historique||'')}<div><b>Travaux prévus :</b> ${esc(data.interventionPrevue||'')}</div></div>
+      <div class="grid grid-2" ${!data.historique?'hidden':''}><div class="field"><label>Date du remplacement</label><input class="f-date-remplacement" type="date" value="${esc(data.dateRemplacement||'')}"></div><div class="field"><label>Technicien ayant effectué les travaux</label><input class="f-tech-remplacement" value="${esc(data.technicienRemplacement||'')}"></div></div>
+      <div class="field"><label>Observation propre à ce BAES (après travaux)</label><textarea class="f-observation" placeholder="Essais réalisés, référence installée, intervention réalisée...">${esc(data.observation||'')}</textarea></div>
       <div class="field"><label>Résultat global du BAES</label><select class="f-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-title">PHOTO DU BAES n° <span class="photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Photo du BAES avant travaux"></div>
+      <div class="photo-title">APRÈS TRAVAUX · PHOTO DU BAES n° <span class="photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo BAES">
        <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
@@ -455,7 +463,7 @@ function createRemoteCard(data={}){
   const id=data.id||remoteUid();
   const index=remoteContainer.children.length+1;
   const card=document.createElement('section');
-  card.className='baes-card remote-card';card.dataset.id=id;card.dataset.photo=data.photo||'';
+  card.className='baes-card remote-card';card.dataset.id=id;card.dataset.photo=data.photo||'';card.dataset.photoAvant=typeof data.photoAvant==='string'?data.photoAvant:'';card.dataset.historique=data.historique||'';card.dataset.interventionPrevue=data.interventionPrevue||'';
   card.innerHTML=`
    <div class="baes-head">
     <div class="baes-number">Télécommande n° <span class="remote-number-label">${index}</span></div>
@@ -477,11 +485,14 @@ function createRemoteCard(data={}){
        <div class="test-row header"><div class="test-label">Vérification</div><div>OK</div><div>N.OK</div><div>N.T</div><div>S.O</div></div>
        ${remoteTestDefinitions.map(([key,label])=>`<div class="test-row"><div class="test-label">${label}</div>${radioOptions(`${id}_${key}`,data.tests?.[key]||'')}</div>`).join('')}
       </div>
-      <div class="field"><label>Observation propre à cette télécommande</label><textarea class="r-observation" placeholder="Défaut constaté, zone concernée, action réalisée, réserve...">${esc(data.observation||'')}</textarea></div>
+      <div class="b1261-context" ${!data.historique?'hidden':''}><b>Constat initial :</b> ${esc(data.historique||'')}<div><b>Travaux prévus :</b> ${esc(data.interventionPrevue||'')}</div></div>
+      <div class="grid grid-2" ${!data.historique?'hidden':''}><div class="field"><label>Date du remplacement / essai</label><input class="r-date-remplacement" type="date" value="${esc(data.dateRemplacement||'')}"></div><div class="field"><label>Technicien</label><input class="r-tech-remplacement" value="${esc(data.technicienRemplacement||'')}"></div></div>
+      <div class="field"><label>Observation propre à cette télécommande (après travaux)</label><textarea class="r-observation" placeholder="Essai réalisé, référence du nouvel équipement...">${esc(data.observation||'')}</textarea></div>
       <div class="field"><label>Résultat global de la télécommande</label><select class="r-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-title">PHOTO DE LA TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Télécommande avant travaux"></div>
+      <div class="photo-title">APRÈS TRAVAUX · PHOTO DE LA TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo télécommande BAES">
        <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
@@ -507,7 +518,7 @@ function collectRemoteCard(card){
   const tests={};remoteTestDefinitions.forEach(([key])=>tests[key]=checkedValue(`${card.dataset.id}_${key}`,card));
   return {id:card.dataset.id,repere:card.querySelector('.r-repere').value,emplacement:card.querySelector('.r-emplacement').value,
     reference:card.querySelector('.r-reference').value,type:card.querySelector('.r-type').value,zone:card.querySelector('.r-zone').value,
-    tests,observation:card.querySelector('.r-observation').value,resultat:card.querySelector('.r-resultat').value,photo:card.dataset.photo||''};
+    tests,observation:card.querySelector('.r-observation').value,resultat:card.querySelector('.r-resultat').value,photo:card.dataset.photo||'',photoAvant:card.dataset.photoAvant||'',historique:card.dataset.historique||'',interventionPrevue:card.dataset.interventionPrevue||'',dateRemplacement:card.querySelector('.r-date-remplacement')?.value||'',technicienRemplacement:card.querySelector('.r-tech-remplacement')?.value||''};
 }
 
 function renumberCards(){
@@ -517,6 +528,9 @@ function renumberCards(){
   });
 }
 function updatePhotoPreview(card){
+  const before=card.querySelector('.photo-before');
+  const beforeImg=card.querySelector('.photo-before-img');
+  if(before&&beforeImg&&card.dataset.photoAvant){before.hidden=false;beforeImg.src=card.dataset.photoAvant;}
   const img=card.querySelector('.photo-img'); const empty=card.querySelector('.photo-empty');
   if(card.dataset.photo){img.src=card.dataset.photo;img.style.display='block';empty.style.display='none';}
   else{img.removeAttribute('src');img.style.display='none';empty.style.display='block';}
@@ -538,7 +552,7 @@ function collectCard(card){
   return {id:card.dataset.id,repere:card.querySelector('.f-repere').value,emplacement:card.querySelector('.f-emplacement').value,
     reference:card.querySelector('.f-reference').value,type:card.querySelector('.f-type').value,statut:card.querySelector('.f-statut').value,
     duree:card.querySelector('.f-duree').value,tests,observation:card.querySelector('.f-observation').value,
-    resultat:card.querySelector('.f-resultat').value,photo:card.dataset.photo||''};
+    resultat:card.querySelector('.f-resultat').value,photo:card.dataset.photo||'',photoAvant:card.dataset.photoAvant||'',historique:card.dataset.historique||'',interventionPrevue:card.dataset.interventionPrevue||'',dateRemplacement:card.querySelector('.f-date-remplacement')?.value||'',technicienRemplacement:card.querySelector('.f-tech-remplacement')?.value||''};
 }
 function collectState(){
   return {dateControle:val('dateControle'),reference:val('reference'),technicien:val('technicien'),client:val('client'),adresse:val('adresse'),operation:val('operation'),
@@ -1042,10 +1056,10 @@ async function buildAutonomousPdf(state){
     state.signature?pdfPrepareJpeg(state.signature,{maxW:900,maxH:300,quality:.85}).catch(()=>null):Promise.resolve(null)
   ]);
   const logos={opus,rge};
-  const photos=[];
-  for(const b of state.baes){photos.push(b.photo?await pdfPrepareJpeg(b.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
-  const remotePhotos=[];
-  for(const t of (state.telecommandes||[])){remotePhotos.push(t.photo?await pdfPrepareJpeg(t.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
+  const photos=[],photosAvant=[];
+  for(const b of state.baes){photos.push(b.photo?await pdfPrepareJpeg(b.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);photosAvant.push(b.photoAvant?await pdfPrepareJpeg(b.photoAvant,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
+  const remotePhotos=[],remoteAvant=[];
+  for(const t of (state.telecommandes||[])){remotePhotos.push(t.photo?await pdfPrepareJpeg(t.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);remoteAvant.push(t.photoAvant?await pdfPrepareJpeg(t.photoAvant,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
 
   // Page de synthèse
   let page=new OpusPdfPage(doc);await pdfHeader(page,'VÉRIFICATION BAES','Blocs autonomes d’éclairage de sécurité et télécommandes',logos);
@@ -1136,8 +1150,8 @@ async function buildAutonomousPdf(state){
       pdfSection(page,'CONTRÔLES RÉALISÉS',10,62,132);let yy=70;remoteTestDefinitions.forEach(([key,label])=>{pdfCheckRow(page,label,t.tests?.[key],10,yy,132);yy+=9;});
       pdfSection(page,'OBSERVATION PROPRE À CETTE TÉLÉCOMMANDE',10,110,132);page.rect(10,118,132,54,{fill:[255,255,255],stroke:[195,205,214]});page.text(t.observation||'Aucune observation.',14,122,{size:7.8,maxWidth:124,maxLines:11,lineHeight:4.2});
       page.text('Résultat global',10,177,{size:8,bold:true,color:[11,74,139]});pdfStatusBox(page,t.resultat,40,174,50);
-      pdfSection(page,`PHOTO ASSOCIÉE À LA TÉLÉCOMMANDE N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
-      if(remotePhotos[i])await page.image(remotePhotos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
+      pdfSection(page,remoteAvant[i]?'PHOTOS DE LA TÉLÉCOMMANDE - AVANT / APRÈS':`PHOTO ASSOCIÉE À LA TÉLÉCOMMANDE N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
+      if(remoteAvant[i]){page.text('AVANT',166,72,{size:7.5,bold:true});page.text('APRÈS',237,72,{size:7.5,bold:true});await page.image(remoteAvant[i],151,80,64,95);if(remotePhotos[i])await page.image(remotePhotos[i],219,80,64,95);else page.text('Photo à réaliser',250,116,{size:8,align:'center'});}else if(remotePhotos[i])await page.image(remotePhotos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
       pdfFooter(page,`Télécommande ${i+1}/${remotes.length} - Dossier ${state.reference||'non renseigné'}`);doc.addPage(page);
     }
   }
@@ -1149,10 +1163,10 @@ async function buildAutonomousPdf(state){
     pdfField(page,"Statut de l'appareil",b.statut,10,45,66,13);pdfField(page,'Autonomie constatée',b.duree,80,45,68,13);pdfField(page,'Résultat global',b.resultat,152,45,90,13);pdfField(page,'Photo jointe',b.photo?'Oui':'Non',246,45,41,13);
     pdfSection(page,'CONTRÔLES RÉALISÉS',10,62,132);
     let yy=70;testDefinitions.forEach(([key,label])=>{pdfCheckRow(page,label,b.tests?.[key],10,yy,132);yy+=9;});
-    pdfSection(page,'OBSERVATION PROPRE À CE BAES',10,119,132);page.rect(10,127,132,45,{fill:[255,255,255],stroke:[195,205,214]});page.text(b.observation||'Aucune observation.',14,131,{size:7.8,maxWidth:124,maxLines:9,lineHeight:4.2});
+    pdfSection(page,'OBSERVATION PROPRE À CE BAES',10,119,132);page.rect(10,127,132,45,{fill:[255,255,255],stroke:[195,205,214]});const obsTexte=b.historique?`Avant : ${b.historique} | Prévu : ${b.interventionPrevue||'Remise en état'} | Après : ${b.observation||'À compléter'}${b.dateRemplacement?' | Date : '+b.dateRemplacement:''}${b.technicienRemplacement?' | Technicien : '+b.technicienRemplacement:''}`:(b.observation||'Aucune observation.');page.text(obsTexte,14,131,{size:7.8,maxWidth:124,maxLines:9,lineHeight:4.2});
     page.text('Résultat global',10,177,{size:8,bold:true,color:[11,74,139]});pdfStatusBox(page,b.resultat,40,174,50);
-    pdfSection(page,`PHOTO ASSOCIÉE AU BAES N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
-    if(photos[i])await page.image(photos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
+    pdfSection(page,photosAvant[i]?'PHOTOS DU BAES - AVANT / APRÈS':`PHOTO ASSOCIÉE AU BAES N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
+    if(photosAvant[i]){page.text('AVANT',166,72,{size:7.5,bold:true});page.text('APRÈS',237,72,{size:7.5,bold:true});await page.image(photosAvant[i],151,80,64,95);if(photos[i])await page.image(photos[i],219,80,64,95);else page.text('Photo à réaliser',250,116,{size:8,align:'center'});}else if(photos[i])await page.image(photos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
     pdfFooter(page,`BAES ${i+1}/${state.baes.length} - Dossier ${state.reference||'non renseigné'}`);doc.addPage(page);
   }
   return doc.build();
