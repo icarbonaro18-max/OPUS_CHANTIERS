@@ -620,7 +620,7 @@ async function openDocument(item){const cacheKey='file:'+item.id+':'+(item.eTag|
 async function initializeInserm1261Records({fromCache=false}={}){
  // Ne créer d'attestations que sur le bon chantier, avec un devis confirmé.
  if(fromCache||!isAdmin()||!navigator.onLine||!selected||selected.id!==INSERM_1261_PROJECT_ID)return;
- if(!/^(0*1261)$/.test(String(meta?.devis||'').trim())&&!/\b1261\b/.test(selected.name||''))return;
+ if(!/^(0*1261)$/.test(String(meta?.devis||'').trim())&&!/(?:^|\D)0*1261(?!\d)/.test(selected.name||''))return;
  const projectId=selected.id;
  const key='inserm1261-seeded:'+projectId;
  if(await store.get(key))return;
