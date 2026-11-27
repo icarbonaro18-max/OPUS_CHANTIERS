@@ -88,7 +88,7 @@ button{touch-action:manipulation}
 .photo-empty strong{display:block;font-size:14px;color:#56616d;margin-bottom:5px}
 .photo-before{border-bottom:1px solid var(--line);padding:10px;background:#f3f6f9}
 .photo-before strong{display:block;font-size:12px;margin-bottom:5px;color:#155083}
-.photo-before img{max-width:100%;height:150px;object-fit:contain;background:white;border:1px solid #d8e2eb;border-radius:5px}
+.photo-before img{display:block;width:100%;height:220px;object-fit:contain;background:white;border:1px solid #d8e2eb;border-radius:5px;margin-top:6px}
 .b1261-context{background:#f6f9fd;border:1px solid #cbddeb;padding:10px;border-radius:8px;font-size:12px;white-space:pre-line}
 .b1261-context b{color:#123f6f}
 .photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border-top:1px solid var(--line)}
@@ -439,11 +439,11 @@ function createBaesCard(data={}){
       <div class="field"><label>Résultat global du BAES</label><select class="f-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Photo du BAES avant travaux"></div>
-      <div class="photo-title">APRÈS TRAVAUX · PHOTO DU BAES n° <span class="photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>PHOTO AVANT TRAVAUX · Contrôle 1240</strong><img class="photo-before-img" alt="Photo du BAES avant travaux"></div>
+      <div class="photo-title">PHOTO APRÈS TRAVAUX · BAES n° <span class="photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo BAES">
-       <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
+       <div class="photo-empty"><strong>Aucune photo</strong>Pas encore de photo après travaux. Prendre une photo ou choisir une image.</div>
       </div>
       <div class="photo-actions">
        <label class="camera-btn">Prendre une photo<input class="camera-input" type="file" accept="image/*" capture="environment"></label>
@@ -491,8 +491,8 @@ function createRemoteCard(data={}){
       <div class="field"><label>Résultat global de la télécommande</label><select class="r-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Télécommande avant travaux"></div>
-      <div class="photo-title">APRÈS TRAVAUX · PHOTO DE LA TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>PHOTO AVANT TRAVAUX · Contrôle 1240</strong><img class="photo-before-img" alt="Télécommande avant travaux"></div>
+      <div class="photo-title">PHOTO APRÈS TRAVAUX · TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo télécommande BAES">
        <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
