@@ -1,7 +1,7 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
 const BUILD=null;
-const CACHE=PREFIX+'3.6.15-baes-1261'+(BUILD?':'+BUILD.hash:'');
+const CACHE=PREFIX+'3.6.16-baes-photos'+(BUILD?':'+BUILD.hash:'');
 const SCOPE=new URL(self.registration.scope);
 
 async function matchesRevision(response,expected){
