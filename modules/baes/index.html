@@ -86,6 +86,11 @@ button{touch-action:manipulation}
 .photo-preview img{width:100%;height:100%;object-fit:contain;display:none;position:absolute;inset:0}
 .photo-empty{text-align:center;color:#7a8794;padding:20px;line-height:1.4}
 .photo-empty strong{display:block;font-size:14px;color:#56616d;margin-bottom:5px}
+.photo-before{border-bottom:1px solid var(--line);padding:10px;background:#f3f6f9}
+.photo-before strong{display:block;font-size:12px;margin-bottom:5px;color:#155083}
+.photo-before img{max-width:100%;height:150px;object-fit:contain;background:white;border:1px solid #d8e2eb;border-radius:5px}
+.b1261-context{background:#f6f9fd;border:1px solid #cbddeb;padding:10px;border-radius:8px;font-size:12px;white-space:pre-line}
+.b1261-context b{color:#123f6f}
 .photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .photo-actions label,.photo-actions button{border:0;border-radius:8px;padding:10px 8px;text-align:center;font-weight:700;font-size:12px;cursor:pointer;min-height:42px}
 .camera-btn{background:var(--blue);color:white}
@@ -405,7 +410,7 @@ function createBaesCard(data={}){
   const id=data.id||uid();
   const index=container.children.length+1;
   const card=document.createElement('section');
-  card.className='baes-card'; card.dataset.id=id; card.dataset.photo=data.photo||'';
+  card.className='baes-card'; card.dataset.id=id; card.dataset.photo=data.photo||''; card.dataset.photoAvant=typeof data.photoAvant==='string'?data.photoAvant:'';card.dataset.historique=data.historique||'';card.dataset.interventionPrevue=data.interventionPrevue||'';card.dataset.historique=data.historique||'';card.dataset.interventionPrevue=data.interventionPrevue||'';
   card.innerHTML=`
    <div class="baes-head">
     <div class="baes-number">BAES n° <span class="number-label">${index}</span></div>
@@ -428,11 +433,14 @@ function createBaesCard(data={}){
        <div class="test-row header"><div class="test-label">Vérification</div><div>OK</div><div>N.OK</div><div>N.T</div><div>S.O</div></div>
        ${testDefinitions.map(([key,label,def])=>`<div class="test-row"><div class="test-label">${label}</div>${radioOptions(`${id}_${key}`,data.tests?.[key]||'')}</div>`).join('')}
       </div>
-      <div class="field"><label>Observation propre à ce BAES</label><textarea class="f-observation" placeholder="Défaut constaté, action réalisée, réserve, remplacement à prévoir...">${esc(data.observation||'')}</textarea></div>
+      <div class="b1261-context" ${!data.historique?'hidden':''}><b>Constat initial (devis 1240) :</b> ${esc(data.historique||'')}<div><b>Travaux prévus :</b> ${esc(data.interventionPrevue||'')}</div></div>
+      <div class="grid grid-2" ${!data.historique?'hidden':''}><div class="field"><label>Date du remplacement</label><input class="f-date-remplacement" type="date" value="${esc(data.dateRemplacement||'')}"></div><div class="field"><label>Technicien ayant effectué les travaux</label><input class="f-tech-remplacement" value="${esc(data.technicienRemplacement||'')}"></div></div>
+      <div class="field"><label>Observation propre à ce BAES (après travaux)</label><textarea class="f-observation" placeholder="Essais réalisés, référence installée, intervention réalisée...">${esc(data.observation||'')}</textarea></div>
       <div class="field"><label>Résultat global du BAES</label><select class="f-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-title">PHOTO DU BAES n° <span class="photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Photo du BAES avant travaux"></div>
+      <div class="photo-title">APRÈS TRAVAUX · PHOTO DU BAES n° <span class="photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo BAES">
        <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
@@ -455,7 +463,7 @@ function createRemoteCard(data={}){
   const id=data.id||remoteUid();
   const index=remoteContainer.children.length+1;
   const card=document.createElement('section');
-  card.className='baes-card remote-card';card.dataset.id=id;card.dataset.photo=data.photo||'';
+  card.className='baes-card remote-card';card.dataset.id=id;card.dataset.photo=data.photo||'';card.dataset.photoAvant=typeof data.photoAvant==='string'?data.photoAvant:'';
   card.innerHTML=`
    <div class="baes-head">
     <div class="baes-number">Télécommande n° <span class="remote-number-label">${index}</span></div>
@@ -477,11 +485,14 @@ function createRemoteCard(data={}){
        <div class="test-row header"><div class="test-label">Vérification</div><div>OK</div><div>N.OK</div><div>N.T</div><div>S.O</div></div>
        ${remoteTestDefinitions.map(([key,label])=>`<div class="test-row"><div class="test-label">${label}</div>${radioOptions(`${id}_${key}`,data.tests?.[key]||'')}</div>`).join('')}
       </div>
-      <div class="field"><label>Observation propre à cette télécommande</label><textarea class="r-observation" placeholder="Défaut constaté, zone concernée, action réalisée, réserve...">${esc(data.observation||'')}</textarea></div>
+      <div class="b1261-context" ${!data.historique?'hidden':''}><b>Constat initial :</b> ${esc(data.historique||'')}<div><b>Travaux prévus :</b> ${esc(data.interventionPrevue||'')}</div></div>
+      <div class="grid grid-2" ${!data.historique?'hidden':''}><div class="field"><label>Date du remplacement / essai</label><input class="r-date-remplacement" type="date" value="${esc(data.dateRemplacement||'')}"></div><div class="field"><label>Technicien</label><input class="r-tech-remplacement" value="${esc(data.technicienRemplacement||'')}"></div></div>
+      <div class="field"><label>Observation propre à cette télécommande (après travaux)</label><textarea class="r-observation" placeholder="Essai réalisé, référence du nouvel équipement...">${esc(data.observation||'')}</textarea></div>
       <div class="field"><label>Résultat global de la télécommande</label><select class="r-resultat"><option value="">À renseigner</option>${['Conforme','Non conforme','À revoir / réserve','Non testé'].map(x=>`<option ${data.resultat===x?'selected':''}>${x}</option>`).join('')}</select></div>
      </div>
      <div class="photo-panel">
-      <div class="photo-title">PHOTO DE LA TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
+      <div class="photo-before" ${!data.photoAvant?'hidden':''}><strong>AVANT TRAVAUX · Photo du contrôle 1240</strong><img class="photo-before-img" alt="Télécommande avant travaux"></div>
+      <div class="photo-title">APRÈS TRAVAUX · PHOTO DE LA TÉLÉCOMMANDE n° <span class="remote-photo-number">${index}</span></div>
       <div class="photo-preview">
        <img class="photo-img" alt="Photo télécommande BAES">
        <div class="photo-empty"><strong>Aucune photo</strong>Prendre une photo ou choisir une image.</div>
@@ -507,7 +518,7 @@ function collectRemoteCard(card){
   const tests={};remoteTestDefinitions.forEach(([key])=>tests[key]=checkedValue(`${card.dataset.id}_${key}`,card));
   return {id:card.dataset.id,repere:card.querySelector('.r-repere').value,emplacement:card.querySelector('.r-emplacement').value,
     reference:card.querySelector('.r-reference').value,type:card.querySelector('.r-type').value,zone:card.querySelector('.r-zone').value,
-    tests,observation:card.querySelector('.r-observation').value,resultat:card.querySelector('.r-resultat').value,photo:card.dataset.photo||''};
+    tests,observation:card.querySelector('.r-observation').value,resultat:card.querySelector('.r-resultat').value,photo:card.dataset.photo||'',photoAvant:card.dataset.photoAvant||'',historique:card.dataset.historique||'',interventionPrevue:card.dataset.interventionPrevue||'',dateRemplacement:card.querySelector('.r-date-remplacement')?.value||'',technicienRemplacement:card.querySelector('.r-tech-remplacement')?.value||''};
 }
 
 function renumberCards(){
@@ -517,6 +528,9 @@ function renumberCards(){
   });
 }
 function updatePhotoPreview(card){
+  const before=card.querySelector('.photo-before');
+  const beforeImg=card.querySelector('.photo-before-img');
+  if(before&&beforeImg&&card.dataset.photoAvant){before.hidden=false;beforeImg.src=card.dataset.photoAvant;}
   const img=card.querySelector('.photo-img'); const empty=card.querySelector('.photo-empty');
   if(card.dataset.photo){img.src=card.dataset.photo;img.style.display='block';empty.style.display='none';}
   else{img.removeAttribute('src');img.style.display='none';empty.style.display='block';}
@@ -538,7 +552,7 @@ function collectCard(card){
   return {id:card.dataset.id,repere:card.querySelector('.f-repere').value,emplacement:card.querySelector('.f-emplacement').value,
     reference:card.querySelector('.f-reference').value,type:card.querySelector('.f-type').value,statut:card.querySelector('.f-statut').value,
     duree:card.querySelector('.f-duree').value,tests,observation:card.querySelector('.f-observation').value,
-    resultat:card.querySelector('.f-resultat').value,photo:card.dataset.photo||''};
+    resultat:card.querySelector('.f-resultat').value,photo:card.dataset.photo||'',photoAvant:card.dataset.photoAvant||'',historique:card.dataset.historique||'',interventionPrevue:card.dataset.interventionPrevue||'',dateRemplacement:card.querySelector('.f-date-remplacement')?.value||'',technicienRemplacement:card.querySelector('.f-tech-remplacement')?.value||''};
 }
 function collectState(){
   return {dateControle:val('dateControle'),reference:val('reference'),technicien:val('technicien'),client:val('client'),adresse:val('adresse'),operation:val('operation'),
