@@ -25,7 +25,7 @@ import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 import {INSERM_1261_PROJECT_ID,INSERM_1261_SITES,preparerAttestation1261} from './lib/inserm-baes-1261.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.15-baes-1261';
+const APP_VERSION='3.6.16-baes-photos';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -674,6 +674,12 @@ async function openAttestation(id,key,override=null){
  }else{
   id=uid();const mod=modules[key];const date=new Date().toISOString().slice(0,10).replaceAll('-','');const ref=`${mod.prefix}-${meta.devis||date}-${id.slice(0,6).toUpperCase()}`;
   data={moduleKey:key,ref,authorName:user.displayName,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),state:null,context:{...clone(meta),technician:user.displayName,headers:blankHeader(mod,ref)}};
+ }
+ // Certaines fiches synchronisées contiennent encore des pointeurs photo Microsoft 365 :
+ // les convertir en images avant d'envoyer le formulaire à la tablette.
+ if(key==='baes'&&data?.state){
+  const records=[...(data.state.baes||[]),...(data.state.telecommandes||[])];
+  if(records.some(x=>x?.photoAvant?.$opusAsset||x?.photo?.$opusAsset))data=await journal.hydrate(data);
  }
  if(!modules[key])throw Error('Ce formulaire n’existe pas dans cette version.');
  const nonce=uid();live={projectId,recordId:id,moduleKey:key,payload:clone(data),parents,nonce,lastHash:data.state?await sha(JSON.stringify(data.state)):'',lastCaptureId:0,stateChain:Promise.resolve(),ready:false,closing:false};
