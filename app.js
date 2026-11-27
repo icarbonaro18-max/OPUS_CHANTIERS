@@ -665,7 +665,7 @@ async function openAttestation(id,key,override=null){
  const projectId=selected.id;let data,parents=[];
  if(id){const pending=await store.get(draftKey(projectId,'attestations',id));let r;
   if(override){data=override.data;parents=override.parents;}
-  else if(pending){data=pending.payload;parents=pending.parents;}
+  else if(pending){data=pending.payload?.context?.originalRef?await journal.hydrate(pending.payload):pending.payload;parents=pending.parents;}
   else{const cached=await store.get('att:'+projectId+':'+id);const result=await loadWithLocalFallback(()=>journal.load(projectId,'attestations',id),cached);r=result.value;if(result.remote)await store.set('att:'+projectId+':'+id,r);
    if(r.heads.length>1){await chooseRevision(projectId,'attestations',id,r,async(data,parents)=>openAttestation(id,null,{data,parents}));return;}
    data=r.data;parents=r.heads.map(h=>h.revision);
