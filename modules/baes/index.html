@@ -1056,10 +1056,10 @@ async function buildAutonomousPdf(state){
     state.signature?pdfPrepareJpeg(state.signature,{maxW:900,maxH:300,quality:.85}).catch(()=>null):Promise.resolve(null)
   ]);
   const logos={opus,rge};
-  const photos=[];
-  for(const b of state.baes){photos.push(b.photo?await pdfPrepareJpeg(b.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
-  const remotePhotos=[];
-  for(const t of (state.telecommandes||[])){remotePhotos.push(t.photo?await pdfPrepareJpeg(t.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
+  const photos=[],photosAvant=[];
+  for(const b of state.baes){photos.push(b.photo?await pdfPrepareJpeg(b.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);photosAvant.push(b.photoAvant?await pdfPrepareJpeg(b.photoAvant,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
+  const remotePhotos=[],remoteAvant=[];
+  for(const t of (state.telecommandes||[])){remotePhotos.push(t.photo?await pdfPrepareJpeg(t.photo,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);remoteAvant.push(t.photoAvant?await pdfPrepareJpeg(t.photoAvant,{maxW:1280,maxH:960,quality:.78}).catch(()=>null):null);}
 
   // Page de synthèse
   let page=new OpusPdfPage(doc);await pdfHeader(page,'VÉRIFICATION BAES','Blocs autonomes d’éclairage de sécurité et télécommandes',logos);
@@ -1150,8 +1150,8 @@ async function buildAutonomousPdf(state){
       pdfSection(page,'CONTRÔLES RÉALISÉS',10,62,132);let yy=70;remoteTestDefinitions.forEach(([key,label])=>{pdfCheckRow(page,label,t.tests?.[key],10,yy,132);yy+=9;});
       pdfSection(page,'OBSERVATION PROPRE À CETTE TÉLÉCOMMANDE',10,110,132);page.rect(10,118,132,54,{fill:[255,255,255],stroke:[195,205,214]});page.text(t.observation||'Aucune observation.',14,122,{size:7.8,maxWidth:124,maxLines:11,lineHeight:4.2});
       page.text('Résultat global',10,177,{size:8,bold:true,color:[11,74,139]});pdfStatusBox(page,t.resultat,40,174,50);
-      pdfSection(page,`PHOTO ASSOCIÉE À LA TÉLÉCOMMANDE N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
-      if(remotePhotos[i])await page.image(remotePhotos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
+      pdfSection(page,remoteAvant[i]?'PHOTOS DE LA TÉLÉCOMMANDE - AVANT / APRÈS':`PHOTO ASSOCIÉE À LA TÉLÉCOMMANDE N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
+      if(remoteAvant[i]){page.text('AVANT',166,72,{size:7.5,bold:true});page.text('APRÈS',237,72,{size:7.5,bold:true});await page.image(remoteAvant[i],151,80,64,95);if(remotePhotos[i])await page.image(remotePhotos[i],219,80,64,95);else page.text('Photo à réaliser',250,116,{size:8,align:'center'});}else if(remotePhotos[i])await page.image(remotePhotos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
       pdfFooter(page,`Télécommande ${i+1}/${remotes.length} - Dossier ${state.reference||'non renseigné'}`);doc.addPage(page);
     }
   }
@@ -1163,10 +1163,10 @@ async function buildAutonomousPdf(state){
     pdfField(page,"Statut de l'appareil",b.statut,10,45,66,13);pdfField(page,'Autonomie constatée',b.duree,80,45,68,13);pdfField(page,'Résultat global',b.resultat,152,45,90,13);pdfField(page,'Photo jointe',b.photo?'Oui':'Non',246,45,41,13);
     pdfSection(page,'CONTRÔLES RÉALISÉS',10,62,132);
     let yy=70;testDefinitions.forEach(([key,label])=>{pdfCheckRow(page,label,b.tests?.[key],10,yy,132);yy+=9;});
-    pdfSection(page,'OBSERVATION PROPRE À CE BAES',10,119,132);page.rect(10,127,132,45,{fill:[255,255,255],stroke:[195,205,214]});page.text(b.observation||'Aucune observation.',14,131,{size:7.8,maxWidth:124,maxLines:9,lineHeight:4.2});
+    pdfSection(page,'OBSERVATION PROPRE À CE BAES',10,119,132);page.rect(10,127,132,45,{fill:[255,255,255],stroke:[195,205,214]});const obsTexte=b.historique?`Avant : ${b.historique} | Prévu : ${b.interventionPrevue||'Remise en état'} | Après : ${b.observation||'À compléter'}${b.dateRemplacement?' | Date : '+b.dateRemplacement:''}${b.technicienRemplacement?' | Technicien : '+b.technicienRemplacement:''}`:(b.observation||'Aucune observation.');page.text(obsTexte,14,131,{size:7.8,maxWidth:124,maxLines:9,lineHeight:4.2});
     page.text('Résultat global',10,177,{size:8,bold:true,color:[11,74,139]});pdfStatusBox(page,b.resultat,40,174,50);
-    pdfSection(page,`PHOTO ASSOCIÉE AU BAES N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
-    if(photos[i])await page.image(photos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
+    pdfSection(page,photosAvant[i]?'PHOTOS DU BAES - AVANT / APRÈS':`PHOTO ASSOCIÉE AU BAES N° ${i+1}`,148,62,139);page.rect(148,70,139,110,{fill:[248,249,250],stroke:[150,160,170]});
+    if(photosAvant[i]){page.text('AVANT',166,72,{size:7.5,bold:true});page.text('APRÈS',237,72,{size:7.5,bold:true});await page.image(photosAvant[i],151,80,64,95);if(photos[i])await page.image(photos[i],219,80,64,95);else page.text('Photo à réaliser',250,116,{size:8,align:'center'});}else if(photos[i])await page.image(photos[i],151,73,133,104);else page.text('Aucune photo jointe',217.5,121,{size:10,color:[125,135,145],align:'center'});
     pdfFooter(page,`BAES ${i+1}/${state.baes.length} - Dossier ${state.reference||'non renseigné'}`);doc.addPage(page);
   }
   return doc.build();
