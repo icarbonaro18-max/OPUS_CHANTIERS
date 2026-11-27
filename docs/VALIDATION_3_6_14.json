@@ -1,0 +1,64 @@
+{
+  "version": "3.6.14",
+  "date": "2026-11-26",
+  "base": {
+    "commit": "f428a4d14ad814a91ee0f777cbb27ccc0e0c7dd8",
+    "github_actions_job": 139889639165,
+    "tests_compilation_upload": "réussis",
+    "publication_pages": "archive github-pages introuvable au moment du déploiement",
+    "archive_verifiee_apres": 15115385099,
+    "production_vercel": "3.6.13",
+    "github_pages": "3.6.12"
+  },
+  "publie": false,
+  "tests": {
+    "node22": {
+      "tests": 653,
+      "pass": 653,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "node24": {
+      "tests": 653,
+      "pass": 653,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    }
+  },
+  "interface": "Chromium mobile, viewport 390 x 844, Europe/Paris, données fictives",
+  "mise_a_jour_octets": 200110,
+  "mise_a_jour_fichiers_applicatifs": [
+    "app.js",
+    "config.json",
+    "lib/app-update.js",
+    "lib/team-alerts.js"
+  ],
+  "installation_complete_octets": 14559523,
+  "installation_complete_fichiers": 399,
+  "hors_ligne": "accueil, démonstration chantiers, interventions, visites, calendrier et nouveautés, zéro requête au serveur lors de la réouverture",
+  "erreur_controlee": {
+    "rejected_state": "redundant",
+    "old_app_still_active": "3.6.13",
+    "retry": "installed"
+  },
+  "workflow": "analyse actionlint et vérification locale des cas archive disponible, retardée, introuvable, ambiguë ou API indisponible. Le prochain déploiement GitHub réel reste à observer.",
+  "fichiers": {
+    ".github/workflows/deploy.yml": "3dd8b48e775a815cf33dcc15dcc072015f0b124be9318e4d4e0ec2d1147dc1ee",
+    "LIRE_3_6_14.txt": "737a7d45b834cda26ffa8db1bde96a439bdcf2d41769f032b0cf0bf458c9a3d0",
+    "app.js": "34de2b1145209cbee57ccf6ef1137348cdb3504da61b43c193971f417d5bab93",
+    "config.json": "47412a4effe370c3ac63f233c05f002729c6f85c77fe786c54421754b21ef415",
+    "lib/app-update.js": "b7b90c27a04b2cecf7b1e9ec0634104d3295b3972dd5fe4723c4a414eb4554ab",
+    "lib/team-alerts.js": "49632a7936e8064c73f660c0b8810a0e008a75a2bc27b92bae40e260e0a2740f",
+    "package-lock.json": "e233e5336da2af5f530f1c7f8f61a103c87469d7a0a2a4ffbd3be499ab8c29c2",
+    "package.json": "1a6a35a7e91b99be3ba00bf00dd8edf00c853325a80c3df256cc28bdc8dfb14b",
+    "scripts/build.mjs": "1c2229ba68aa9115aba9ec82ccf62e5ff2a846c77929c4899e62f0f71976db26",
+    "sw.js": "f8d3f196e3c6084e46842ce0e14fc1a9b4df5a23902e3f9da713bf118ff989e5",
+    "tests/app-update.test.mjs": "2501d691303168fd51f7840a4045e0427113e174bc2f474264e34cd15d4788d5",
+    "tests/dashboard-loading.test.mjs": "e215ee7cf2199379b16f65cb62a4d000ad668d3c4d088c3fcf23aff4ce40dfd6",
+    "tests/precache-integrity.test.mjs": "cd9acfc1af8b4da07f8b04511cb1723966ea9bd9d51865b35db37a0c001d538a",
+    "tests/team-alerts.test.mjs": "03888b2e807a141461f7e1af86c654caf31cbe43905966074253b1a506cf096c",
+    "tests/warm-start.integration.test.mjs": "e0c4d192837775ef982cb799b1f6a8603c050234923731a23d4ced5d96479b90"
+  }
+}

@@ -5,6 +5,27 @@ import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 import {installAppUpdates} from '../lib/app-update.js';
 
+test('an offline launch uses the existing registration and checks again once connected',async t=>{
+ const dom=new JSDOM('<body></body>',{pretendToBeVisual:true});
+ t.after(()=>dom.window.close());
+ let checks=0;
+ const registration={addEventListener(){},update:async()=>{checks++;}};
+ const nav={onLine:false,serviceWorker:{controller:{},addEventListener(){},
+  getRegistration:async()=>registration,register:async()=>assert.fail('offline registration made a network request')}};
+ const doc=dom.window.document;
+ await installAppUpdates({navigator:nav,document:doc,location:{reload:()=>assert.fail('unexpected reload')}});
+ assert.equal(doc.getElementById('appUpdate').hidden,true);
+ doc.dispatchEvent(new dom.window.Event('visibilitychange'));
+ const button=doc.getElementById('appUpdateButton');
+ await button.onclick();
+ assert.match(doc.getElementById('appUpdate').textContent,/Hors ligne/);
+ assert.equal(checks,0);
+ nav.onLine=true;
+ await button.onclick();
+ assert.equal(checks,1);
+ assert.match(doc.getElementById('appUpdate').textContent,/à jour/);
+});
+
 test('an update is explicit, blocked by an open form, and only reloads after activation was requested',async t=>{
  const dom=new JSDOM('<body></body>');t.after(()=>dom.window.close());let ready=false,reloads=0,sends=0,updates=0;
  const previous=globalThis.MessageChannel;globalThis.MessageChannel=class{constructor(){this.port1={close(){}};this.port2={reply:data=>queueMicrotask(()=>this.port1.onmessage({data}))};}};t.after(()=>globalThis.MessageChannel=previous);

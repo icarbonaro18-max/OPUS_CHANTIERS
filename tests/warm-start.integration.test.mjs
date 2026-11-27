@@ -49,7 +49,7 @@ test('Cached planning opens before Microsoft responds and updates after connecti
 });
 test('Installed shell returns cache immediately and does not intercept Graph',async()=>{
  const handlers={},cached=new Response('installed-app');let calls=0;const context=vm.createContext({mountProjectCompletion,mountReviewInterventions,reviewCases,canViewStorage,refreshStorageGauge,URL,Response,Request,console,self:{registration:{scope:'https://opus.example/'},addEventListener:(n,f)=>handlers[n]=f},caches:{open:async()=>({match:async()=>cached})},fetch:()=>{calls++;return new Promise(()=>{});}});
- vm.runInContext(await readFile(new URL('../sw.js',import.meta.url),'utf8'),context);let result;handlers.fetch({request:new Request('https://opus.example/app.js?v=3.4.73'),respondWith:p=>result=p});assert.equal(await (await result).text(),'installed-app');assert.equal(calls,0);handlers.fetch({request:new Request('https://graph.microsoft.com/v1.0/me'),respondWith:()=>assert.fail('Graph must never be intercepted')});
+ vm.runInContext(await readFile(new URL('../_site/sw.js',import.meta.url),'utf8'),context);let result;handlers.fetch({request:new Request('https://opus.example/app.js?v=3.4.73'),respondWith:p=>result=p});assert.equal(await (await result).text(),'installed-app');assert.equal(calls,0);handlers.fetch({request:new Request('https://graph.microsoft.com/v1.0/me'),respondWith:()=>assert.fail('Graph must never be intercepted')});
 });
 
 test('legacy config and duplicate Roberto records do not block Brahim on the first warm refresh',async t=>{

@@ -24,7 +24,7 @@ import {progress,progressPanel,targetStage} from './lib/project-progress.js';
 import {loadOrders,renderOrders} from './lib/project-orders.js';
 import {Graph,Journal,LocalStore,CATEGORIES,uid,norm,safeName,sha,blobData,CloudError,revisionHeads,parseRevision} from './lib/cloud.js?v=3.6.0';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const APP_VERSION='3.6.13-fiabilite';
+const APP_VERSION='3.6.14-fiabilite';
 const clone=x=>structuredClone(x),TODAY=()=>new Date().toLocaleDateString('en-CA'),DEMO=new URLSearchParams(location.search).get('demo')==='1';
 // When a local copy exists, a weak connection must not block field work for
 // the full Graph timeout. A timed-out read is ignored; it never writes locally.
@@ -278,7 +278,12 @@ async function prepareAppointmentWrite(){
 }
 installResumeSync({window,document,markStale:()=>{if(user&&!DEMO){if(opsUI)opsUI.refreshPending=true;if(!$('modal').open)syncNotice('Vérification du planning au retour de veille…');}},checkpoint:()=>{void opsUI?.activeReportRecovery?.flush(true).catch(err);},refresh:async options=>{if(user&&!DEMO)await resumeCloud(options);},onError:err});
 
+async function readProjectCatalog(){
+ try{return {value:await g.projects()};}catch(error){return {error};}
+}
 async function activate({cached=null}={}){
+ // The project catalog and operational lists have independent Graph reads.
+ const initialCatalog=!cached&&(DEMO||navigator.onLine!==false)?readProjectCatalog():null;
  $('start').hidden=true;$('shell').hidden=false;$('userBtn').hidden=false;$('refresh').hidden=false;$('userBtn').textContent=user.displayName;$('settings').hidden=!isAdmin();$('storageHealth').hidden=!canViewStorage(user,config)||DEMO;void refreshStorageGauge($('storageHealth'),{user,config,navigator}).catch(()=>{});$('newProject').hidden=!isAdmin();
  try{
   const {OpsUI}=await import('./lib/ops-ui.js?v=3.6.0');
@@ -298,9 +303,15 @@ async function activate({cached=null}={}){
   cachedNotice();
   const personal=isAdmin()?await warmCache.privateRead(user.id):null;
   if(personal){opsUI.privateCalendar=cachedPrivateCalendar(personal);}
-  renderProjects();if(pendingInitialRoute&&navigator.onLine===false){try{await restoreRoute();pendingInitialRoute='';}catch(e){syncNotice('Fiche non mémorisée sur cette tablette : ouvrez-la une première fois avec du réseau.');}}
+  if(pendingInitialRoute&&navigator.onLine===false){try{await restoreRoute();pendingInitialRoute='';}catch(e){syncNotice('Fiche non mémorisée sur cette tablette : ouvrez-la une première fois avec du réseau.');}}
   if(opsUI&&!pendingInitialRoute&&!routeState().projectId)await opsUI.restoreSection();
- }else{await refresh({skipOps:true});await restoreRoute();if(opsUI&&!routeState().projectId)await opsUI.restoreSection();}
+  renderProjects();
+ }else{
+  const directProject=routeState().projectId;
+  if(opsUI&&!directProject)await opsUI.restoreSection();
+  await refresh({skipOps:true,initialCatalog});await restoreRoute();
+  if(opsUI&&directProject&&!routeState().projectId)await opsUI.restoreSection();
+ }
  clearInterval(pollId);
  pollId=setInterval(async()=>{if(!navigator.onLine||document.hidden)return;
   try{if(!DEMO)await resumeCloud();else await refresh();}catch(e){status('Actualisation à réessayer');}
@@ -311,12 +322,12 @@ async function refresh(options={}){
  if(refreshBusy)return refreshBusy;
  refreshBusy=refreshNow(options).finally(()=>{refreshBusy=null;});return refreshBusy;
 }
-async function refreshNow({skipOps=false}={}){
+async function refreshNow({skipOps=false,initialCatalog=null}={}){
  if(!DEMO&&!cloudReady){return;}
  if(navigator.onLine===false&&!DEMO){if(cacheSnapshot)cachedNotice();return;}
  status('Actualisation…');
  try{
-  const [catalogResult,applied]=await Promise.all([g.projects().then(value=>({value}),error=>({error})),opsUI&&!skipOps?opsUI.reload({background:true}).then(applied=>{if(applied){g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;lastSyncAt=Date.now();}return applied;}):Promise.resolve(true)]);
+  const [catalogResult,applied]=await Promise.all([initialCatalog||readProjectCatalog(),opsUI&&!skipOps?opsUI.reload({background:true}).then(applied=>{if(applied){g.readOnlyCache=false;opsUI.needsRefresh=false;opsUI.refreshPending=false;lastSyncAt=Date.now();}return applied;}):Promise.resolve(true)]);
   const nextCatalog=catalogResult.value||catalog;
   if($('modal').open||live||applied===false){status(opsUI?.cacheMode?'Données mémorisées':'Microsoft 365 connecté',!opsUI?.cacheMode);syncNotice('La fenêtre en cours est conservée · l’actualisation des listes reprendra après sa fermeture.');return;}
   catalog=nextCatalog;g.readOnlyCache=false;
@@ -367,15 +378,53 @@ async function maybeArchiveInterventions(){
   if((result.archived||result.projectsArchived||result.initialized)&&g===graph&&store===targetStore&&!$('modal').open)await refresh();
  })();try{await automaticArchiveTask;}finally{automaticArchiveTask=null;}
 }
+let pickupObserver=null;
 function renderProjects(){
+ pickupObserver?.disconnect();
+ pickupObserver=null;
+ if($('dashboard').hidden&&$('projectAside').hidden)return;
  $('metrics').innerHTML=CATEGORIES.map(([c,l])=>`<div class="metric"><strong>${(catalog.projects.filter(p=>p.category===c).length+reviewCases(opsUI,c).length)}</strong><small>${l}</small></div>`).join('');
  $('sideCategories').innerHTML=CATEGORIES.map(([c,l])=>`<button class="nav ${category===c?'active':''}" data-category="${c}"><span>${l}</span><b class="countBadge">${(catalog.projects.filter(p=>p.category===c).length+reviewCases(opsUI,c).length)}</b></button>`).join('');
  const mf=$('mobileProjectFilters');if(mf){mf.innerHTML=`<button class="${category==='all'?'active':''}" data-mobile-category="all">Tous <b class="countBadge">${catalog.projects.length+reviewCases(opsUI,'all').length}</b></button>`+CATEGORIES.map(([c,l])=>`<button class="${category===c?'active':''}" data-mobile-category="${c}">${l} <b class="countBadge">${(catalog.projects.filter(p=>p.category===c).length+reviewCases(opsUI,c).length)}</b></button>`).join('');mf.querySelectorAll('[data-mobile-category]').forEach(b=>b.onclick=()=>{category=b.dataset.mobileCategory;selected=null;showDashboard();});}
  document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;selected=null;showDashboard();});
+ if($('dashboard').hidden)return;
  const q=norm($('search').value);let ps=catalog.projects.filter(p=>(category==='all'||p.category===category)&&norm(p.name).includes(q));if(opsUI)ps=opsUI.sortProjects(ps);
  $('projectCount').textContent=(ps.length+reviewCases(opsUI,category).filter(x=>norm([x.number,x.clientName,x.title].join(' ')).includes(q)).length)+' dossier(s)';
  $('projectList').innerHTML=ps.length?ps.map(p=>`<article class="projectCard ${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'projectUrgent':''} ${opsUI?.projectIsToday(p.id)&&!['04','99'].includes(p.category)?'projectToday':''}"><div><h3>${esc(p.name)}</h3><p>Dossier partagé · ${esc(catLabel(p.category))}</p><div class="chips"><span class="chip ${p.category==='02'?'good':''}">${esc(catLabel(p.category))}</span>${opsUI?opsUI.projectEventChip(p.id):''}${opsUI&&progress(opsUI.data,p.id).urgent&&!['04','99'].includes(p.category)?'<span class="chip warn">À finaliser / échéance à vérifier</span>':''}<span class="chip">Tous les formulaires disponibles</span></div></div><button data-open-project="${esc(p.id)}">Ouvrir →</button></article>`).join(''):'<div class="panel empty">Aucun chantier dans cette rubrique.<br>Créez un dossier chantier ici ou dans la rubrique correspondante sur votre ordinateur.</div>';
- document.querySelectorAll('[data-open-project]').forEach(b=>{b.onclick=()=>openProject(b.dataset.openProject).catch(err);const p=ps.find(p=>p.id===b.dataset.openProject);const actions=document.createElement('div');actions.className='projectQuickActions';actions.innerHTML='<button data-quick="finish">Faire un rapport</button><button data-quick="follow">Suivi de chantier</button><button data-quick="orders">Commandes fournisseurs</button>';b.before(actions);mountCompleteProject(opsUI,p,actions);mountProjectCompletion(opsUI,p,actions);const orderButton=actions.querySelector('[data-quick=orders]');orderButton.textContent=opsUI?.cacheMode?'Bons de commande · connexion nécessaire':'Bons de commande · …';queuePickupRead(async()=>{if(!orderButton.isConnected||opsUI?.cacheMode||navigator.onLine===false)return;const previous=projectPickupCache.get(p.id);if(previous&&Date.now()-previous.at<60000){orderButton.innerHTML=previous.html;return;}const data=await loadOrders(g,p.id);const states=await loadPickupStates(g,[...data.supplier,...data.depot]);const html='Bons de commande '+pickupBadge(pickupCount([...data.supplier,...data.depot],states));projectPickupCache.set(p.id,{at:Date.now(),html});if(orderButton.isConnected)orderButton.innerHTML=html;}).catch(()=>{if(orderButton.isConnected)orderButton.textContent='Bons de commande · à actualiser';});actions.querySelectorAll('[data-quick]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;try{if(btn.dataset.quick==='orders'){modal('Commandes · '+p.name,'<div id="quickOrderPanel"></div>');const root=$('quickOrderPanel');await renderOrders({g,user,project:p,root,openDocument,isAdmin,toast,onCounts:data=>{projectPickupCache.delete(p.id);btn.innerHTML='Bons de commande '+(data.pending===null?'· à actualiser':pickupBadge(data.pending));showOrderCounts(p.id,data);},isCurrent:()=>root.isConnected});}else{const data=await opsUI.c.projectMeta(p.id);await opsUI.openProjectReports(p,data,{kind:btn.dataset.quick==='finish'?'chantier':'journee'});}}catch(e){err(e);}finally{btn.disabled=false;}});});
+ const pickupReads=new WeakMap();
+ if(window.IntersectionObserver){
+  pickupObserver=new window.IntersectionObserver((entries,observer)=>{
+   for(const entry of entries){
+    if(!entry.isIntersecting)continue;
+    observer.unobserve(entry.target);
+    if(entry.target.isConnected&&!$('dashboard').hidden)pickupReads.get(entry.target)?.();
+   }
+  },{rootMargin:'200px'});
+ }
+ const projectsById=new Map(ps.map(project=>[project.id,project]));
+ document.querySelectorAll('[data-open-project]').forEach(b=>{
+  const p=projectsById.get(b.dataset.openProject);
+  b.onclick=()=>openProject(p.id).catch(err);
+  const actions=document.createElement('div');
+  actions.className='projectQuickActions';
+  actions.innerHTML='<button data-quick="finish">Faire un rapport</button><button data-quick="follow">Suivi de chantier</button><button data-quick="orders">Commandes fournisseurs</button>';
+  b.before(actions);
+  mountCompleteProject(opsUI,p,actions);mountProjectCompletion(opsUI,p,actions);
+  const orderButton=actions.querySelector('[data-quick=orders]');
+  orderButton.textContent=opsUI?.cacheMode?'Bons de commande · connexion nécessaire':'Bons de commande · …';
+  const readOrderCount=()=>queuePickupRead(async()=>{
+   if(!orderButton.isConnected||$('dashboard').hidden||opsUI?.cacheMode||navigator.onLine===false)return;
+   const previous=projectPickupCache.get(p.id);
+   if(previous&&Date.now()-previous.at<60000){orderButton.innerHTML=previous.html;return;}
+   const data=await loadOrders(g,p.id),files=[...data.supplier,...data.depot];
+   const states=await loadPickupStates(g,files);
+   const html='Bons de commande '+pickupBadge(pickupCount(files,states));
+   projectPickupCache.set(p.id,{at:Date.now(),html});
+   if(orderButton.isConnected)orderButton.innerHTML=html;
+  }).catch(()=>{if(orderButton.isConnected)orderButton.textContent='Bons de commande · à actualiser';});
+  if(pickupObserver){pickupReads.set(orderButton,readOrderCount);pickupObserver.observe(orderButton);}
+  else readOrderCount();
+  actions.querySelectorAll('[data-quick]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;try{if(btn.dataset.quick==='orders'){modal('Commandes · '+p.name,'<div id="quickOrderPanel"></div>');const root=$('quickOrderPanel');await renderOrders({g,user,project:p,root,openDocument,isAdmin,toast,onCounts:data=>{projectPickupCache.delete(p.id);btn.innerHTML='Bons de commande '+(data.pending===null?'· à actualiser':pickupBadge(data.pending));showOrderCounts(p.id,data);},isCurrent:()=>root.isConnected});}else{const data=await opsUI.c.projectMeta(p.id);await opsUI.openProjectReports(p,data,{kind:btn.dataset.quick==='finish'?'chantier':'journee'});}}catch(e){err(e);}finally{btn.disabled=false;}});});
  mountReviewInterventions(opsUI,$('projectList'),category,q);
  const loose=catalog.loose.filter(p=>category==='all'||p.category===category);
  $('looseFiles').innerHTML=loose.length?`<div class="panel" style="margin-top:24px"><h2>Documents à classer dans un chantier</h2><p class="muted">Ces fichiers ont été déposés directement dans une rubrique, sans dossier chantier.</p>${loose.map(f=>`<div class="row"><div><button type="button" class="documentLink" data-loose="${esc(f.id)}">${esc(f.name)}</button><p>${esc(catLabel(f.category))}</p></div></div>`).join('')}</div>`:'';

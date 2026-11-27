@@ -1,15 +1,46 @@
 /* Only application resources in this scope. Never cache Graph, tokens or customer files. */
 const PREFIX='opus-chantiers-shell:'+self.registration.scope+':';
-const CACHE=PREFIX+'3.6.13-fiabilite';
+const BUILD=null;
+const CACHE=PREFIX+'3.6.14-fiabilite'+(BUILD?':'+BUILD.hash:'');
 const SCOPE=new URL(self.registration.scope);
-let ASSETS=['./','./index.html','./style.css','./app.js','./config.json','./lib/cloud.js','./lib/bridge.js','./lib/bridge.css','./lib/modules.json','./lib/demo.js','./lib/ops.js','./lib/ops-ui.js','./manifest.webmanifest','./assets/logo.png','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
-// Build writes the complete local vendor/module precache list. Missing vendor -> installation fails safely.
+
+async function matchesRevision(response,expected){
+ if(!response||response.status!==200||response.redirected)return false;
+ const hash=await crypto.subtle.digest('SHA-256',await response.clone().arrayBuffer());
+ return btoa(String.fromCharCode(...new Uint8Array(hash)))===expected;
+}
+
+async function downloadAsset(url,hash){
+ const response=await fetch(url,{cache:'reload',redirect:'error'});
+ if(!await matchesRevision(response,hash))throw Error('Ressource OPUS non confirmée : '+url.pathname);
+ return response;
+}
+
 self.addEventListener('install',e=>e.waitUntil((async()=>{
- const r=await fetch(new URL('precache.json',SCOPE),{cache:'no-store'});
- if(r.ok)ASSETS=await r.json();
- const cache=await caches.open(CACHE);
- // Bound concurrent downloads and temporary buffers on mobile browsers.
- for(let i=0;i<ASSETS.length;i+=6)await cache.addAll(ASSETS.slice(i,i+6).map(p=>new Request(new URL(p,SCOPE),{cache:'reload'})));
+ if(!BUILD)throw Error('Le service worker OPUS doit être compilé.');
+ const assets=Object.entries(BUILD.assets),target=await caches.open(CACHE);
+ const previous=(await caches.keys()).filter(name=>name.startsWith(PREFIX)&&name!==CACHE).reverse();
+ const sources=[target,...await Promise.all(previous.map(name=>caches.open(name)))];
+ async function installAsset([path,hash]){
+  const url=new URL(path,SCOPE);
+  // An interrupted attempt and older OPUS releases may already hold the
+  // exact body. Never use a cached response on its URL or version name alone.
+  for(const source of sources){
+   let stored;
+   try{
+    stored=await source.match(url);
+    if(!await matchesRevision(stored,hash))continue;
+   }catch{continue;} // A damaged cache entry can be fetched again.
+   if(source!==target)await target.put(url,stored);
+   return;
+  }
+  await target.put(url,await downloadAsset(url,hash));
+ }
+ for(let i=0;i<assets.length;i+=6){
+  const batch=await Promise.allSettled(assets.slice(i,i+6).map(installAsset));
+  const failed=batch.find(result=>result.status==='rejected');
+  if(failed)throw failed.reason;
+ }
  // No automatic skipWaiting: an existing form must not change version mid-edit.
 })()));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{
@@ -19,19 +50,17 @@ self.addEventListener('activate',e=>e.waitUntil((async()=>{
 self.addEventListener('fetch',e=>{
  const u=new URL(e.request.url);
  if(e.request.method!=='GET'||u.origin!==SCOPE.origin||!u.pathname.startsWith(SCOPE.pathname))return;
- const relative=u.pathname.slice(SCOPE.pathname.length);
- if(relative==='auth.html')return; // Never cache an authentication response URL.
- const privatePath=/^(_OPUS|05_PDF_GENERES|06_PHOTOS)\//.test(relative);
- if(privatePath)return;
- const isApp=relative===''||['index.html','app.js','style.css','config.json','manifest.webmanifest','icon-512.png','icon-192.png','favicon-64.png','apple-touch-icon.png'].includes(relative)||/^(lib|vendor|modules|assets)\//.test(relative);
- if(!isApp)return;
- const canonical=new URL(u.pathname,SCOPE.origin).href;
+ let relative=u.pathname.slice(SCOPE.pathname.length);
+ if(!relative||relative.endsWith('/'))relative+='index.html';
+ const hash=BUILD?.assets['./'+relative];
+ if(!hash)return; // Only built public assets. OAuth callbacks and APIs use the network.
+ const canonical=new URL(relative,SCOPE);
  // Serve this installed version immediately; installing a new worker updates all assets together.
  e.respondWith((async()=>{
   const c=await caches.open(CACHE);
-  const cached=(await c.match(canonical))||(relative===''?await c.match(new URL('index.html',SCOPE)):null);
+  const cached=await c.match(canonical);
   if(cached)return cached;
-  try{const r=await fetch(e.request);if(r.ok&&!r.redirected)await c.put(canonical,r.clone());return r;}
+  try{const r=await downloadAsset(canonical,hash);await c.put(canonical,r.clone());return r;}
   catch{return new Response('Ressource OPUS non mémorisée. Reconnectez-vous au réseau.',{status:503});}
  })());
 });

@@ -1,0 +1,15 @@
+OPUS CHANTIERS 3.6.14
+Mise à jour depuis la version 3.6.13 du dépôt OPUS_CHANTIERS, commit f428a4d.
+
+MISE EN LIGNE
+
+1. Extraire le ZIP. Dans le dépôt GitHub OPUS_CHANTIERS, déposer son contenu à la racine de la branche main et conserver l’arborescence. Le fichier de publication se trouve dans .github/workflows/deploy.yml. Si le téléversement du navigateur omet ce dossier, ouvrir le fichier existant dans GitHub et remplacer son contenu par celui du correctif :
+   https://github.com/icarbonaro18-max/OPUS_CHANTIERS/edit/main/.github/workflows/deploy.yml
+2. Valider les changements et attendre le déploiement Production sur Vercel. La publication GitHub Pages dispose de son propre contrôle dans Actions.
+3. Sur l’appareil, appuyer sur « Mise à jour », puis « Appliquer la mise à jour » lorsqu’elle est prête. Vérifier la mention « Version 3.6.14 ».
+
+SUR LE TERRAIN
+
+Dans « Nouveautés », la rubrique « Du rendez-vous au devis » explique comment choisir l’équipe lors de la création d’une visite, la classer avec « Visite effectuée » et enregistrer son numéro avec « Devis effectué ».
+OPUS peut maintenant rouvrir les visites et le calendrier avec les données déjà mémorisées quand le réseau est coupé. La connexion reste nécessaire pour charger les dernières données Microsoft 365 ou confirmer un enregistrement partagé.
+La mise à jour vérifie les fichiers de l’application déjà présents sur le téléphone et télécharge ceux qui ont changé ou qui manquent. Une première installation télécharge toujours tous les fichiers nécessaires au fonctionnement hors ligne.
